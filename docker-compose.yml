@@ -1,0 +1,94 @@
+# Ambiente de DESENVOLVIMENTO. Não use este arquivo em produção.
+#
+# Uso:
+#   cp .env.example .env       # e ajuste as senhas locais
+#   docker compose up -d db    # sobe apenas o banco (padrão no Codespaces)
+#   docker compose up          # sobe banco + aplicação em contêiner
+#
+# O banco publica a porta apenas em 127.0.0.1: nunca fica exposto à rede
+# externa (requisito 14.7).
+
+name: estoque-ti
+
+services:
+  db:
+    # Tag + digest imutável (requisito 14.16).
+    image: postgres:17.8-alpine@sha256:3430fe182f5065a6ea505c3d432d2c7fff18fbab954df8f277c1dbf4c70124af
+    container_name: estoque-ti-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?defina POSTGRES_SUPERUSER_PASSWORD no .env}
+      POSTGRES_DB: postgres
+      ESTOQUE_DB_NAME: ${ESTOQUE_DB_NAME:-estoque_ti}
+      ESTOQUE_TEST_DB_NAME: ${ESTOQUE_TEST_DB_NAME:-estoque_ti_test}
+      ESTOQUE_SHADOW_DB_NAME: ${ESTOQUE_SHADOW_DB_NAME:-estoque_ti_shadow}
+      ESTOQUE_MIGRATOR_PASSWORD: ${ESTOQUE_MIGRATOR_PASSWORD:?defina ESTOQUE_MIGRATOR_PASSWORD no .env}
+      ESTOQUE_APP_PASSWORD: ${ESTOQUE_APP_PASSWORD:?defina ESTOQUE_APP_PASSWORD no .env}
+      # Evita que o initdb do Postgres confie em conexões locais sem senha.
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    ports:
+      # Somente localhost.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - dados-postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    command:
+      - postgres
+      - -c
+      - max_connections=60
+      - -c
+      - log_min_duration_statement=500
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_SUPERUSER:-postgres} -d ${ESTOQUE_DB_NAME:-estoque_ti}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: estoque-ti-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      APP_ENV: development
+      NEXT_PUBLIC_APP_ENV: development
+      APP_BASE_URL: http://localhost:3000
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      # Dentro da rede do compose o host do banco é `db`.
+      DATABASE_URL: postgresql://estoque_app:${ESTOQUE_APP_PASSWORD}@db:5432/${ESTOQUE_DB_NAME:-estoque_ti}?schema=public&connection_limit=10&pool_timeout=10
+      MIGRATION_DATABASE_URL: postgresql://estoque_migrator:${ESTOQUE_MIGRATOR_PASSWORD}@db:5432/${ESTOQUE_DB_NAME:-estoque_ti}?schema=public
+      TEST_DATABASE_URL: postgresql://estoque_migrator:${ESTOQUE_MIGRATOR_PASSWORD}@db:5432/${ESTOQUE_TEST_DB_NAME:-estoque_ti_test}?schema=public
+      SHADOW_DATABASE_URL: postgresql://estoque_migrator:${ESTOQUE_MIGRATOR_PASSWORD}@db:5432/${ESTOQUE_SHADOW_DB_NAME:-estoque_ti_shadow}?schema=public
+      DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - .:/app
+      # Mantém node_modules e .next dentro do contêiner (arquitetura própria).
+      - modulos-app:/app/node_modules
+      - build-app:/app/.next
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  dados-postgres:
+    name: estoque-ti-dados-postgres
+  modulos-app:
+    name: estoque-ti-modulos-app
+  build-app:
+    name: estoque-ti-build-app

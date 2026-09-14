@@ -1,0 +1,44 @@
+{
+  "name": "Estoque de TI",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-24-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": false
+    }
+  },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Aplicação (Next.js)",
+      "onAutoForward": "notify",
+      "requireLocalPort": false
+    },
+    "5432": {
+      "label": "PostgreSQL (somente local)",
+      "onAutoForward": "ignore"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "containerEnv": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "PNPM_HOME": "/home/node/.local/share/pnpm",
+    "PATH": "/home/node/.local/share/pnpm:${containerEnv:PATH}"
+  },
+  "remoteUser": "node",
+  "postCreateCommand": "bash .devcontainer/pos-criacao.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": ["biomejs.biome", "Prisma.prisma", "anthropic.claude-code"],
+      "settings": {
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true,
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "files.eol": "\n"
+      }
+    }
+  },
+  "waitFor": "postCreateCommand"
+}

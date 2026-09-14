@@ -1,0 +1,228 @@
+// Modelo de dados do Estoque de TI.
+//
+// Convenções:
+// - Identificadores: UUID gerado pelo próprio PostgreSQL (`gen_random_uuid()`),
+//   nunca substituídos por número de série ou código Trillogo.
+// - Datas: `timestamptz`, sempre persistidas em UTC.
+// - Nomes de campos em português; nomes físicos em snake_case via `@map`.
+// - Exclusão no fluxo comum é lógica (`arquivadoEm` / `arquivadoPorId`).
+//
+// No Prisma 7 a URL do banco NÃO fica neste arquivo: fica em
+// `prisma/prisma7.config.ts` (migrações) e no adaptador `@prisma/adapter-pg`
+// (runtime da aplicação).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enumerações de auditoria
+// ---------------------------------------------------------------------------
+
+enum TipoAcaoAuditoria {
+  CRIACAO
+  EDICAO
+  MUDANCA_STATUS
+  MUDANCA_LOCALIZACAO
+  ARQUIVAMENTO
+  RESTAURACAO
+  EXPORTACAO
+  ACESSO_NEGADO
+
+  @@map("tipo_acao_auditoria")
+}
+
+enum ResultadoAuditoria {
+  SUCESSO
+  FALHA
+
+  @@map("resultado_auditoria")
+}
+
+// ---------------------------------------------------------------------------
+// Listas controladas
+// ---------------------------------------------------------------------------
+
+model Categoria {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "categorias_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  equipamentos Equipamento[]
+
+  @@index([ativo, ordemExibicao, nome], map: "categorias_ativo_ordem_idx")
+  @@map("categorias")
+}
+
+model Fabricante {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "fabricantes_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  /// Marcado quando o valor nasceu do fluxo "Outro" preenchido por um usuário
+  /// de Operação. Só um Administrador revisa e ativa (ver regra 7.2).
+  pendenteRevisao Boolean  @default(false) @map("pendente_revisao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  equipamentos Equipamento[]
+
+  @@index([ativo, ordemExibicao, nome], map: "fabricantes_ativo_ordem_idx")
+  @@index([pendenteRevisao], map: "fabricantes_pendente_revisao_idx")
+  @@map("fabricantes")
+}
+
+model StatusFuncionamento {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "status_funcionamento_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  equipamentos Equipamento[]
+
+  @@index([ativo, ordemExibicao, nome], map: "status_funcionamento_ativo_ordem_idx")
+  @@map("status_funcionamento")
+}
+
+model Localizacao {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "localizacoes_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  equipamentos Equipamento[]
+
+  @@index([ativo, ordemExibicao, nome], map: "localizacoes_ativo_ordem_idx")
+  @@map("localizacoes")
+}
+
+// ---------------------------------------------------------------------------
+// Usuário corporativo (minimizado: identificador, nome e e-mail)
+// ---------------------------------------------------------------------------
+
+model Usuario {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// `oid` do Microsoft Entra ID. Não guardamos tokens nem perfil completo.
+  entraObjectId String   @unique(map: "usuarios_entra_object_id_key") @map("entra_object_id") @db.VarChar(64)
+  nome          String   @db.VarChar(160)
+  email         String   @db.VarChar(254)
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  equipamentosCriados     Equipamento[] @relation("EquipamentoCriadoPor")
+  equipamentosAtualizados Equipamento[] @relation("EquipamentoAtualizadoPor")
+  equipamentosArquivados  Equipamento[] @relation("EquipamentoArquivadoPor")
+
+  @@index([email], map: "usuarios_email_idx")
+  @@map("usuarios")
+}
+
+// ---------------------------------------------------------------------------
+// Equipamento
+// ---------------------------------------------------------------------------
+
+model Equipamento {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoriaId String @map("categoria_id") @db.Uuid
+  nome        String @db.VarChar(120)
+
+  fabricanteId String @map("fabricante_id") @db.Uuid
+  modelo       String @db.VarChar(120)
+
+  /// Valor como digitado, preservado para exibição.
+  numeroSerie String? @map("numero_serie") @db.VarChar(100)
+  /// Derivado: trim, remoção de espaços internos e maiúsculas invariantes.
+  /// Índice único: em PostgreSQL vários NULL convivem, então equipamentos sem
+  /// série não conflitam entre si.
+  numeroSerieNormalizado String? @map("numero_serie_normalizado") @db.VarChar(100)
+
+  codigoTrillogo            String? @map("codigo_trillogo") @db.VarChar(60)
+  codigoTrillogoNormalizado String? @map("codigo_trillogo_normalizado") @db.VarChar(60)
+
+  statusId      String @map("status_id") @db.Uuid
+  localizacaoId String @map("localizacao_id") @db.Uuid
+
+  observacoes String? @db.VarChar(1000)
+
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  criadoPorId     String    @map("criado_por_id") @db.Uuid
+  atualizadoPorId String    @map("atualizado_por_id") @db.Uuid
+  arquivadoEm     DateTime? @map("arquivado_em") @db.Timestamptz(3)
+  arquivadoPorId  String?   @map("arquivado_por_id") @db.Uuid
+
+  /// Token de concorrência otimista. Só é aceito da entrada do usuário como
+  /// token, nunca como valor a gravar.
+  versao Int @default(1)
+
+  categoria     Categoria           @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fabricante    Fabricante          @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  status        StatusFuncionamento @relation(fields: [statusId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  localizacao   Localizacao         @relation(fields: [localizacaoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criadoPor     Usuario             @relation("EquipamentoCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  atualizadoPor Usuario             @relation("EquipamentoAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arquivadoPor  Usuario?            @relation("EquipamentoArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  registrosAuditoria RegistroAuditoria[]
+
+  @@unique([numeroSerieNormalizado], map: "equipamentos_numero_serie_normalizado_key")
+  @@unique([codigoTrillogoNormalizado], map: "equipamentos_codigo_trillogo_normalizado_key")
+  @@index([arquivadoEm, nome], map: "equipamentos_arquivado_nome_idx")
+  @@index([arquivadoEm, criadoEm], map: "equipamentos_arquivado_criado_idx")
+  @@index([categoriaId], map: "equipamentos_categoria_idx")
+  @@index([fabricanteId], map: "equipamentos_fabricante_idx")
+  @@index([statusId], map: "equipamentos_status_idx")
+  @@index([localizacaoId], map: "equipamentos_localizacao_idx")
+  @@index([criadoPorId], map: "equipamentos_criado_por_idx")
+  @@index([atualizadoPorId], map: "equipamentos_atualizado_por_idx")
+  @@index([arquivadoPorId], map: "equipamentos_arquivado_por_idx")
+  @@map("equipamentos")
+}
+
+// ---------------------------------------------------------------------------
+// Auditoria (append-only)
+// ---------------------------------------------------------------------------
+
+model RegistroAuditoria {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipamentoId String? @map("equipamento_id") @db.Uuid
+
+  tipoAcao TipoAcaoAuditoria @map("tipo_acao")
+
+  /// Apenas os campos relevantes que mudaram. Nunca tokens, cookies,
+  /// cabeçalhos de autorização, segredos ou strings de conexão.
+  dadosAnteriores  Json? @map("dados_anteriores")
+  dadosPosteriores Json? @map("dados_posteriores")
+
+  /// Identidade vinda da sessão validada no servidor, nunca do navegador.
+  usuarioId    String? @map("usuario_id") @db.Uuid
+  usuarioNome  String? @map("usuario_nome") @db.VarChar(160)
+  usuarioEmail String? @map("usuario_email") @db.VarChar(254)
+
+  resultado    ResultadoAuditoria
+  correlacaoId String             @map("correlacao_id") @db.VarChar(64)
+  ocorridoEm   DateTime           @default(now()) @map("ocorrido_em") @db.Timestamptz(3)
+
+  equipamento Equipamento? @relation(fields: [equipamentoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([equipamentoId, ocorridoEm], map: "registros_auditoria_equipamento_ocorrido_idx")
+  @@index([ocorridoEm], map: "registros_auditoria_ocorrido_idx")
+  @@index([usuarioId, ocorridoEm], map: "registros_auditoria_usuario_ocorrido_idx")
+  @@index([correlacaoId], map: "registros_auditoria_correlacao_idx")
+  @@map("registros_auditoria")
+}

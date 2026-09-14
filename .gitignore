@@ -10,6 +10,10 @@
 
 # Testing
 /coverage
+/playwright-report/
+/test-results/
+/blob-report/
+/.playwright/
 
 # Next.js
 /.next/
@@ -39,3 +43,13 @@ next-env.d.ts
 .env
 .env.*
 !.env.example
+
+# Chaves e certificados (nunca versionar)
+*.key
+*.p12
+*.pfx
+
+# Dados locais do banco e dumps
+/docker/postgres/dados/
+*.dump
+*.sql.gz
