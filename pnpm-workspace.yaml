@@ -1,3 +1,13 @@
+# Scripts de instalação explicitamente revisados (requisito 14.16 — cadeia de fornecimento).
+# Somente pacotes cujo script de pós-instalação é necessário ficam habilitados.
 allowBuilds:
+  # Prisma precisa baixar/posicionar os binários do schema engine para `prisma migrate`.
+  '@prisma/engines': true
+  prisma: true
+  # esbuild (via tsx) compila o binário nativo usado pelo seed e pelos scripts TypeScript.
+  esbuild: true
+  # Não são necessários: a otimização de imagens do Next não é usada nesta etapa.
   sharp: false
   unrs-resolver: false
+minimumReleaseAgeExclude:
+  - zod@4.6.5
