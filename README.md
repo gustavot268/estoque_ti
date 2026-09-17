@@ -284,17 +284,25 @@ nenhuma circunstância.
   sincronização local nem resolução de conflito offline.
 - Não há aplicativo móvel nativo nesta etapa — apenas interface web responsiva.
 - Não há sincronização bidirecional com Excel (ver seção acima).
-- Radix UI, previsto pela stack, ainda não foi adicionado como dependência — os
-  componentes acessíveis reutilizáveis chegam junto das telas que os utilizarem
-  (Etapas 4 em diante).
+- Radix UI, previsto pela stack, ainda não foi adicionado como dependência — a tela de
+  cadastro usa `<select>`/`<input>` nativos (listas pequenas, sem necessidade de seletor
+  pesquisável); Radix entra quando uma tela realmente precisar dele.
 - Nenhum mecanismo de limite de requisição (rate limiting) está definido tecnicamente
   ainda — lacuna registrada em
   [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md), a ser fechada em etapa
   futura.
-- Autenticação, autorização real, cadastro/consulta, edição/auditoria de UI,
-  exportação e administração de listas ainda não existem — ver estado por etapa abaixo.
+- Autenticação real (Microsoft Entra ID), consulta/pesquisa/filtros, detalhes,
+  edição/auditoria de UI, exportação e administração de listas ainda não existem — ver
+  estado por etapa abaixo. O cadastro de equipamento já existe, protegido pelo modo de
+  desenvolvimento isolado (`DEV_AUTH_ENABLED`) enquanto a Etapa 3 real não chega.
 - Nenhuma verificação de segurança (dependências, imagem Docker, segredos versionados)
   está automatizada em pipeline ainda — isso é escopo da Etapa 7.
+- A proteção de banco em duas camadas para a auditoria (ADR 0008: privilégio de
+  `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria` + trigger que
+  bloqueia `UPDATE`/`DELETE`) ainda não existe como migração real em
+  `prisma/migrations/` — hoje a imutabilidade depende apenas de a camada de serviço não
+  expor operação de edição/remoção de auditoria. Ver a linha da Etapa 2 na tabela de
+  estado abaixo.
 
 ## Decisões pendentes
 
@@ -315,9 +323,9 @@ mais atual**, já que a implementação avança em paralelo a este documento.
 | Etapa | Escopo | Estado observado |
 | --- | --- | --- |
 | 1 — Fundação | Projeto, TypeScript estrito, Docker/Postgres/Codespaces, health check, documentação inicial | Em andamento. `package.json` com scripts e dependências normativos já presentes (Biome, Vitest, Playwright, Prisma, Zod). `Dockerfile*`, `docker-compose*.yml`, `.devcontainer/`, `.env.example` e a rota de health check (`GET /api/saude`) ainda não observados em `src/app` no momento desta escrita. |
-| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Em andamento. Dependências Prisma (`prisma`, `@prisma/client`, `@prisma/adapter-pg`) e scripts `db:*` já presentes no `package.json`. `prisma/schema.prisma`, migrações e `prisma/seed.ts` ainda não observados no momento desta escrita. |
-| 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | Não iniciada. Apenas contrato (variáveis de ambiente, matriz de permissões, tipos `AtorAutenticado`/`PerfilAcesso`) documentado. |
-| 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | Não iniciada. |
+| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migração inicial, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e o primeiro caso de uso (`cadastrarEquipamento`, `src/services/`) existem. 48 testes (32 unitários + 16 de integração, banco isolado real) **executados e passando** — `pnpm test`. **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. Falta: edição/arquivamento/restauração de equipamento (Etapa 5) e administração de listas (Etapa 7). |
+| 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | Contrato documentado + **ponte mínima de desenvolvimento implementada** (`src/infrastructure/auth/ator-atual.ts`): só ativa com `DEV_AUTH_ENABLED=true` (proibido em produção), perfil simulado fixo. A integração real com o Microsoft Entra ID (validação de token, resolução de grupo) continua não implementada — depende das credenciais da pendência corporativa. |
+| 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | **Cadastro implementado e verificado** ponta a ponta (`/equipamentos/novo`): formulário responsivo, acessível, com Server Action, mensagens de erro por campo, aviso de formulário não salvo, e telas amigáveis de acesso negado/indisponibilidade. Consulta/pesquisa/filtros/paginação e a tela de detalhes ainda não foram implementados. |
 | 5 — Edição e auditoria | Edição, concorrência otimista, histórico, arquivamento e restauração | Não iniciada. Contrato de concorrência otimista e de auditoria já documentado ([ADR 0005](docs/adr/0005-concorrencia-otimista.md), [ADR 0008](docs/adr/0008-auditoria-append-only.md)). |
 | 6 — Exportação | Geração de `.xlsx`, filtros e permissões, proteção contra formula injection, testes | Não iniciada. |
 | 7 — Administração e qualidade | Gestão de listas, testes ponta a ponta, acessibilidade, pipeline, revisão de segurança, documentação final | Não iniciada. |

@@ -11,6 +11,7 @@
  */
 
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { Prisma } from "@prisma/client";
 import { PrismaClient } from "@prisma/client";
 
 export type OpcoesDoCliente = {
@@ -35,3 +36,11 @@ export function criarClientePrisma({
 }
 
 export type { PrismaClient };
+
+/**
+ * Cliente compatível tanto com uso direto quanto com o `tx` recebido dentro de
+ * `prisma.$transaction(async (tx) => ...)`. Os repositórios (`src/infrastructure/
+ * repositorios/`) recebem sempre este tipo — mais estreito que `PrismaClient` —
+ * para poderem ser chamados dos dois jeitos sem duplicar assinatura.
+ */
+export type ClientePrisma = Prisma.TransactionClient;

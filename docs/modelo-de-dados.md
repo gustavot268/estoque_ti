@@ -167,8 +167,15 @@ estrutura de campos que sustenta essa distinção (`arquivadoEm`/`arquivadoPorId
 
 ## Estado desta rodada
 
-O schema Prisma completo (`prisma/schema.prisma`), a primeira migração e o seed são
-entregáveis da Etapa 2, em desenvolvimento em paralelo a este documento. Este documento
-descreve o contrato normativo acordado; a estrutura real do banco deve ser conferida
-diretamente no schema e nas migrações no momento em que forem necessárias para trabalho
-subsequente.
+O schema Prisma completo (`prisma/schema.prisma`), a primeira migração e o seed
+(`prisma/seed.ts`, idempotente) existem. O caso de uso de cadastro
+(`src/services/equipamentos.ts`) e os repositórios (`src/infrastructure/repositorios/`)
+também já existem e têm testes (unitários e de integração, em `tests/`) — 48 testes
+**executados e passando** (`pnpm test`) contra um banco isolado real. A tela de cadastro
+(`/equipamentos/novo`, Etapa 4) também foi verificada de ponta a ponta contra um Postgres
+real. A proteção de banco em
+duas camadas para `RegistroAuditoria` descrita no ADR 0008 (privilégio restrito + trigger)
+ainda não existe como migração — ver [`docs/adr/0008-auditoria-append-only.md`](adr/0008-auditoria-append-only.md).
+Este documento descreve o contrato normativo acordado; a estrutura real do banco deve ser
+conferida diretamente no schema e nas migrações no momento em que forem necessárias para
+trabalho subsequente.

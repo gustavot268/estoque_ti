@@ -57,21 +57,34 @@ function textoOpcional(nome: string, maximo = 512) {
     .transform((valor) => (valor === undefined || valor === "" ? undefined : valor));
 }
 
-function urlPostgres(nome: string, obrigatoria: boolean) {
-  const base = z
+function formatoDeUrlPostgres(nome: string) {
+  return z
     .string()
     .trim()
     .refine((valor) => /^postgres(ql)?:\/\//.test(valor), {
       error: () => `${nome} deve ser uma URL de conexão PostgreSQL (postgresql://...).`,
     });
+}
 
-  return obrigatoria
-    ? z
-        .string({ error: () => `${nome} ${OBRIGATORIA}.` })
-        .trim()
-        .min(1, { error: () => `${nome} ${OBRIGATORIA}.` })
-        .pipe(base)
-    : base.optional().transform((valor) => (valor === undefined || valor === "" ? undefined : valor));
+/**
+ * Duas funções em vez de uma só com parâmetro booleano: `obrigatoria: boolean`
+ * como argumento de execução não estreita o tipo de retorno no branch
+ * correspondente — o tipo inferido seria a união dos dois branches (`string |
+ * undefined`) mesmo quando chamada com o literal `true`, e todo campo
+ * obrigatório (`DATABASE_URL`) acabaria tipado como opcional.
+ */
+function urlPostgresObrigatoria(nome: string) {
+  return z
+    .string({ error: () => `${nome} ${OBRIGATORIA}.` })
+    .trim()
+    .min(1, { error: () => `${nome} ${OBRIGATORIA}.` })
+    .pipe(formatoDeUrlPostgres(nome));
+}
+
+function urlPostgresOpcional(nome: string) {
+  return formatoDeUrlPostgres(nome)
+    .optional()
+    .transform((valor) => (valor === undefined || valor === "" ? undefined : valor));
 }
 
 function uuidOpcional(nome: string) {
@@ -139,15 +152,15 @@ export const esquemaAmbiente = z.object({
     z.url({ error: () => "APP_BASE_URL deve ser uma URL absoluta válida (http:// ou https://)." }),
   ),
 
-  DATABASE_URL: urlPostgres("DATABASE_URL", true),
-  MIGRATION_DATABASE_URL: urlPostgres("MIGRATION_DATABASE_URL", false),
-  TEST_DATABASE_URL: urlPostgres("TEST_DATABASE_URL", false),
+  DATABASE_URL: urlPostgresObrigatoria("DATABASE_URL"),
+  MIGRATION_DATABASE_URL: urlPostgresOpcional("MIGRATION_DATABASE_URL"),
+  TEST_DATABASE_URL: urlPostgresOpcional("TEST_DATABASE_URL"),
   /**
    * Banco sombra usado apenas pela CLI do Prisma em desenvolvimento
    * (`prisma migrate dev`). A aplicação não o usa; fica declarado aqui para
    * que o formato seja validado num só lugar.
    */
-  SHADOW_DATABASE_URL: urlPostgres("SHADOW_DATABASE_URL", false),
+  SHADOW_DATABASE_URL: urlPostgresOpcional("SHADOW_DATABASE_URL"),
 
   AUTH_SECRET: textoOpcional("AUTH_SECRET", 512),
 
@@ -219,7 +232,7 @@ export function validarAmbiente(bruto: Record<string, string | undefined>): Conf
   // ---- Regra dura: modo de desenvolvimento nunca em produção -------------
   if (producao && dados.DEV_AUTH_ENABLED) {
     problemas.push(
-      "DEV_AUTH_ENABLED está \"true\" em ambiente de produção " +
+      'DEV_AUTH_ENABLED está "true" em ambiente de produção ' +
         `(APP_ENV=${dados.APP_ENV}, NODE_ENV=${dados.NODE_ENV}). ` +
         "O modo de autenticação de desenvolvimento não pode ser habilitado em produção: " +
         "remova a variável ou defina DEV_AUTH_ENABLED=false.",
