@@ -191,12 +191,21 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
   const { itens, total, totalPaginas, pagina, parametros } = resultado;
   const podeExportar = acoesPermitidas(ator.perfil).includes("EXPORTAR_EQUIPAMENTOS");
   const podeCadastrar = acoesPermitidas(ator.perfil).includes("CADASTRAR_EQUIPAMENTO");
+  const podeGerenciarListas = acoesPermitidas(ator.perfil).includes("GERENCIAR_LISTAS");
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold tracking-tight">Equipamentos</h1>
         <div className="flex items-center gap-2">
+          {podeGerenciarListas && (
+            <Link
+              href="/administracao/listas"
+              className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+            >
+              Gerenciar listas
+            </Link>
+          )}
           {podeExportar && (
             <a
               href={construirHrefDeExportacao(parametros)}

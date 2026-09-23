@@ -22,9 +22,8 @@ export default function PaginaInicial() {
           Situação atual
         </h2>
         <p className="text-zinc-600 dark:text-zinc-400">
-          A tela de administração ainda não foi implementada. A autenticação corporativa (Microsoft
-          Entra ID) também não está ativa — enquanto isso, o acesso depende do modo de
-          desenvolvimento isolado (
+          A autenticação corporativa (Microsoft Entra ID) ainda não está ativa — enquanto isso, o
+          acesso depende do modo de desenvolvimento isolado (
           <code className="rounded bg-zinc-100 px-1 font-mono text-[0.9em] dark:bg-zinc-800">
             DEV_AUTH_ENABLED
           </code>
@@ -44,7 +43,14 @@ export default function PaginaInicial() {
           >
             cadastrar equipamento
           </Link>{" "}
-          já estão disponíveis para os perfis com permissão.
+          já estão disponíveis para os perfis com permissão; a{" "}
+          <Link
+            href="/administracao/listas"
+            className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+          >
+            gestão de listas controladas
+          </Link>{" "}
+          é restrita ao perfil Administração.
         </p>
         <p className="text-zinc-600 dark:text-zinc-400">
           A verificação de saúde da aplicação e do banco de dados está disponível em{" "}

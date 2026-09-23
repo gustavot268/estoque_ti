@@ -20,7 +20,9 @@ import { z } from "zod";
  * Em campos de linha única nada de controle passa; em campos longos liberamos
  * apenas tabulação, LF e CR.
  */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intencional — é a lista de caracteres de controle que este validador existe para rejeitar.
 const CONTROLE_SEM_QUEBRA = /[\u0000-\u001F\u007F-\u009F]/u;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intencional — mesma lista, preservando tabulação/LF/CR para campos de várias linhas.
 const CONTROLE_COM_QUEBRA = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/u;
 
 export const TAMANHOS = {

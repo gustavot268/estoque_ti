@@ -32,6 +32,13 @@ enum TipoAcaoAuditoria {
   RESTAURACAO
   EXPORTACAO
   ACESSO_NEGADO
+  /// Criação/edição/exclusão de um valor de lista controlada (Categoria,
+  /// Fabricante, Status de funcionamento, Localização) — Etapa 7. O
+  /// registro não referencia `equipamentoId` (fica `null`): o valor
+  /// afetado vai em `dadosAnteriores`/`dadosPosteriores`.
+  LISTA_CRIACAO
+  LISTA_EDICAO
+  LISTA_EXCLUSAO
 
   @@map("tipo_acao_auditoria")
 }

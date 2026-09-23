@@ -43,7 +43,7 @@ const MATRIZ: Readonly<Record<PerfilAcesso, readonly Acao[]>> = {
 /** Consulta a matriz. Sem perfil reconhecido, nega. */
 export function perfilPodeExecutar(perfil: PerfilAcesso, acao: Acao): boolean {
   const permitidas = MATRIZ[perfil];
-  return permitidas !== undefined && permitidas.includes(acao);
+  return permitidas?.includes(acao) ?? false;
 }
 
 /**

@@ -1,0 +1,29 @@
+# Atualizações automáticas de dependências (Etapa 7, requisito 12/14.16).
+#
+# Abre PRs semanais agrupando atualizações de patch/minor, e uma PR
+# individual para cada atualização major — nunca aplica nada sozinho, só cria
+# a PR para revisão humana (o pipeline de CI valida cada uma).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      dependencias-de-producao:
+        dependency-type: "production"
+        update-types: ["patch", "minor"]
+      dependencias-de-desenvolvimento:
+        dependency-type: "development"
+        update-types: ["patch", "minor"]
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

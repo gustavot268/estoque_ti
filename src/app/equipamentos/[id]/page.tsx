@@ -34,6 +34,12 @@ const ROTULOS_DE_ACAO: Record<TipoAcaoAuditoria, string> = {
   RESTAURACAO: "Restauração",
   EXPORTACAO: "Exportação",
   ACESSO_NEGADO: "Tentativa de acesso negada",
+  // Ações de lista controlada nunca têm `equipamentoId`, então nunca aparecem
+  // no histórico de um equipamento — os rótulos existem só para satisfazer o
+  // `Record` exaustivo sobre `TipoAcaoAuditoria`.
+  LISTA_CRIACAO: "Criação de valor de lista",
+  LISTA_EDICAO: "Edição de valor de lista",
+  LISTA_EXCLUSAO: "Exclusão de valor de lista",
 };
 
 const ROTULOS_DE_RESULTADO: Record<ResultadoAuditoria, string> = {

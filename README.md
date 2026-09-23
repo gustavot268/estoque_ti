@@ -57,7 +57,7 @@ Versões efetivamente fixadas no `package.json` no momento desta documentação:
 | ORM | Prisma / `@prisma/client` / `@prisma/adapter-pg` | `7.10.0` |
 | Validação | Zod | `4.6.5` |
 | Testes unitários/integração | Vitest | `5.0.0` |
-| Testes ponta a ponta | Playwright (`@playwright/test`) | `1.63.0` — apenas estrutura nesta rodada; suíte real é da Etapa 7 |
+| Testes ponta a ponta | Playwright (`@playwright/test`) | `1.63.0` — dependência instalada; suíte de testes ainda não escrita (pendência da Etapa 7) |
 | Execução de scripts TypeScript | tsx | `4.23.13` |
 | Gerenciador de pacotes | pnpm | `11.24.0` |
 | Runtime | Node.js | `>=22.18.0` |
@@ -83,7 +83,7 @@ src/validation/      esquemas Zod compartilhados
 prisma/              schema, migrações, seed
 tests/unit/          testes unitários
 tests/integration/   testes de integração (banco isolado)
-tests/e2e/           testes ponta a ponta (estrutura)
+.github/workflows/   pipeline de CI (typecheck, lint, testes, build)
 docs/                documentação
 docs/adr/            registros de decisão arquitetural
 ```
@@ -115,10 +115,6 @@ serviços. Detalhes em
 5. Suba o banco de dados e aplique migrações/seed conforme as seções abaixo.
 6. Acesse a aplicação pela porta encaminhada pelo Codespaces.
 
-> Nota de estado: o diretório `.devcontainer/` é entregável da Etapa 1, em
-> desenvolvimento nesta mesma rodada de trabalho. Verifique sua existência e conteúdo
-> reais no repositório antes de seguir este passo a passo.
-
 ## Como executar com Docker
 
 Desenvolvimento local, fora do Codespaces:
@@ -140,10 +136,6 @@ porta da aplicação encaminhada para o host. O `Dockerfile` de produção é mu
 roda com usuário não privilegiado e não inclui arquivos de desenvolvimento nem segredos —
 detalhes completos em
 [`docs/implantacao-docker.md`](docs/implantacao-docker.md).
-
-> Nota de estado: os artefatos Docker (`Dockerfile`, `docker-compose.yml`,
-> `.dockerignore`) são entregáveis da Etapa 1, em desenvolvimento nesta mesma rodada.
-> Confirme sua existência real no repositório antes de executar os comandos acima.
 
 ## Variáveis de ambiente
 
@@ -219,6 +211,12 @@ O projeto usa **Biome** em vez de ESLint + Prettier — desvio consciente do req
 original, aprovado pelo usuário e documentado em
 [`docs/adr/0002-biome-em-vez-de-eslint-prettier.md`](docs/adr/0002-biome-em-vez-de-eslint-prettier.md),
 incluindo os trade-offs assumidos e como reverter a decisão se necessário.
+
+`pnpm check` roda hoje sem nenhum achado. `.github/workflows/ci.yml` executa os mesmos
+comandos (`typecheck`, `check`, `test`, `build`, mais `pnpm audit`) em todo push para
+`main` e em toda pull request, contra um PostgreSQL real subido no próprio job — ver
+[Estado atual do projeto por etapa](#estado-atual-do-projeto-por-etapa) para o que ainda
+falta no pipeline (scan de imagem Docker, testes ponta a ponta).
 
 ## Build de produção
 
@@ -329,13 +327,13 @@ mais atual**, já que a implementação avança em paralelo a este documento.
 
 | Etapa | Escopo | Estado observado |
 | --- | --- | --- |
-| 1 — Fundação | Projeto, TypeScript estrito, Docker/Postgres/Codespaces, health check, documentação inicial | Em andamento. `package.json` com scripts e dependências normativos já presentes (Biome, Vitest, Playwright, Prisma, Zod). `Dockerfile*`, `docker-compose*.yml`, `.devcontainer/`, `.env.example` e a rota de health check (`GET /api/saude`) ainda não observados em `src/app` no momento desta escrita. |
-| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migração inicial, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 88 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test`. **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. Falta: administração de listas (Etapa 7). |
-| 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | Contrato documentado + **ponte mínima de desenvolvimento implementada** (`src/infrastructure/auth/ator-atual.ts`): só ativa com `DEV_AUTH_ENABLED=true` (proibido em produção), perfil simulado fixo. A integração real com o Microsoft Entra ID (validação de token, resolução de grupo) continua não implementada — depende das credenciais da pendência corporativa. |
+| 1 — Fundação | Projeto, TypeScript estrito, Docker/Postgres/Codespaces, health check, documentação inicial | **Concluído e verificado**. `package.json` com scripts e dependências normativos (Biome, Vitest, Playwright, Prisma, Zod). `Dockerfile`, `Dockerfile.dev`, `docker-compose.yml`, `.devcontainer/`, `.env.example` e a rota de health check (`GET /api/saude`) existem e foram exercitados nesta rodada (`docker compose up`, `pnpm build`). |
+| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migrações, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 111 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test`. **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. |
+| 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | **A autorização em si está implementada e testada** (matriz de permissões, `exigirPermissao` em todo serviço, testes de caso negativo por perfil em todas as etapas 4–7) — ver [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md), item 2. O que falta é só a fonte da identidade: hoje ela vem de uma **ponte mínima de desenvolvimento** (`src/infrastructure/auth/ator-atual.ts`, só ativa com `DEV_AUTH_ENABLED=true`, proibido em produção, com teste automatizado dedicado). A integração real com o Microsoft Entra ID (validação de token, resolução de grupo) continua **bloqueada pela pendência corporativa** de credenciais — ver [`docs/pendencias-corporativas.md`](docs/pendencias-corporativas.md). |
 | 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | **Implementado e verificado** ponta a ponta contra um Postgres real: cadastro (`/equipamentos/novo`), consulta com busca/filtros/ordenação/paginação no servidor, responsiva (tabela no desktop, cartões no celular) (`/equipamentos`), e detalhes com histórico de auditoria (`/equipamentos/[id]`). Tamanho de página fixo (não controlável pelo cliente) contra paginação abusiva. Falta apenas o painel inicial com indicadores (fora do escopo estrito da Etapa 4). |
 | 5 — Edição e auditoria | Edição, concorrência otimista, histórico, arquivamento e restauração | **Implementado e verificado** ponta a ponta contra um Postgres real: edição (`/equipamentos/[id]/editar`) com concorrência otimista (ADR 0005 — duas edições concorrentes na mesma versão: só uma aplica, a outra recebe erro de conflito, testado), arquivamento e restauração (botões na tela de detalhes, restritos ao perfil Administração), histórico de auditoria completo (Cadastro/Edição/Arquivamento/Restauração). |
 | 6 — Exportação | Geração de `.xlsx`, filtros e permissões, proteção contra formula injection, testes | **Implementado e verificado** ponta a ponta contra um Postgres real: rota `GET /api/equipamentos/exportar`, respeitando os mesmos filtros/ordenação da consulta, protegida por `EXPORTAR_EQUIPAMENTOS`, com link "Exportar" na tela de consulta (oculto para quem não tem a permissão). Proteção contra formula injection testada com um caractere de risco real gravado e exportado (o arquivo gerado contém o valor neutralizado com apóstrofo). Limite de linhas (`EXPORT_MAX_ROWS`) testado e rejeita com erro claro em vez de gerar arquivo parcial. Auditoria da exportação (quem, quando, filtros, contagem — nunca o arquivo) testada. |
-| 7 — Administração e qualidade | Gestão de listas, testes ponta a ponta, acessibilidade, pipeline, revisão de segurança, documentação final | Não iniciada. |
+| 7 — Administração e qualidade | Gestão de listas, testes ponta a ponta, acessibilidade, pipeline, revisão de segurança, documentação final | **Em andamento.** Concluído e verificado: gestão de listas controladas (`/administracao/listas`, CRUD de Categoria/Fabricante/Status/Localização restrito a `GERENCIAR_LISTAS`, exclusão guardada em duas camadas — contagem prévia + restrição de chave estrangeira do banco — auditoria `LISTA_CRIACAO`/`LISTA_EDICAO`/`LISTA_EXCLUSAO`); pipeline de CI (`.github/workflows/ci.yml`: tipos, lint, testes, build em todo push/PR) e Dependabot (`.github/dependabot.yml`); limpeza de todos os achados de lint pré-existentes (SVGs inacessíveis não usados removidos, configuração do Biome migrada, regras de controle de caracteres documentadas); teste automatizado da regra "nunca `DEV_AUTH_ENABLED` em produção". **Falta**: testes ponta a ponta (Playwright), auditoria de acessibilidade dedicada, scan de vulnerabilidade da imagem Docker, revisão final consolidada e polimento de documentação. |
 
 Consulte também [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md) para o
 estado honesto, item a item, de cada controle de segurança exigido antes da implantação —

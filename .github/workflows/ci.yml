@@ -1,0 +1,95 @@
+# Pipeline de integração contínua (Etapa 7, requisito 12).
+#
+# Roda em todo push para `main` e em toda pull request: verificação de tipos,
+# lint/formatação, testes (unitários + integração contra um Postgres real) e
+# build de produção. Nenhum segredo real é usado — o banco é local ao job,
+# descartado ao final, com as mesmas senhas fictícias de `.env.example`.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancela execuções anteriores da mesma branch/PR quando um novo push chega.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Verificar (tipos, lint, testes, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.18.0"
+
+      - name: Habilitar o pnpm (Corepack)
+        run: corepack enable
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Auditoria de vulnerabilidades conhecidas nas dependências
+        # Não bloqueia o pipeline: hoje há achados de severidade alta em
+        # dependências transitivas do próprio `prisma` (driver `mysql2` que
+        # este projeto nunca usa — só Postgres — e `deepmerge-ts`), fora do
+        # nosso controle até a Prisma lançar uma versão corrigida. Bloquear o
+        # pipeline por um achado que ninguém aqui pode corrigir treina a
+        # equipe a ignorar falha de CI — reportar com visibilidade é o
+        # comportamento certo enquanto não houver correção upstream. Ver
+        # docs/revisao-de-seguranca.md, item 16.
+        run: pnpm audit --audit-level=high || true
+
+      - name: Preparar variáveis de ambiente de CI
+        # Cópia direta de .env.example: valores fictícios, só para este job
+        # descartável. Nunca é um segredo real (ver docs/variaveis-de-ambiente.md).
+        run: cp .env.example .env
+
+      - name: Subir PostgreSQL isolado do job (docker compose)
+        run: docker compose up -d db
+
+      - name: Aguardar o PostgreSQL ficar saudável
+        run: |
+          for tentativa in $(seq 1 30); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' estoque-ti-db 2>/dev/null || echo iniciando)"
+            if [ "$status" = "healthy" ]; then
+              echo "PostgreSQL saudável."
+              exit 0
+            fi
+            echo "Aguardando PostgreSQL ($tentativa/30, status atual: $status)..."
+            sleep 2
+          done
+          echo "PostgreSQL não ficou saudável a tempo." >&2
+          docker logs estoque-ti-db || true
+          exit 1
+
+      - name: Verificação de tipos (tsc)
+        run: pnpm typecheck
+
+      - name: Lint e formatação (Biome)
+        run: pnpm check
+
+      - name: Aplicar migrações no banco de desenvolvimento
+        run: pnpm db:migrate:deploy
+
+      - name: Aplicar migrações no banco isolado de testes
+        # `prisma migrate deploy` só lê MIGRATION_DATABASE_URL/DATABASE_URL do
+        # config (ver prisma/prisma7.config.ts) — aponta temporariamente para
+        # o banco de testes, mesma técnica usada em desenvolvimento local.
+        env:
+          MIGRATION_DATABASE_URL: postgresql://estoque_migrator:troque-esta-senha-local-migrator@localhost:5432/estoque_ti_test?schema=public
+        run: pnpm exec prisma migrate deploy --config prisma/prisma7.config.ts
+
+      - name: Testes (unitários + integração)
+        run: pnpm test
+
+      - name: Build de produção
+        run: pnpm build
