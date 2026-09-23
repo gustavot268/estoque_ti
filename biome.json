@@ -8,7 +8,10 @@
       "!!coverage",
       "!!dist",
       "!!pnpm-lock.yaml",
-      "!!next-env.d.ts"
+      "!!next-env.d.ts",
+      "!!test-results",
+      "!!playwright-report",
+      "!!.playwright"
     ]
   },
   "formatter": {

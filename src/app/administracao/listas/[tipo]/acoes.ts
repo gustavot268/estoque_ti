@@ -6,6 +6,7 @@
  * usada para `equipamentoId` na edição de equipamento (Etapa 5).
  */
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { EntradaInvalidaError, ehErroDeDominio } from "../../../../domain/erros";
 import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
@@ -67,6 +68,13 @@ export async function criarValorDeListaAction(
     };
   }
 
+  // Sem `redirect()` nesta ação (de propósito — fica na mesma tela para
+  // cadastrar vários valores seguidos), então a tabela abaixo do formulário
+  // não é atualizada sozinha: a invocação de uma Server Action via
+  // `useActionState` não revalida os dados da página por conta própria, só
+  // repassa o valor de retorno ao componente. `redirect()`/`excluir` abaixo
+  // já ganham isso de graça porque toda navegação busca dado fresco.
+  revalidatePath(`/administracao/listas/${tipo}`);
   return { sucesso: true };
 }
 

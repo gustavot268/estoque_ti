@@ -39,6 +39,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@biomejs/biome": "2.5.13",
     "@next/env": "16.3.5",
     "@playwright/test": "1.63.0",

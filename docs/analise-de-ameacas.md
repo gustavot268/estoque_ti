@@ -180,14 +180,20 @@ revisada pela equipe de Segurança da Informação antes da implantação em pro
 - **Controle de detecção:** cada exportação gera `tipoAcao = EXPORTACAO` em
   `RegistroAuditoria`, registrando quem exportou, quando e os filtros gerais utilizados
   (sem registrar o arquivo/conteúdo completo). **Verificado** por teste de integração.
+  Tentativas recusadas por limite de taxa (abaixo) geram log técnico de aviso, não uma
+  linha de auditoria — é um controle de disponibilidade/abuso, não uma tentativa de
+  acesso propriamente dita.
 - **Procedimento de resposta:** revisar o histórico de `EXPORTACAO` por usuário/período;
   se houver padrão anômalo, acionar procedimento de incidente e avaliar revisão de acesso
   junto ao responsável pelo Entra ID.
-- **Risco residual:** volume máximo por exportação individual é limitado, mas não há
-  limite de *quantas exportações* um usuário pode fazer em sequência (rate limiting é
-  lacuna geral registrada no item 14 de
-  [`docs/revisao-de-seguranca.md`](revisao-de-seguranca.md)) — um usuário autorizado
-  ainda pode exportar repetidamente para acumular volume acima do limite por chamada.
+- **Risco residual:** o volume por exportação individual é limitado (`EXPORT_MAX_ROWS`) e,
+  desde a Etapa 7, a *frequência* também é (20 exportações por usuário a cada 5 minutos,
+  `src/infrastructure/seguranca/limitador-de-taxa.ts`, HTTP 429 acima disso) —
+  **implementado e verificado nesta rodada**, ver item 14 de
+  [`docs/revisao-de-seguranca.md`](revisao-de-seguranca.md). Continua não coberto: um
+  usuário autorizado que exporte perto do limite repetidamente, mas abaixo dele, ao longo
+  de muitas janelas de 5 minutos, não gera nenhum alerta automático — só fica visível
+  numa revisão manual do histórico de auditoria.
 
 ---
 

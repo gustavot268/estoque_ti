@@ -2,11 +2,11 @@
 
 - Fonte normativa: requisitos do cliente, seção 14.22.
 - Status desta rodada: **Etapas 1, 2, 4, 5 e 6 concluídas e verificadas; Etapa 7 em
-  andamento (pipeline de CI e gestão de listas concluídos; testes ponta a ponta,
-  acessibilidade dedicada e scan de imagem Docker ainda faltam); Etapa 3 (Microsoft Entra
-  ID real) segue bloqueada pela pendência corporativa de credenciais.** Este documento
-  reflete o estado real na data de escrita, item a item — confira o repositório para o
-  estado mais atual.
+  andamento (pipeline de CI, gestão de listas, testes ponta a ponta, auditoria de
+  acessibilidade automatizada e scan de imagem Docker concluídos); Etapa 3 (Microsoft
+  Entra ID real) segue bloqueada pela pendência corporativa de credenciais.** Este
+  documento reflete o estado real na data de escrita, item a item — confira o
+  repositório para o estado mais atual.
   **Nenhum item é marcado como "validado" sem verificação executada** — quando não houve
   verificação, o item é `não iniciado` ou `pendente`, nunca `atendido` por presunção.
 - Estados possíveis: `atendido` (implementado e com evidência verificável no
@@ -31,11 +31,11 @@
 | 11 | Logs sem segredos | parcial | Regra fixada e aplicada: `src/infrastructure/observability/logger.ts`/`redacao.ts` redigem campos sensíveis, e todo route handler segue o padrão "log técnico completo no servidor, mensagem genérica para quem chamou" (visto em toda rota construída nas Etapas 4–6). Não houve auditoria linha a linha de 100% do código para confirmar ausência total de vazamento. |
 | 12 | Auditoria funcionando | atendido (aplicação) | `RegistroAuditoria` grava criação/edição/arquivamento/restauração/exportação/gestão de listas com `dadosAnteriores`/`dadosPosteriores`, ator e correlação — testado em toda etapa 4–7 via testes de integração reais. **Pendência conhecida, ainda não fechada:** a proteção de banco em duas camadas do ADR 0008 (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` na tabela + trigger que bloqueia `UPDATE`/`DELETE` mesmo com acesso direto ao banco) não existe como migração — hoje a imutabilidade depende só da camada de serviço não expor edição/remoção de auditoria. |
 | 13 | Exportação protegida | atendido | Implementado e verificado nesta rodada (Etapa 6): `GET /api/equipamentos/exportar` exige `EXPORTAR_EQUIPAMENTOS` (checado no serviço, não só ocultando o botão), neutraliza formula injection em todo campo de texto (testado com caractere de risco real, gravado e exportado, verificando o byte gravado no arquivo), limita o volume por `EXPORT_MAX_ROWS` (rejeita com erro em vez de gerar arquivo parcial) e nunca grava o arquivo em disco. Requisitos originais na [análise de ameaças](analise-de-ameacas.md#7-exportação-excessiva-ou-não-autorizada) e no [inventário de dados](inventario-de-dados.md). |
-| 14 | Limites de requisição configurados | não iniciado | Nenhum mecanismo de limite de taxa (rate limiting) foi implementado ou desenhado em detalhe nesta rodada; requisito geral está registrado (seção 14.10 dos requisitos do cliente), mas sem contrato técnico fixado nas Etapas 1–2. **Lacuna a resolver em etapa futura, registrar decisão quando definida.** |
+| 14 | Limites de requisição configurados | parcial | Limitador de taxa em memória, por processo (`src/infrastructure/seguranca/limitador-de-taxa.ts`, testado — `tests/unit/limitador-de-taxa.test.ts`) aplicado ao endpoint mais sensível identificado na análise de ameaças: `GET /api/equipamentos/exportar` (20 exportações por usuário a cada 5 minutos, HTTP 429 + `Retry-After`), verificado ponta a ponta em `tests/e2e/exportacao.spec.ts`. Funciona porque a aplicação roda como processo Node.js de longa duração (nunca serverless/edge) — ver `Dockerfile`. **Ainda não cobre**: Server Actions (cadastro/edição/arquivamento) nem, quando a Etapa 3 existir, tentativas de login — e um limitador distribuído (Redis) só se justifica se a topologia de produção rodar múltiplas réplicas. |
 | 15 | Cabeçalhos de segurança configurados | atendido | Confirmado por verificação ao vivo (resposta HTTP real): CSP, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `X-Content-Type-Options: nosniff`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, `X-DNS-Prefetch-Control`, `X-Permitted-Cross-Domain-Policies` — todos presentes em `next.config.ts`. HSTS é aplicado condicionalmente só em produção (não faria sentido em `http://localhost`). A CSP já permite explicitamente `login.microsoftonline.com` (`connect-src`/`form-action`) para quando a Etapa 3 ligar o Entra ID de verdade. |
 | 16 | Dependências verificadas | parcial | `pnpm audit --audit-level=high` roda em todo push/PR (`.github/workflows/ci.yml`), sem bloquear o pipeline, e `.github/dependabot.yml` abre PR semanal de atualização. **Achado atual, fora do nosso controle:** 2 vulnerabilidades de severidade alta em dependências transitivas do próprio `prisma` (`mysql2` — driver que este projeto nunca usa, só Postgres — e `deepmerge-ts`), sem versão corrigida do Prisma disponível ainda (a mais recente é `8.0.0-rc.15`, um release candidate — não é apropriado adotar isso só para isso). Reavaliar quando a Prisma lançar uma versão estável corrigida. |
-| 17 | Imagem Docker verificada | não iniciado | Scan de vulnerabilidade de imagem (ex.: Trivy/Grype) ainda não está no pipeline. Boas práticas de construção (multi-stage, usuário não privilegiado) estão em [`docs/implantacao-docker.md`](implantacao-docker.md) e no `Dockerfile` real. |
-| 18 | Pipeline com controles de segurança | parcial | `.github/workflows/ci.yml` roda em todo push/PR: verificação de tipos, lint (Biome — zero achados hoje), testes unitários+integração contra Postgres real, auditoria de dependências e build de produção. Ainda faltam: scan de imagem Docker (item 17) e scan de segredo versionado por engano. |
+| 17 | Imagem Docker verificada | atendido | `.github/workflows/ci.yml` constrói o alvo `producao` do `Dockerfile` e roda o Trivy (`aquasecurity/trivy-action`) contra ela em todo push/PR, bloqueando em qualquer achado HIGH/CRITICAL com correção disponível. Achado real do scan levou a uma correção real: o `Dockerfile` agora remove `npm`/`corepack`/`npx` da imagem de produção (`RUN rm -rf ...` no estágio `producao`) — o runtime só executa `node server.js`, nunca precisa deles, e removê-los eliminou 4 vulnerabilidades HIGH que vinham do `npm` embutido na imagem base do Node, sem nenhuma relação com o código deste projeto. Confirmado localmente: a imagem reconstruída ainda inicia e responde `/api/saude` normalmente, e o Trivy relata zero achados HIGH/CRITICAL depois da limpeza. |
+| 18 | Pipeline com controles de segurança | atendido | `.github/workflows/ci.yml` roda em todo push/PR: verificação de tipos, lint (Biome — zero achados hoje), testes unitários+integração+ponta a ponta contra Postgres real, auditoria de dependências (`pnpm audit`, não bloqueante — ver item 16) e scan da imagem Docker (Trivy, bloqueante — ver item 17), além do build de produção. Falta apenas scan de segredo versionado por engano (ex.: gitleaks/truffleHog) — não configurado nesta rodada. |
 | 19 | Ambientes separados | pendente | Contrato de variáveis por ambiente (`DATABASE_URL`/`MIGRATION_DATABASE_URL`/`TEST_DATABASE_URL`) definido; separação real de credenciais entre desenvolvimento/teste/homologação/produção depende de configuração de infraestrutura ainda não realizada. |
 | 20 | Modo de desenvolvimento desativado em produção | atendido | Regra dura em `src/infrastructure/config/esquema-env.ts` (`validarAmbiente`), com teste automatizado dedicado em `tests/unit/esquema-env.test.ts`: `DEV_AUTH_ENABLED=true` rejeitado tanto com `APP_ENV=production` quanto com `NODE_ENV=production` isoladamente, e aceito fora de produção. Também testado nesta rodada: exigência de todas as credenciais do Entra ID, `AUTH_SECRET` ≥ 32 caracteres, `APP_BASE_URL` com `https://`, e que a mensagem de erro nunca ecoa o valor de um segredo. |
 | 21 | Análise de ameaças revisada | parcial | Documento produzido nesta rodada com as 15 ameaças mínimas exigidas ([`docs/analise-de-ameacas.md`](analise-de-ameacas.md)). "Revisada" no sentido de aprovação pela equipe de Segurança da Informação ainda não ocorreu — é uma primeira versão a ser revisada por essa equipe antes da implantação. |
@@ -44,12 +44,12 @@
 
 ## Observação sobre o item 14 (limites de requisição)
 
-Diferente dos demais itens "não iniciado", que têm ao menos um contrato técnico definido
-para etapa futura, o limite de requisição (rate limiting) **não tem, ainda, nem contrato
-técnico fixado** nas Etapas 1–2 além da exigência geral do requisito do cliente. Isso é
-registrado explicitamente como uma lacuna a ser fechada com uma decisão técnica (e
-provavelmente um ADR) em etapa futura — provavelmente Etapa 3 (para autenticação/callback)
-e Etapa 6 (para exportação), que são os pontos mais sensíveis segundo os requisitos.
+A Etapa 7 implementou um limitador de taxa em memória e o aplicou ao ponto mais sensível
+identificado na análise de ameaças (exportação — seção 7). Continua **parcial**, não
+**atendido**: cadastro/edição/arquivamento (Server Actions) e o futuro fluxo de login da
+Etapa 3 ainda não têm limite de taxa. Fechar essas lacunas é natural quando essas etapas
+forem retomadas — a infraestrutura (`verificarLimiteDeTaxa`) já existe e é reaproveitável,
+só falta decidir os limites por ação e aplicá-los.
 
 ## Como usar esta tabela
 

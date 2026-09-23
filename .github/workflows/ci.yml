@@ -37,6 +37,9 @@ jobs:
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
 
+      - name: Instalar navegador do Playwright (testes ponta a ponta)
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Auditoria de vulnerabilidades conhecidas nas dependências
         # Não bloqueia o pipeline: hoje há achados de severidade alta em
         # dependências transitivas do próprio `prisma` (driver `mysql2` que
@@ -91,5 +94,45 @@ jobs:
       - name: Testes (unitários + integração)
         run: pnpm test
 
+      - name: Testes ponta a ponta (Playwright)
+        # O webServer do playwright.config.ts sobe a própria aplicação,
+        # apontada para o banco de testes (nunca o de desenvolvimento).
+        run: pnpm test:e2e
+
+      - name: Publicar relatório do Playwright em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-playwright
+          path: playwright-report/
+          retention-days: 7
+
       - name: Build de produção
         run: pnpm build
+
+      - name: Preparar o Buildx
+        uses: docker/setup-buildx-action@v4.4.1
+
+      - name: Construir a imagem Docker de produção
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: .
+          target: producao
+          push: false
+          load: true
+          tags: estoque-ti-producao:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan de vulnerabilidades da imagem Docker (Trivy)
+        # A imagem de produção não carrega npm/corepack (removidos no próprio
+        # Dockerfile — o runtime só executa `node server.js`), então este
+        # gate bloqueia de verdade: confirmado localmente que a imagem fica
+        # com zero achados HIGH/CRITICAL depois dessa limpeza.
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: estoque-ti-producao:ci
+          severity: HIGH,CRITICAL
+          scanners: vuln
+          exit-code: "1"
+          ignore-unfixed: true

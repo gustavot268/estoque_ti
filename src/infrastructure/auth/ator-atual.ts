@@ -13,21 +13,37 @@
  * na inicialização do processo, então não é reforçada de novo aqui.
  *
  * Placeholder assumido enquanto a Etapa 3 não define o mecanismo real: o
- * perfil simulado é fixo (`PERFIL_DE_DESENVOLVIMENTO`). Trocar de perfil para
- * testar telas com Consulta/Administração exige editar esta constante — não é
- * uma tela de troca de perfil, de propósito, para não parecer um recurso de
- * produção.
+ * perfil simulado é fixo (`PERFIL_DE_DESENVOLVIMENTO`) por padrão. Os testes
+ * ponta a ponta (Etapa 7) precisam exercitar os três perfis sem reiniciar o
+ * servidor a cada troca, então o cabeçalho `X-Dev-Perfil` pode sobrescrever o
+ * perfil de uma requisição específica — mas só quando `DEV_AUTH_ENABLED` já é
+ * `true` (logo, nunca em produção, pela mesma regra dura de cima) e só com um
+ * valor reconhecido (`ehPerfilDeAcesso`); qualquer outra coisa é ignorada e
+ * cai no padrão. Não é uma tela de troca de perfil visível na interface, de
+ * propósito, para não parecer um recurso de produção.
  */
 
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import type { AtorAutenticado, PerfilAcesso } from "../../domain/ator";
+import { headers } from "next/headers";
+import { type AtorAutenticado, ehPerfilDeAcesso, type PerfilAcesso } from "../../domain/ator";
 import { obterConfiguracao } from "../config/env";
 import { obterPrisma } from "../prisma/cliente";
 
 const ENTRA_OBJECT_ID_DE_DESENVOLVIMENTO = "00000000-dev0-0000-0000-000000000000";
 const PERFIL_DE_DESENVOLVIMENTO: PerfilAcesso = "OPERACAO";
+
+/** Nome do cabeçalho de override de perfil — só os testes ponta a ponta usam isto. */
+export const CABECALHO_DE_PERFIL_DE_TESTE = "x-dev-perfil";
+
+async function resolverPerfilDeDesenvolvimento(): Promise<PerfilAcesso> {
+  const cabecalhos = await headers();
+  const sobrescrita = cabecalhos.get(CABECALHO_DE_PERFIL_DE_TESTE);
+  return sobrescrita !== null && ehPerfilDeAcesso(sobrescrita)
+    ? sobrescrita
+    : PERFIL_DE_DESENVOLVIMENTO;
+}
 
 /**
  * Devolve o ator autenticado, ou `null` quando não há sessão válida — que,
@@ -55,7 +71,7 @@ export async function obterAtorAtual(): Promise<AtorAutenticado | null> {
     entraObjectId: usuario.entraObjectId,
     nome: usuario.nome,
     email: usuario.email,
-    perfil: PERFIL_DE_DESENVOLVIMENTO,
+    perfil: await resolverPerfilDeDesenvolvimento(),
     correlacaoId: randomUUID(),
   };
 }

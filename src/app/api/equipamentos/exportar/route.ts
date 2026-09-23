@@ -5,6 +5,13 @@
  * Autenticação e autorização são checadas aqui e de novo dentro do caso de
  * uso (`exigirPermissao`) — esta rota decide apenas o transporte HTTP, quem
  * decide se a exportação é permitida é sempre o serviço.
+ *
+ * Limite de taxa (Etapa 7, requisito 14.10): `EXPORT_MAX_ROWS` já limita o
+ * volume de uma exportação individual, mas nada impedia repetir a chamada
+ * várias vezes seguidas para acumular volume acima desse limite por
+ * exfiltração fracionada (risco registrado em
+ * `docs/analise-de-ameacas.md#7-exportação-excessiva-ou-não-autorizada`) —
+ * este é o primeiro endpoint a fechar essa lacuna.
  */
 
 import type { NextRequest } from "next/server";
@@ -13,10 +20,14 @@ import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
 import { obterConfiguracao } from "../../../../infrastructure/config/env";
 import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
+import { verificarLimiteDeTaxa } from "../../../../infrastructure/seguranca/limitador-de-taxa";
 import { exportarEquipamentos } from "../../../../services/exportacao";
 
 // Depende de sessão e de dado vivo do banco — nunca cacheado (ADR 0006).
 export const dynamic = "force-dynamic";
+
+const LIMITE_DE_EXPORTACOES = 20;
+const JANELA_DO_LIMITE_MS = 5 * 60_000;
 
 export async function GET(request: NextRequest): Promise<Response> {
   let ator: Awaited<ReturnType<typeof obterAtorAtual>>;
@@ -34,6 +45,28 @@ export async function GET(request: NextRequest): Promise<Response> {
     return Response.json(
       { mensagem: "Sessão não encontrada." },
       { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const limite = verificarLimiteDeTaxa(
+    `exportar:${ator.usuarioId}`,
+    LIMITE_DE_EXPORTACOES,
+    JANELA_DO_LIMITE_MS,
+  );
+  if (!limite.permitido) {
+    logger.warn("Limite de taxa de exportação excedido.", {
+      usuarioId: ator.usuarioId,
+      correlacaoId: ator.correlacaoId,
+    });
+    return Response.json(
+      { mensagem: "Muitas exportações em pouco tempo. Tente novamente em alguns instantes." },
+      {
+        status: 429,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": String(limite.tentarNovamenteEmSegundos),
+        },
+      },
     );
   }
 

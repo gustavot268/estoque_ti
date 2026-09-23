@@ -431,7 +431,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 Anterior
               </Link>
             ) : (
-              <span aria-hidden="true" className="text-zinc-400">
+              <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
                 Anterior
               </span>
             )}
@@ -443,7 +443,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 Próxima
               </Link>
             ) : (
-              <span aria-hidden="true" className="text-zinc-400">
+              <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
                 Próxima
               </span>
             )}

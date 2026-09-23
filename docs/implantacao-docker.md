@@ -46,6 +46,12 @@ resolve automaticamente — reduzindo superfície de ataque e tamanho de imagem.
 - **Sem arquivos de desenvolvimento**: `.git`, testes, configuração de lint/format,
   arquivos `.env*` (exceto que nem deveriam existir na árvore de build), documentação —
   nenhum desses vai para a imagem final. Ver `.dockerignore` abaixo.
+- **Sem gerenciador de pacotes no runtime**: o processo final só executa `node
+  server.js` — `npm`, `npx` e `corepack` (que a imagem-base do Node traz por padrão) são
+  removidos no estágio de produção. Além de reduzir a superfície de ataque, isso elimina
+  vulnerabilidades relatadas nas dependências do próprio `npm` que nunca seriam
+  alcançáveis em produção (achado real de scan de imagem — ver
+  [`docs/revisao-de-seguranca.md`](revisao-de-seguranca.md), item 17).
 - **Filesystem somente leitura quando viável**: a plataforma de execução deve poder
   montar o filesystem do container como somente leitura, com volumes/tmpfs explícitos
   apenas onde o Next.js precisar escrever (ex.: cache de build em runtime, se aplicável).

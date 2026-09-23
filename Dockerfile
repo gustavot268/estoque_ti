@@ -57,6 +57,13 @@ ENTRYPOINT ["pnpm", "exec", "prisma", "migrate", "deploy", "--config=prisma/pris
 # ---------------------------------------------------------------------------
 FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS producao
 RUN apk add --no-cache openssl
+# O runtime só executa `node server.js` — nunca precisa do npm/corepack que a
+# imagem base do Node traz por padrão. Removê-los reduz a superfície de
+# ataque e elimina vulnerabilidades relatadas nas dependências do próprio
+# npm (nenhuma delas alcançável, já que o binário nunca roda aqui) — achado
+# real de scan de imagem (Trivy), não suposição (ver docs/revisao-de-seguranca.md).
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+  /usr/local/bin/corepack /usr/local/lib/node_modules/corepack
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
