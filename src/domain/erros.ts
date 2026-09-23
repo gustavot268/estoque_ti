@@ -17,6 +17,7 @@ export const CODIGOS_DE_ERRO = [
   "VALOR_DE_LISTA_EM_USO",
   "ACESSO_NEGADO",
   "OPERACAO_NAO_PERMITIDA",
+  "EXPORTACAO_EXCEDE_LIMITE",
 ] as const;
 
 export type CodigoDeErro = (typeof CODIGOS_DE_ERRO)[number];
@@ -122,6 +123,24 @@ export class OperacaoNaoPermitidaError extends ErroDeDominioError {
   }
 }
 
+/**
+ * A exportação (requisito 14.12: "limitar volume máximo por exportação")
+ * encontrou mais registros do que o permitido em uma única exportação.
+ */
+export class ExportacaoExcedeLimiteError extends ErroDeDominioError {
+  override readonly codigo = "EXPORTACAO_EXCEDE_LIMITE" as const;
+
+  readonly limite: number;
+
+  constructor(limite: number) {
+    super(
+      `A exportação encontrou mais de ${limite} equipamentos com os filtros atuais. ` +
+        "Refine a busca ou os filtros para exportar um conjunto menor.",
+    );
+    this.limite = limite;
+  }
+}
+
 export function ehErroDeDominio(valor: unknown): valor is ErroDeDominioError {
   return valor instanceof ErroDeDominioError;
 }
@@ -142,5 +161,7 @@ export function statusHttpDoErro(erro: ErroDeDominioError): number {
       return 403;
     case "OPERACAO_NAO_PERMITIDA":
       return 400;
+    case "EXPORTACAO_EXCEDE_LIMITE":
+      return 422;
   }
 }

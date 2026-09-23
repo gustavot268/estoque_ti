@@ -12,11 +12,7 @@
 
 import "server-only";
 
-import {
-  type ConfiguracaoAmbiente,
-  ErroDeConfiguracaoError,
-  validarAmbiente,
-} from "./esquema-env";
+import { type ConfiguracaoAmbiente, ErroDeConfiguracaoError, validarAmbiente } from "./esquema-env";
 
 let cache: ConfiguracaoAmbiente | undefined;
 
@@ -28,5 +24,5 @@ export function obterConfiguracao(): ConfiguracaoAmbiente {
   return cache;
 }
 
-export { ErroDeConfiguracaoError };
 export type { ConfiguracaoAmbiente };
+export { ErroDeConfiguracaoError };

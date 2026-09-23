@@ -5,6 +5,8 @@
  * a pessoa entender o que fazer a seguir.
  */
 
+import { MensagemSimples } from "./mensagem-simples";
+
 type Props = {
   readonly variante: "nao-autenticado" | "sem-permissao";
 };
@@ -24,13 +26,5 @@ const CONTEUDO: Record<Props["variante"], { titulo: string; descricao: string }>
 
 export function MensagemDeAcesso({ variante }: Props) {
   const { titulo, descricao } = CONTEUDO[variante];
-
-  return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-3 px-4 py-16 text-center">
-      <h1 className="text-xl font-semibold tracking-tight">{titulo}</h1>
-      <p role="alert" className="text-zinc-600 dark:text-zinc-400">
-        {descricao}
-      </p>
-    </main>
-  );
+  return <MensagemSimples titulo={titulo} descricao={descricao} />;
 }

@@ -19,13 +19,27 @@ export type OpcoesDoCliente = {
   readonly urlDeConexao: string;
   /** Emite log de consulta (apenas desenvolvimento/depuração). */
   readonly registrarConsultas?: boolean;
+  /**
+   * Tamanho máximo do pool de conexões do driver (`pg.Pool`). O adaptador
+   * NÃO lê `connection_limit`/`pool_timeout` da URL (isso era só do antigo
+   * engine do Prisma) — sem este parâmetro, `pg.Pool` usa seu próprio padrão
+   * (10), que pode ultrapassar o `CONNECTION LIMIT` de uma role com menor
+   * privilégio (ex.: `estoque_migrator`, limitada a 5 — ver ADR 0007) quando
+   * há operações concorrentes, cada `$transaction` reservando uma conexão
+   * própria pela duração da transação.
+   */
+  readonly tamanhoMaximoDoPool?: number;
 };
 
 export function criarClientePrisma({
   urlDeConexao,
   registrarConsultas = false,
+  tamanhoMaximoDoPool,
 }: OpcoesDoCliente): PrismaClient {
-  const adaptador = new PrismaPg({ connectionString: urlDeConexao });
+  const adaptador = new PrismaPg({
+    connectionString: urlDeConexao,
+    ...(tamanhoMaximoDoPool !== undefined ? { max: tamanhoMaximoDoPool } : {}),
+  });
 
   return new PrismaClient({
     adapter: adaptador,

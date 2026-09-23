@@ -2,7 +2,7 @@
   "name": "Estoque de TI",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-24-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4.1.1": {
       "version": "latest",
       "moby": false
     }

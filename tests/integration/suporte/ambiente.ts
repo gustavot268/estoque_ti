@@ -43,7 +43,14 @@ export function obterClienteDeTeste(): PrismaClient {
     );
   }
 
-  clienteMemoizado = criarClientePrisma({ urlDeConexao: configuracao.TEST_DATABASE_URL });
+  clienteMemoizado = criarClientePrisma({
+    urlDeConexao: configuracao.TEST_DATABASE_URL,
+    // `estoque_migrator` (a conta por trás de TEST_DATABASE_URL) tem
+    // CONNECTION LIMIT 5 no Postgres (ADR 0007); sem isto o pool padrão do
+    // driver (10) estoura esse limite assim que um teste roda operações
+    // concorrentes (cada `$transaction` prende uma conexão própria).
+    tamanhoMaximoDoPool: 3,
+  });
   return clienteMemoizado;
 }
 

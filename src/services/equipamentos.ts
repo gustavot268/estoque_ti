@@ -1,34 +1,39 @@
 /**
  * Casos de uso de Equipamento.
  *
- * Nesta rodada (Etapa 2) só existe o caso de uso de CADASTRO — o mínimo
- * necessário para exercitar normalização, unicidade, o fluxo "Outro" e a
- * auditoria de criação. Edição, mudança de status/localização, arquivamento e
- * restauração são escopo da Etapa 5 (ver ADR 0005) e não são implementados
- * aqui, para não antecipar decisões de UI/concorrência daquela etapa.
+ * Cadastro e consulta/detalhes (Etapas 2 e 4), e edição, arquivamento e
+ * restauração (Etapa 5, ver ADR 0005) — normalização, unicidade, o fluxo
+ * "Outro", auditoria, busca/filtro/paginação no servidor, histórico e
+ * concorrência otimista.
  *
- * O servidor é a autoridade final (requisito 5): `cadastrarEquipamento` aceita
+ * O servidor é a autoridade final (requisito 5): todo caso de uso aqui aceita
  * `unknown` e valida internamente com o esquema Zod compartilhado, em vez de
  * confiar que quem chamou já validou.
  */
 
-import type { Prisma } from "@prisma/client";
+import type { Fabricante, Prisma } from "@prisma/client";
 import type { AtorAutenticado } from "../domain/ator";
 import {
   ConflitoDeUnicidadeError,
+  ConflitoDeVersaoError,
   EntradaInvalidaError,
+  OperacaoNaoPermitidaError,
   RegistroNaoEncontradoError,
   ValorDeListaInvalidoError,
 } from "../domain/erros";
 import { normalizarParDeIdentificador } from "../domain/normalizacao";
 import { exigirPermissao } from "../domain/permissoes";
-import type { PrismaClient } from "../infrastructure/prisma/criar-cliente";
-import { registrar } from "../infrastructure/repositorios/auditoria";
+import type { ClientePrisma, PrismaClient } from "../infrastructure/prisma/criar-cliente";
+import { listarPorEquipamento, registrar } from "../infrastructure/repositorios/auditoria";
 import {
+  arquivar,
+  atualizar,
   criar,
   existeCodigoTrillogoNormalizado,
   existeNumeroSerieNormalizado,
+  listarPaginado,
   obterDetalhadoPorId,
+  restaurar,
 } from "../infrastructure/repositorios/equipamentos";
 import {
   obterCategoriaPorId,
@@ -37,7 +42,13 @@ import {
   obterStatusFuncionamentoPorId,
 } from "../infrastructure/repositorios/listas-controladas";
 import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
-import { esquemaCriarEquipamento } from "../validation/equipamento";
+import {
+  esquemaArquivarEquipamento,
+  esquemaAtualizarEquipamento,
+  esquemaConsultaEquipamentos,
+  esquemaCriarEquipamento,
+  esquemaRestaurarEquipamento,
+} from "../validation/equipamento";
 import { resolverFabricanteOutro } from "./fabricantes";
 
 type DadosDeAuditoriaDoEquipamento = {
@@ -90,9 +101,112 @@ function mapearConflitoDeUnicidade(
   return new ConflitoDeUnicidadeError("equipamento", "Este equipamento já existe.");
 }
 
+type EntradaComReferencias = {
+  readonly categoriaId: string;
+  readonly statusId: string;
+  readonly localizacaoId: string;
+  readonly fabricanteId: string;
+  readonly fabricanteOutroNome: string | null;
+};
+
+type ReferenciasAtuais = {
+  readonly categoriaId: string;
+  readonly statusId: string;
+  readonly localizacaoId: string;
+  readonly fabricanteId: string;
+};
+
 /**
- * Cadastra um equipamento (regra 4.1, seção 17 — Etapa 4 previsto; aqui só o
- * caso de uso, sem tela/endpoint).
+ * Valida categoria/status/localização/fabricante: precisam existir e estar
+ * ativos. Exceção deliberada (só relevante em edição, por isso `atual` é
+ * opcional): um valor que o equipamento **já tinha** pode continuar inativo
+ * — regra 4.2 ("registros inativos... precisam continuar associados aos
+ * equipamentos antigos") — a exigência de "ativo" vale para uma escolha
+ * NOVA, não para reter o que já estava selecionado. No cadastro (sem
+ * `atual`), toda referência é sempre uma escolha nova.
+ */
+async function validarReferencias(
+  prisma: PrismaClient,
+  entrada: EntradaComReferencias,
+  atual?: ReferenciasAtuais,
+): Promise<{ ehFabricanteOutro: boolean; fabricanteSelecionado: Fabricante }> {
+  const [categoria, statusFuncionamento, localizacao, fabricanteSelecionado] = await Promise.all([
+    obterCategoriaPorId(prisma, entrada.categoriaId),
+    obterStatusFuncionamentoPorId(prisma, entrada.statusId),
+    obterLocalizacaoPorId(prisma, entrada.localizacaoId),
+    obterFabricantePorId(prisma, entrada.fabricanteId),
+  ]);
+
+  const categoriaInalterada = atual?.categoriaId === entrada.categoriaId;
+  if (categoria === null || (!categoria.ativo && !categoriaInalterada)) {
+    throw new ValorDeListaInvalidoError("categoriaId");
+  }
+  const statusInalterado = atual?.statusId === entrada.statusId;
+  if (statusFuncionamento === null || (!statusFuncionamento.ativo && !statusInalterado)) {
+    throw new ValorDeListaInvalidoError("statusId");
+  }
+  const localizacaoInalterada = atual?.localizacaoId === entrada.localizacaoId;
+  if (localizacao === null || (!localizacao.ativo && !localizacaoInalterada)) {
+    throw new ValorDeListaInvalidoError("localizacaoId");
+  }
+  if (fabricanteSelecionado === null) {
+    throw new ValorDeListaInvalidoError("fabricanteId");
+  }
+
+  const ehFabricanteOutro = fabricanteSelecionado.nomeNormalizado === "outro";
+  if (ehFabricanteOutro) {
+    if (entrada.fabricanteOutroNome === null) {
+      throw new EntradaInvalidaError({
+        fabricanteOutroNome: ["Informe o nome do fabricante."],
+      });
+    }
+  } else {
+    const fabricanteInalterado = atual?.fabricanteId === entrada.fabricanteId;
+    if (!fabricanteSelecionado.ativo && !fabricanteInalterado) {
+      throw new ValorDeListaInvalidoError("fabricanteId");
+    }
+  }
+
+  return { ehFabricanteOutro, fabricanteSelecionado };
+}
+
+/**
+ * Depois de um `updateMany` com `count === 0`, decide a mensagem correta
+ * verificando o estado atual do registro (ADR 0005) — a contagem sozinha não
+ * diferencia "não existe mais" de "versão desatualizada" de "arquivado".
+ * `esperarArquivado` inverte a checagem para o caso de restauração, que
+ * exige o oposto (o registro precisa ESTAR arquivado).
+ */
+async function exigirAtualizacaoAplicada(
+  tx: ClientePrisma,
+  id: string,
+  versaoEnviada: number,
+  resultadoUpdate: { count: number },
+  esperarArquivado = false,
+): Promise<void> {
+  if (resultadoUpdate.count > 0) {
+    return;
+  }
+
+  const atual = await obterDetalhadoPorId(tx, id);
+  if (atual === null) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const arquivado = atual.arquivadoEm !== null;
+  if (esperarArquivado && !arquivado) {
+    throw new OperacaoNaoPermitidaError("Este equipamento não está arquivado.");
+  }
+  if (!esperarArquivado && arquivado) {
+    throw new OperacaoNaoPermitidaError(
+      "Esta operação não é permitida para um equipamento arquivado. Restaure-o primeiro.",
+    );
+  }
+  throw new ConflitoDeVersaoError(versaoEnviada);
+}
+
+/**
+ * Cadastra um equipamento (regra 4.1, seção 17 — Etapa 4).
  *
  * Ordem das verificações: permissão → forma da entrada (Zod) → referências às
  * listas controladas → unicidade (checagem amigável) → gravação, com a
@@ -111,36 +225,7 @@ export async function cadastrarEquipamento(
   }
   const entrada = resultado.data;
 
-  const [categoria, statusFuncionamento, localizacao, fabricanteSelecionado] = await Promise.all([
-    obterCategoriaPorId(prisma, entrada.categoriaId),
-    obterStatusFuncionamentoPorId(prisma, entrada.statusId),
-    obterLocalizacaoPorId(prisma, entrada.localizacaoId),
-    obterFabricantePorId(prisma, entrada.fabricanteId),
-  ]);
-
-  if (categoria === null || !categoria.ativo) {
-    throw new ValorDeListaInvalidoError("categoriaId");
-  }
-  if (statusFuncionamento === null || !statusFuncionamento.ativo) {
-    throw new ValorDeListaInvalidoError("statusId");
-  }
-  if (localizacao === null || !localizacao.ativo) {
-    throw new ValorDeListaInvalidoError("localizacaoId");
-  }
-  if (fabricanteSelecionado === null) {
-    throw new ValorDeListaInvalidoError("fabricanteId");
-  }
-
-  const ehFabricanteOutro = fabricanteSelecionado.nomeNormalizado === "outro";
-  if (ehFabricanteOutro) {
-    if (entrada.fabricanteOutroNome === null) {
-      throw new EntradaInvalidaError({
-        fabricanteOutroNome: ["Informe o nome do fabricante."],
-      });
-    }
-  } else if (!fabricanteSelecionado.ativo) {
-    throw new ValorDeListaInvalidoError("fabricanteId");
-  }
+  const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada);
 
   const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
   const codigoTrillogo = normalizarParDeIdentificador(entrada.codigoTrillogo);
@@ -222,7 +307,7 @@ function isPrismaUniqueConstraintError(
   );
 }
 
-/** Leitura por id — usada pela futura tela de detalhes (Etapa 4) e pelos testes. */
+/** Leitura por id — usada pela tela de detalhes (Etapa 4). */
 export async function obterEquipamentoPorId(
   prisma: PrismaClient,
   ator: AtorAutenticado,
@@ -240,4 +325,274 @@ export async function obterEquipamentoPorId(
     throw new RegistroNaoEncontradoError();
   }
   return equipamento;
+}
+
+/** Histórico de alterações de um equipamento — usado na tela de detalhes. */
+export async function obterHistoricoDoEquipamento(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  equipamentoId: string,
+) {
+  exigirPermissao(ator, "VISUALIZAR_EQUIPAMENTO");
+  return listarPorEquipamento(prisma, equipamentoId);
+}
+
+/**
+ * Tamanho de página FIXO, não controlável pelo cliente — impede paginação
+ * abusiva (requisito 14.21). Só o número da página vem da querystring.
+ */
+const TAMANHO_PAGINA = 20;
+
+/**
+ * Consulta paginada (Etapa 4): busca por nome/modelo/número de série/código
+ * Trillogo, filtros por lista controlada, ordenação e paginação — tudo
+ * processado no banco, nunca carregando o estoque inteiro no servidor nem no
+ * navegador (requisito 7).
+ */
+export async function listarEquipamentos(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  parametrosBrutos: unknown,
+) {
+  exigirPermissao(ator, "VISUALIZAR_EQUIPAMENTO");
+
+  const resultado = esquemaConsultaEquipamentos.safeParse(parametrosBrutos);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const parametros = resultado.data;
+
+  const { itens, total } = await listarPaginado(prisma, {
+    filtros: {
+      busca: parametros.busca ?? undefined,
+      categoriaId: parametros.categoriaId,
+      fabricanteId: parametros.fabricanteId,
+      statusId: parametros.statusId,
+      localizacaoId: parametros.localizacaoId,
+    },
+    ordenacao: { campo: parametros.ordenarPor, direcao: parametros.direcao },
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+  });
+
+  return {
+    itens,
+    total,
+    totalPaginas: Math.max(1, Math.ceil(total / TAMANHO_PAGINA)),
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+    parametros,
+  };
+}
+
+/**
+ * Edita um equipamento (Etapa 5, ADR 0005). `entradaBruta.versao` é o token
+ * de concorrência: se o registro já tiver sido alterado por outra pessoa
+ * desde que esta tela foi aberta, a gravação é recusada em vez de
+ * sobrescrever silenciosamente (requisito 5).
+ *
+ * Referências a listas controladas seguem a mesma regra do cadastro, exceto
+ * que um valor que o equipamento já tinha pode continuar inativo (ver
+ * `validarReferencias`).
+ */
+export async function editarEquipamento(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  id: string,
+  entradaBruta: unknown,
+) {
+  exigirPermissao(ator, "EDITAR_EQUIPAMENTO");
+
+  const idValido = uuidObrigatorio("o identificador do equipamento").safeParse(id);
+  if (!idValido.success) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const resultado = esquemaAtualizarEquipamento.safeParse(entradaBruta);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const entrada = resultado.data;
+
+  const atual = await obterDetalhadoPorId(prisma, idValido.data);
+  if (atual === null) {
+    throw new RegistroNaoEncontradoError();
+  }
+  if (atual.arquivadoEm !== null) {
+    throw new OperacaoNaoPermitidaError(
+      "Não é possível editar um equipamento arquivado. Restaure-o primeiro.",
+    );
+  }
+
+  const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada, {
+    categoriaId: atual.categoriaId,
+    statusId: atual.statusId,
+    localizacaoId: atual.localizacaoId,
+    fabricanteId: atual.fabricanteId,
+  });
+
+  const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
+  const codigoTrillogo = normalizarParDeIdentificador(entrada.codigoTrillogo);
+
+  if (
+    numeroSerie.normalizado !== null &&
+    numeroSerie.normalizado !== atual.numeroSerieNormalizado
+  ) {
+    const jaExiste = await existeNumeroSerieNormalizado(prisma, numeroSerie.normalizado);
+    if (jaExiste) {
+      throw new ConflitoDeUnicidadeError(
+        "numeroSerie",
+        "Já existe um equipamento cadastrado com este número de série.",
+      );
+    }
+  }
+  if (
+    codigoTrillogo.normalizado !== null &&
+    codigoTrillogo.normalizado !== atual.codigoTrillogoNormalizado
+  ) {
+    const jaExiste = await existeCodigoTrillogoNormalizado(prisma, codigoTrillogo.normalizado);
+    if (jaExiste) {
+      throw new ConflitoDeUnicidadeError(
+        "codigoTrillogo",
+        "Já existe um equipamento cadastrado com este código Trillogo.",
+      );
+    }
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const fabricanteResolvidoId = ehFabricanteOutro
+        ? (await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)).id
+        : fabricanteSelecionado.id;
+
+      const resultadoUpdate = await atualizar(tx, idValido.data, entrada.versao, {
+        categoriaId: entrada.categoriaId,
+        nome: entrada.nome,
+        fabricanteId: fabricanteResolvidoId,
+        modelo: entrada.modelo,
+        numeroSerie: numeroSerie.exibicao,
+        numeroSerieNormalizado: numeroSerie.normalizado,
+        codigoTrillogo: codigoTrillogo.exibicao,
+        codigoTrillogoNormalizado: codigoTrillogo.normalizado,
+        statusId: entrada.statusId,
+        localizacaoId: entrada.localizacaoId,
+        observacoes: entrada.observacoes,
+        atualizadoPorId: ator.usuarioId,
+      });
+      await exigirAtualizacaoAplicada(tx, idValido.data, entrada.versao, resultadoUpdate);
+
+      const equipamentoAtualizado = await obterDetalhadoPorId(tx, idValido.data);
+      if (equipamentoAtualizado === null) {
+        throw new RegistroNaoEncontradoError();
+      }
+
+      await registrar(tx, {
+        equipamentoId: equipamentoAtualizado.id,
+        tipoAcao: "EDICAO",
+        dadosAnteriores: paraAuditoria(atual),
+        dadosPosteriores: paraAuditoria(equipamentoAtualizado),
+        usuarioId: ator.usuarioId,
+        usuarioNome: ator.nome,
+        usuarioEmail: ator.email,
+        resultado: "SUCESSO",
+        correlacaoId: ator.correlacaoId,
+      });
+
+      return equipamentoAtualizado;
+    });
+  } catch (erro) {
+    if (isPrismaUniqueConstraintError(erro)) {
+      throw mapearConflitoDeUnicidade(erro);
+    }
+    throw erro;
+  }
+}
+
+/**
+ * Arquiva um equipamento (somente Administração). Exclusão lógica — nunca
+ * física (regra 4.1). `versao` é o mesmo token de concorrência da edição.
+ */
+export async function arquivarEquipamento(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  id: string,
+  entradaBruta: unknown,
+) {
+  exigirPermissao(ator, "ARQUIVAR_EQUIPAMENTO");
+
+  const idValido = uuidObrigatorio("o identificador do equipamento").safeParse(id);
+  if (!idValido.success) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const resultado = esquemaArquivarEquipamento.safeParse(entradaBruta);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const entrada = resultado.data;
+
+  return await prisma.$transaction(async (tx) => {
+    const resultadoUpdate = await arquivar(tx, idValido.data, entrada.versao, ator.usuarioId);
+    await exigirAtualizacaoAplicada(tx, idValido.data, entrada.versao, resultadoUpdate);
+
+    const equipamento = await obterDetalhadoPorId(tx, idValido.data);
+    if (equipamento === null) {
+      throw new RegistroNaoEncontradoError();
+    }
+
+    await registrar(tx, {
+      equipamentoId: equipamento.id,
+      tipoAcao: "ARQUIVAMENTO",
+      usuarioId: ator.usuarioId,
+      usuarioNome: ator.nome,
+      usuarioEmail: ator.email,
+      resultado: "SUCESSO",
+      correlacaoId: ator.correlacaoId,
+    });
+
+    return equipamento;
+  });
+}
+
+/** Restaura um equipamento arquivado (somente Administração). */
+export async function restaurarEquipamento(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  id: string,
+  entradaBruta: unknown,
+) {
+  exigirPermissao(ator, "RESTAURAR_EQUIPAMENTO");
+
+  const idValido = uuidObrigatorio("o identificador do equipamento").safeParse(id);
+  if (!idValido.success) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const resultado = esquemaRestaurarEquipamento.safeParse(entradaBruta);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const entrada = resultado.data;
+
+  return await prisma.$transaction(async (tx) => {
+    const resultadoUpdate = await restaurar(tx, idValido.data, entrada.versao, ator.usuarioId);
+    await exigirAtualizacaoAplicada(tx, idValido.data, entrada.versao, resultadoUpdate, true);
+
+    const equipamento = await obterDetalhadoPorId(tx, idValido.data);
+    if (equipamento === null) {
+      throw new RegistroNaoEncontradoError();
+    }
+
+    await registrar(tx, {
+      equipamentoId: equipamento.id,
+      tipoAcao: "RESTAURACAO",
+      usuarioId: ator.usuarioId,
+      usuarioNome: ator.nome,
+      usuarioEmail: ator.email,
+      resultado: "SUCESSO",
+      correlacaoId: ator.correlacaoId,
+    });
+
+    return equipamento;
+  });
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   esquemaAtualizarEquipamento,
+  esquemaConsultaEquipamentos,
   esquemaCriarEquipamento,
 } from "../../src/validation/equipamento";
 
@@ -112,5 +113,52 @@ describe("esquemaAtualizarEquipamento (ADR 0005)", () => {
     expect(esquemaAtualizarEquipamento.safeParse({ ...ENTRADA_VALIDA, versao: 0 }).success).toBe(
       false,
     );
+  });
+});
+
+describe("esquemaConsultaEquipamentos (Etapa 4)", () => {
+  it("aceita entrada vazia e aplica os padrões", () => {
+    const resultado = esquemaConsultaEquipamentos.parse({});
+    expect(resultado).toEqual({
+      busca: null,
+      categoriaId: undefined,
+      fabricanteId: undefined,
+      statusId: undefined,
+      localizacaoId: undefined,
+      pagina: 1,
+      ordenarPor: "criadoEm",
+      direcao: "desc",
+    });
+  });
+
+  it("converte a página de string para número", () => {
+    expect(esquemaConsultaEquipamentos.parse({ pagina: "3" }).pagina).toBe(3);
+  });
+
+  it("rejeita página não numérica, negativa ou acima do limite", () => {
+    expect(esquemaConsultaEquipamentos.safeParse({ pagina: "abc" }).success).toBe(false);
+    expect(esquemaConsultaEquipamentos.safeParse({ pagina: "-1" }).success).toBe(false);
+    expect(esquemaConsultaEquipamentos.safeParse({ pagina: "0" }).success).toBe(false);
+    expect(esquemaConsultaEquipamentos.safeParse({ pagina: "999999999" }).success).toBe(false);
+  });
+
+  it("categoriaId vazio ou ausente significa 'sem filtro', não erro", () => {
+    expect(esquemaConsultaEquipamentos.parse({ categoriaId: "" }).categoriaId).toBeUndefined();
+    expect(esquemaConsultaEquipamentos.parse({}).categoriaId).toBeUndefined();
+  });
+
+  it("rejeita categoriaId que não é um UUID válido", () => {
+    expect(esquemaConsultaEquipamentos.safeParse({ categoriaId: "não-é-uuid" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejeita campo de ordenação fora da lista permitida (proteção contra SQL arbitrário)", () => {
+    expect(esquemaConsultaEquipamentos.safeParse({ ordenarPor: "senha" }).success).toBe(false);
+  });
+
+  it("não é um objeto estrito: parâmetros desconhecidos são ignorados, não rejeitados", () => {
+    const resultado = esquemaConsultaEquipamentos.safeParse({ utm_source: "boletim" });
+    expect(resultado.success).toBe(true);
   });
 });

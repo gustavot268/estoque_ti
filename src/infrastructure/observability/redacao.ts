@@ -36,7 +36,9 @@ const CHAVES_PROIBIDAS = [
 
 function chaveEhProibida(chave: string): boolean {
   const normalizada = chave.toLowerCase().replaceAll(/[\s_-]/g, "");
-  return CHAVES_PROIBIDAS.some((proibida) => normalizada.includes(proibida.replaceAll(/[\s_-]/g, "")));
+  return CHAVES_PROIBIDAS.some((proibida) =>
+    normalizada.includes(proibida.replaceAll(/[\s_-]/g, "")),
+  );
 }
 
 /**
@@ -45,7 +47,10 @@ function chaveEhProibida(chave: string): boolean {
  */
 const PADROES_EM_TEXTO: ReadonlyArray<readonly [RegExp, string]> = [
   // postgresql://usuario:senha@host:porta/banco  ->  postgresql://[REDIGIDO]
-  [/\b(postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqps?):\/\/\S+/gi, `$1://${MARCADOR_REDIGIDO}`],
+  [
+    /\b(postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqps?):\/\/\S+/gi,
+    `$1://${MARCADOR_REDIGIDO}`,
+  ],
   // Bearer / Basic <token>
   [/\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, `$1 ${MARCADOR_REDIGIDO}`],
   // JWT compacto

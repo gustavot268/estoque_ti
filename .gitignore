@@ -53,3 +53,6 @@ next-env.d.ts
 /docker/postgres/dados/
 *.dump
 *.sql.gz
+
+# Estado local de ferramentas de agente (não é parte do projeto)
+/.claude/

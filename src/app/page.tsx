@@ -22,9 +22,9 @@ export default function PaginaInicial() {
           Situação atual
         </h2>
         <p className="text-zinc-600 dark:text-zinc-400">
-          As telas de consulta, detalhes e administração ainda não foram implementadas. A
-          autenticação corporativa (Microsoft Entra ID) também não está ativa — enquanto isso, o
-          acesso depende do modo de desenvolvimento isolado (
+          A tela de administração ainda não foi implementada. A autenticação corporativa (Microsoft
+          Entra ID) também não está ativa — enquanto isso, o acesso depende do modo de
+          desenvolvimento isolado (
           <code className="rounded bg-zinc-100 px-1 font-mono text-[0.9em] dark:bg-zinc-800">
             DEV_AUTH_ENABLED
           </code>
@@ -32,12 +32,19 @@ export default function PaginaInicial() {
         </p>
         <p className="text-zinc-600 dark:text-zinc-400">
           <Link
+            href="/equipamentos"
+            className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+          >
+            Consultar equipamentos
+          </Link>{" "}
+          e{" "}
+          <Link
             href="/equipamentos/novo"
             className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
           >
-            Cadastrar equipamento
+            cadastrar equipamento
           </Link>{" "}
-          já está disponível para os perfis Operação e Administração.
+          já estão disponíveis para os perfis com permissão.
         </p>
         <p className="text-zinc-600 dark:text-zinc-400">
           A verificação de saúde da aplicação e do banco de dados está disponível em{" "}

@@ -10,29 +10,9 @@ import {
 import { normalizarIdentificador, normalizarParDeNomeDeLista } from "../../src/domain/normalizacao";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
+import { idDaCategoria, idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
-
-async function idDaCategoria(nome: string): Promise<string> {
-  const { normalizado } = normalizarParDeNomeDeLista(nome);
-  return (await prisma.categoria.findUniqueOrThrow({ where: { nomeNormalizado: normalizado } })).id;
-}
-async function idDoFabricante(nome: string): Promise<string> {
-  const { normalizado } = normalizarParDeNomeDeLista(nome);
-  return (await prisma.fabricante.findUniqueOrThrow({ where: { nomeNormalizado: normalizado } }))
-    .id;
-}
-async function idDoStatus(nome: string): Promise<string> {
-  const { normalizado } = normalizarParDeNomeDeLista(nome);
-  return (
-    await prisma.statusFuncionamento.findUniqueOrThrow({ where: { nomeNormalizado: normalizado } })
-  ).id;
-}
-async function idDaLocalizacao(nome: string): Promise<string> {
-  const { normalizado } = normalizarParDeNomeDeLista(nome);
-  return (await prisma.localizacao.findUniqueOrThrow({ where: { nomeNormalizado: normalizado } }))
-    .id;
-}
 
 describe("cadastrarEquipamento (caso de uso)", () => {
   let usuarioId: string;
@@ -56,11 +36,11 @@ describe("cadastrarEquipamento (caso de uso)", () => {
     usuariosCriados.push(usuario.id);
     ator = criarAtorDeTeste(usuario, "OPERACAO");
 
-    categoriaId = await idDaCategoria("Notebook");
-    statusId = await idDoStatus("Operacional");
-    localizacaoId = await idDaLocalizacao("15º andar");
-    fabricanteDellId = await idDoFabricante("Dell");
-    fabricanteOutroId = await idDoFabricante("Outro");
+    categoriaId = await idDaCategoria(prisma, "Notebook");
+    statusId = await idDoStatus(prisma, "Operacional");
+    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    fabricanteDellId = await idDoFabricante(prisma, "Dell");
+    fabricanteOutroId = await idDoFabricante(prisma, "Outro");
 
     const nomeCategoriaInativa = `Categoria de teste inativa ${randomUUID()}`;
     const categoriaInativa = await prisma.categoria.create({

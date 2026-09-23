@@ -169,18 +169,25 @@ revisada pela equipe de Segurança da Informação antes da implantação em pro
   vetor relevante de exfiltração por um usuário interno legítimo mas malicioso ou com
   conta comprometida.
 - **Controle preventivo:** exportação exige autenticação e verificação de permissão no
-  servidor; `EXPORT_MAX_ROWS` limita o volume por exportação (default 10000, ver
-  [`docs/variaveis-de-ambiente.md`](variaveis-de-ambiente.md)); exportação respeita
-  apenas os filtros que o usuário já está autorizado a consultar. Escopo de
-  implementação: Etapa 6 (**não implementada nesta rodada**).
+  servidor (`exigirPermissao`, dentro do serviço — não apenas um botão oculto);
+  `EXPORT_MAX_ROWS` limita o volume por exportação (default 10000, ver
+  [`docs/variaveis-de-ambiente.md`](variaveis-de-ambiente.md)) e a exportação é recusada
+  com erro claro quando o filtro atual ultrapassa o limite, em vez de gerar um arquivo
+  parcial silenciosamente; exportação respeita apenas os filtros que o usuário já está
+  autorizado a consultar (mesmo esquema de validação da consulta). **Implementado e
+  verificado nesta rodada (Etapa 6)** — testes de integração cobrem o limite de linhas e
+  o corte 403 por permissão.
 - **Controle de detecção:** cada exportação gera `tipoAcao = EXPORTACAO` em
   `RegistroAuditoria`, registrando quem exportou, quando e os filtros gerais utilizados
-  (sem registrar o arquivo/conteúdo completo).
+  (sem registrar o arquivo/conteúdo completo). **Verificado** por teste de integração.
 - **Procedimento de resposta:** revisar o histórico de `EXPORTACAO` por usuário/período;
   se houver padrão anômalo, acionar procedimento de incidente e avaliar revisão de acesso
   junto ao responsável pelo Entra ID.
-- **Risco residual:** não avaliável nesta rodada — a exportação é integralmente escopo da
-  Etapa 6.
+- **Risco residual:** volume máximo por exportação individual é limitado, mas não há
+  limite de *quantas exportações* um usuário pode fazer em sequência (rate limiting é
+  lacuna geral registrada no item 14 de
+  [`docs/revisao-de-seguranca.md`](revisao-de-seguranca.md)) — um usuário autorizado
+  ainda pode exportar repetidamente para acumular volume acima do limite por chamada.
 
 ---
 
@@ -196,17 +203,23 @@ revisada pela equipe de Segurança da Informação antes da implantação em pro
 - **Probabilidade estimada:** Média — qualquer campo de texto livre pode receber esse
   padrão de entrada, deliberadamente ou não.
 - **Controle preventivo:** neutralização de valores iniciados por esses caracteres antes
-  da exportação (ex.: prefixar com um caractere neutro ou aspas simples, conforme técnica
-  padrão de proteção contra formula injection). Escopo de implementação: Etapa 6 (**não
-  implementada nesta rodada**).
-- **Controle de detecção:** teste automatizado dedicado é requisito explícito do cliente
-  (seção 12); nenhum teste foi executado nesta rodada porque a exportação não existe
-  ainda.
+  da exportação (prefixo de apóstrofo — técnica padrão de proteção contra formula
+  injection), aplicada em todo campo de texto de entrada do usuário (nome, modelo,
+  observações, identificadores, nomes de lista relacionados). **Implementado nesta
+  rodada (Etapa 6)** —
+  [`src/infrastructure/exportacao/planilha-de-equipamentos.ts`](../src/infrastructure/exportacao/planilha-de-equipamentos.ts).
+- **Controle de detecção:** teste automatizado dedicado (requisito explícito do cliente,
+  seção 12) existe em duas camadas: teste unitário de `neutralizarFormula` para os seis
+  caracteres de risco, e teste de integração que cadastra um equipamento com um valor de
+  risco real, exporta e lê de volta o `.xlsx` gerado para confirmar que o byte gravado no
+  arquivo está neutralizado — não apenas que a função pura funciona isoladamente.
 - **Procedimento de resposta:** se um arquivo exportado sem a proteção for identificado
   em circulação, alertar os destinatários conhecidos a não habilitar macros/conteúdo
   dinâmico ao abrir o arquivo, e corrigir a exportação antes de nova geração.
-- **Risco residual:** não avaliável nesta rodada — a exportação é integralmente escopo da
-  Etapa 6.
+- **Risco residual:** a neutralização cobre o conjunto de caracteres reconhecido como
+  padrão pela indústria (`=`, `+`, `-`, `@`, tabulação, retorno de carro); comportamento
+  de renderização do apóstrofo pode variar entre diferentes aplicativos de planilha além
+  do Excel (não testado nesta rodada em LibreOffice/Google Sheets).
 
 ---
 

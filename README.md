@@ -258,13 +258,20 @@ oculto na interface. Matriz completa de permissões por ação em
 
 ## Exportação para Excel
 
-A exportação para `.xlsx` será gerada **sob demanda, pelo servidor**, respeitando a
-pesquisa/filtros ativos e a permissão do usuário, com proteção contra formula injection
-(neutralização de valores iniciados por `=`, `+`, `-`, `@`, tabulação ou retorno de
-carro), cabeçalhos em português, identificador interno, número de série e código
-Trillogo, nomes das listas relacionadas, e indicação de data/hora de geração. O arquivo
-não fica retido indefinidamente no servidor. Esta funcionalidade é **integralmente
-escopo da Etapa 6** — nada disso está implementado nesta rodada.
+A exportação para `.xlsx` é gerada **sob demanda, pelo servidor** (`GET
+/api/equipamentos/exportar`), sempre em memória — nenhum arquivo temporário é escrito em
+disco. Respeita a mesma pesquisa/filtros/ordenação ativos na tela de consulta e a
+permissão do usuário (`EXPORTAR_EQUIPAMENTOS`, verificada de novo dentro do serviço).
+Proteção contra formula injection: todo campo de texto vindo de entrada do usuário
+(nome, modelo, observações, identificadores, nomes de lista) que comece com `=`, `+`,
+`-`, `@`, tabulação ou retorno de carro recebe um apóstrofo à frente antes de ir para a
+célula. Cabeçalhos em português, identificador interno, número de série e código
+Trillogo, nomes das listas relacionadas, quem cadastrou/alterou e indicação de data/hora
+de geração (UTC) constam do arquivo. A exportação é limitada a `EXPORT_MAX_ROWS`
+registros (variável de ambiente); se o filtro atual ultrapassar o limite, a exportação é
+recusada com uma mensagem pedindo para refinar a busca, em vez de gerar um arquivo
+parcial silenciosamente. A auditoria registra quem exportou, quando e quais filtros —
+nunca o arquivo em si.
 
 **Não existe sincronização bidirecional com Excel.** O arquivo exportado é uma cópia
 pontual dos dados no momento da geração; alterações feitas nesse arquivo **nunca**
@@ -323,11 +330,11 @@ mais atual**, já que a implementação avança em paralelo a este documento.
 | Etapa | Escopo | Estado observado |
 | --- | --- | --- |
 | 1 — Fundação | Projeto, TypeScript estrito, Docker/Postgres/Codespaces, health check, documentação inicial | Em andamento. `package.json` com scripts e dependências normativos já presentes (Biome, Vitest, Playwright, Prisma, Zod). `Dockerfile*`, `docker-compose*.yml`, `.devcontainer/`, `.env.example` e a rota de health check (`GET /api/saude`) ainda não observados em `src/app` no momento desta escrita. |
-| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migração inicial, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e o primeiro caso de uso (`cadastrarEquipamento`, `src/services/`) existem. 48 testes (32 unitários + 16 de integração, banco isolado real) **executados e passando** — `pnpm test`. **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. Falta: edição/arquivamento/restauração de equipamento (Etapa 5) e administração de listas (Etapa 7). |
+| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migração inicial, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 88 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test`. **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. Falta: administração de listas (Etapa 7). |
 | 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | Contrato documentado + **ponte mínima de desenvolvimento implementada** (`src/infrastructure/auth/ator-atual.ts`): só ativa com `DEV_AUTH_ENABLED=true` (proibido em produção), perfil simulado fixo. A integração real com o Microsoft Entra ID (validação de token, resolução de grupo) continua não implementada — depende das credenciais da pendência corporativa. |
-| 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | **Cadastro implementado e verificado** ponta a ponta (`/equipamentos/novo`): formulário responsivo, acessível, com Server Action, mensagens de erro por campo, aviso de formulário não salvo, e telas amigáveis de acesso negado/indisponibilidade. Consulta/pesquisa/filtros/paginação e a tela de detalhes ainda não foram implementados. |
-| 5 — Edição e auditoria | Edição, concorrência otimista, histórico, arquivamento e restauração | Não iniciada. Contrato de concorrência otimista e de auditoria já documentado ([ADR 0005](docs/adr/0005-concorrencia-otimista.md), [ADR 0008](docs/adr/0008-auditoria-append-only.md)). |
-| 6 — Exportação | Geração de `.xlsx`, filtros e permissões, proteção contra formula injection, testes | Não iniciada. |
+| 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | **Implementado e verificado** ponta a ponta contra um Postgres real: cadastro (`/equipamentos/novo`), consulta com busca/filtros/ordenação/paginação no servidor, responsiva (tabela no desktop, cartões no celular) (`/equipamentos`), e detalhes com histórico de auditoria (`/equipamentos/[id]`). Tamanho de página fixo (não controlável pelo cliente) contra paginação abusiva. Falta apenas o painel inicial com indicadores (fora do escopo estrito da Etapa 4). |
+| 5 — Edição e auditoria | Edição, concorrência otimista, histórico, arquivamento e restauração | **Implementado e verificado** ponta a ponta contra um Postgres real: edição (`/equipamentos/[id]/editar`) com concorrência otimista (ADR 0005 — duas edições concorrentes na mesma versão: só uma aplica, a outra recebe erro de conflito, testado), arquivamento e restauração (botões na tela de detalhes, restritos ao perfil Administração), histórico de auditoria completo (Cadastro/Edição/Arquivamento/Restauração). |
+| 6 — Exportação | Geração de `.xlsx`, filtros e permissões, proteção contra formula injection, testes | **Implementado e verificado** ponta a ponta contra um Postgres real: rota `GET /api/equipamentos/exportar`, respeitando os mesmos filtros/ordenação da consulta, protegida por `EXPORTAR_EQUIPAMENTOS`, com link "Exportar" na tela de consulta (oculto para quem não tem a permissão). Proteção contra formula injection testada com um caractere de risco real gravado e exportado (o arquivo gerado contém o valor neutralizado com apóstrofo). Limite de linhas (`EXPORT_MAX_ROWS`) testado e rejeita com erro claro em vez de gerar arquivo parcial. Auditoria da exportação (quem, quando, filtros, contagem — nunca o arquivo) testada. |
 | 7 — Administração e qualidade | Gestão de listas, testes ponta a ponta, acessibilidade, pipeline, revisão de segurança, documentação final | Não iniciada. |
 
 Consulte também [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md) para o

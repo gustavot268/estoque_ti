@@ -1,11 +1,12 @@
 /**
  * Repositório de auditoria — o único ponto que grava em `registros_auditoria`.
  *
- * De propósito, só existe função de inserção aqui: a tabela é append-only (ver
- * ADR 0008) e não há caso de uso de edição ou remoção de registro de auditoria
- * na camada de serviços. A proteção definitiva (independente do código da
- * aplicação estar correto) é o privilégio de conta + trigger de banco descritos
- * no ADR — ver a nota de bloqueio no relatório desta etapa.
+ * De propósito, só existem funções de inserção e leitura aqui: a tabela é
+ * append-only (ver ADR 0008) e não há caso de uso de edição ou remoção de
+ * registro de auditoria na camada de serviços. A proteção definitiva
+ * (independente do código da aplicação estar correto) é o privilégio de
+ * conta + trigger de banco descritos no ADR — ver a nota de bloqueio no
+ * relatório da Etapa 2.
  */
 
 import type { Prisma, ResultadoAuditoria, TipoAcaoAuditoria } from "@prisma/client";
@@ -38,5 +39,13 @@ export async function registrar(prisma: ClientePrisma, dados: DadosParaRegistrar
       resultado: dados.resultado,
       correlacaoId: dados.correlacaoId,
     },
+  });
+}
+
+/** Histórico de um equipamento, mais recente primeiro — usado na tela de detalhes. */
+export async function listarPorEquipamento(prisma: ClientePrisma, equipamentoId: string) {
+  return prisma.registroAuditoria.findMany({
+    where: { equipamentoId },
+    orderBy: { ocorridoEm: "desc" },
   });
 }

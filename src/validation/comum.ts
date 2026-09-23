@@ -41,6 +41,20 @@ export function uuidObrigatorio(rotulo: string) {
     .pipe(z.uuid({ error: () => `${rotulo} inválido.` }));
 }
 
+/**
+ * UUID opcional — usado em filtro de consulta (ex.: `categoriaId` na busca de
+ * equipamentos). Ausente ou vazio significa "sem filtro neste campo", nunca
+ * "filtrar por vazio".
+ */
+export function uuidOpcional(rotulo: string) {
+  return z
+    .string()
+    .trim()
+    .optional()
+    .transform((valor) => (valor === undefined || valor === "" ? undefined : valor))
+    .pipe(z.uuid({ error: () => `${rotulo} inválido.` }).optional());
+}
+
 /** Texto obrigatório de linha única. */
 export function textoObrigatorio(rotulo: string, maximo: number, minimo = 1) {
   return z
@@ -48,9 +62,7 @@ export function textoObrigatorio(rotulo: string, maximo: number, minimo = 1) {
     .transform((valor) => valor.trim())
     .refine((valor) => valor.length >= minimo, {
       error: () =>
-        minimo === 1
-          ? `Informe ${rotulo}.`
-          : `${rotulo} deve ter pelo menos ${minimo} caracteres.`,
+        minimo === 1 ? `Informe ${rotulo}.` : `${rotulo} deve ter pelo menos ${minimo} caracteres.`,
     })
     .refine((valor) => valor.length <= maximo, {
       error: () => `${rotulo} deve ter no máximo ${maximo} caracteres.`,
@@ -117,8 +129,7 @@ export function identificadorPatrimonialOpcional(rotulo: string, maximo: number)
   return textoOpcional(rotulo, maximo).refine(
     (valor) => valor === null || IDENTIFICADOR_PERMITIDO.test(valor),
     {
-      error: () =>
-        `${rotulo} aceita apenas letras, números, espaço e os símbolos . _ - / #.`,
+      error: () => `${rotulo} aceita apenas letras, números, espaço e os símbolos . _ - / #.`,
     },
   );
 }

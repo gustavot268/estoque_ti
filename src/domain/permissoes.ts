@@ -6,8 +6,8 @@
  * autorização — a verificação sempre acontece no servidor, dentro dos serviços.
  */
 
-import { AcessoNegadoError } from "./erros";
 import type { AtorAutenticado, PerfilAcesso } from "./ator";
+import { AcessoNegadoError } from "./erros";
 
 export const ACOES = [
   "VISUALIZAR_EQUIPAMENTO",

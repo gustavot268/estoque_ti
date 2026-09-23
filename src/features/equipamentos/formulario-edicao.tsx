@@ -1,30 +1,43 @@
 "use client";
 
 /**
- * Formulário de cadastro de equipamento (Etapa 4).
+ * Formulário de edição de equipamento (Etapa 5, ADR 0005).
  *
- * Validação do navegador é só conveniência (`required`, `maxLength`); a
- * autoridade final é o servidor (`cadastrarEquipamentoAction` →
- * `src/services/equipamentos.ts`). Por isso `noValidate`: preferimos as
- * mensagens em português do servidor às mensagens nativas do navegador, que
- * variam de idioma conforme a configuração do usuário.
+ * Igual ao de cadastro na maior parte dos campos, com duas diferenças: os
+ * campos vêm pré-preenchidos com os valores atuais, e a `versao` viaja num
+ * campo oculto — é o token de concorrência que o servidor usa para detectar
+ * se alguém mais alterou o registro entre a abertura desta tela e o envio.
  *
- * Campos não controlados (sem `value`/`onChange`) de propósito: o React 19
- * limpa o formulário automaticamente depois que a Server Action de uma
- * `<form action={...}>` retorna com sucesso, o que já entrega o requisito de
- * "pronto para o próximo cadastro" sem estado adicional.
+ * Ao salvar com sucesso, a Server Action redireciona para a tela de
+ * detalhes (em vez de depender do reset automático do React 19, que
+ * devolveria os campos não controlados ao valor original de abertura, não ao
+ * valor recém-salvo).
  */
 
-import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import {
-  cadastrarEquipamentoAction,
-  type ResultadoCadastro,
-} from "../../app/equipamentos/novo/acoes";
+  editarEquipamentoAction,
+  type ResultadoEdicao,
+} from "../../app/equipamentos/[id]/editar/acoes";
 
 type OpcaoDeLista = { readonly id: string; readonly nome: string };
 
+type DadosDoEquipamento = {
+  readonly id: string;
+  readonly categoriaId: string;
+  readonly nome: string;
+  readonly fabricanteId: string;
+  readonly modelo: string;
+  readonly numeroSerie: string | null;
+  readonly codigoTrillogo: string | null;
+  readonly statusId: string;
+  readonly localizacaoId: string;
+  readonly observacoes: string | null;
+  readonly versao: number;
+};
+
 type Props = {
+  readonly equipamento: DadosDoEquipamento;
   readonly categorias: readonly OpcaoDeLista[];
   readonly fabricantes: readonly OpcaoDeLista[];
   readonly statusFuncionamento: readonly OpcaoDeLista[];
@@ -32,24 +45,23 @@ type Props = {
   readonly fabricanteOutroId: string | null;
 };
 
-const ESTADO_INICIAL: ResultadoCadastro | null = null;
+const ESTADO_INICIAL: ResultadoEdicao | null = null;
 
 const CLASSE_CAMPO =
   "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:outline-zinc-100";
 const CLASSE_RASTRO = "text-sm font-medium text-zinc-800 dark:text-zinc-200";
 
-export function FormularioCadastroDeEquipamento({
+export function FormularioEdicaoDeEquipamento({
+  equipamento,
   categorias,
   fabricantes,
   statusFuncionamento,
   localizacoes,
   fabricanteOutroId,
 }: Props) {
-  const [resultado, submeter, pendente] = useActionState(
-    cadastrarEquipamentoAction,
-    ESTADO_INICIAL,
-  );
-  const [fabricanteSelecionado, setFabricanteSelecionado] = useState("");
+  const submeterComId = editarEquipamentoAction.bind(null, equipamento.id);
+  const [resultado, submeter, pendente] = useActionState(submeterComId, ESTADO_INICIAL);
+  const [fabricanteSelecionado, setFabricanteSelecionado] = useState(equipamento.fabricanteId);
   const [modificado, setModificado] = useState(false);
 
   useEffect(() => {
@@ -62,13 +74,6 @@ export function FormularioCadastroDeEquipamento({
     window.addEventListener("beforeunload", avisarAntesDeSair);
     return () => window.removeEventListener("beforeunload", avisarAntesDeSair);
   }, [modificado]);
-
-  useEffect(() => {
-    if (resultado?.sucesso) {
-      setModificado(false);
-      setFabricanteSelecionado("");
-    }
-  }, [resultado]);
 
   const ehFabricanteOutro =
     fabricanteOutroId !== null && fabricanteSelecionado === fabricanteOutroId;
@@ -88,23 +93,10 @@ export function FormularioCadastroDeEquipamento({
       noValidate
       className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8"
     >
-      <h1 className="text-xl font-semibold tracking-tight">Cadastrar equipamento</h1>
+      <h1 className="text-xl font-semibold tracking-tight">Editar equipamento</h1>
 
-      {resultado?.sucesso && (
-        <p
-          role="status"
-          className="rounded border border-green-600 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-300"
-        >
-          Equipamento cadastrado com sucesso.{" "}
-          <Link
-            href={`/equipamentos/${resultado.equipamentoId}`}
-            className="underline underline-offset-2"
-          >
-            Ver detalhes
-          </Link>
-          .
-        </p>
-      )}
+      <input type="hidden" name="versao" value={equipamento.versao} />
+
       {erroGeral !== null && (
         <p
           role="alert"
@@ -125,13 +117,10 @@ export function FormularioCadastroDeEquipamento({
             id="categoriaId"
             name="categoriaId"
             required
-            defaultValue=""
+            defaultValue={equipamento.categoriaId}
             className={CLASSE_CAMPO}
             aria-describedby="categoriaId-erro"
           >
-            <option value="" disabled>
-              Selecione
-            </option>
             {categorias.map((categoria) => (
               <option key={categoria.id} value={categoria.id}>
                 {categoria.nome}
@@ -150,6 +139,7 @@ export function FormularioCadastroDeEquipamento({
             name="nome"
             required
             maxLength={120}
+            defaultValue={equipamento.nome}
             className={CLASSE_CAMPO}
             aria-describedby="nome-erro"
           />
@@ -164,14 +154,11 @@ export function FormularioCadastroDeEquipamento({
             id="fabricanteId"
             name="fabricanteId"
             required
-            defaultValue=""
+            defaultValue={equipamento.fabricanteId}
             className={CLASSE_CAMPO}
             aria-describedby="fabricanteId-erro"
             onChange={(evento) => setFabricanteSelecionado(evento.target.value)}
           >
-            <option value="" disabled>
-              Selecione
-            </option>
             {fabricantes.map((fabricante) => (
               <option key={fabricante.id} value={fabricante.id}>
                 {fabricante.nome}
@@ -209,6 +196,7 @@ export function FormularioCadastroDeEquipamento({
             name="modelo"
             required
             maxLength={120}
+            defaultValue={equipamento.modelo}
             className={CLASSE_CAMPO}
             aria-describedby="modelo-erro"
           />
@@ -223,6 +211,7 @@ export function FormularioCadastroDeEquipamento({
             id="numeroSerie"
             name="numeroSerie"
             maxLength={100}
+            defaultValue={equipamento.numeroSerie ?? ""}
             className={CLASSE_CAMPO}
             aria-describedby="numeroSerie-erro"
           />
@@ -237,6 +226,7 @@ export function FormularioCadastroDeEquipamento({
             id="codigoTrillogo"
             name="codigoTrillogo"
             maxLength={60}
+            defaultValue={equipamento.codigoTrillogo ?? ""}
             className={CLASSE_CAMPO}
             aria-describedby="codigoTrillogo-erro"
           />
@@ -251,13 +241,10 @@ export function FormularioCadastroDeEquipamento({
             id="statusId"
             name="statusId"
             required
-            defaultValue=""
+            defaultValue={equipamento.statusId}
             className={CLASSE_CAMPO}
             aria-describedby="statusId-erro"
           >
-            <option value="" disabled>
-              Selecione
-            </option>
             {statusFuncionamento.map((status) => (
               <option key={status.id} value={status.id}>
                 {status.nome}
@@ -275,13 +262,10 @@ export function FormularioCadastroDeEquipamento({
             id="localizacaoId"
             name="localizacaoId"
             required
-            defaultValue=""
+            defaultValue={equipamento.localizacaoId}
             className={CLASSE_CAMPO}
             aria-describedby="localizacaoId-erro"
           >
-            <option value="" disabled>
-              Selecione
-            </option>
             {localizacoes.map((localizacao) => (
               <option key={localizacao.id} value={localizacao.id}>
                 {localizacao.nome}
@@ -300,6 +284,7 @@ export function FormularioCadastroDeEquipamento({
             name="observacoes"
             maxLength={1000}
             rows={3}
+            defaultValue={equipamento.observacoes ?? ""}
             className={CLASSE_CAMPO}
             aria-describedby="observacoes-dica observacoes-erro"
           />
@@ -310,14 +295,20 @@ export function FormularioCadastroDeEquipamento({
         </div>
       </fieldset>
 
-      <div>
+      <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={pendente}
           className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
         >
-          {pendente ? "Salvando…" : "Cadastrar"}
+          {pendente ? "Salvando…" : "Salvar alterações"}
         </button>
+        <a
+          href={`/equipamentos/${equipamento.id}`}
+          className="text-sm underline underline-offset-2 text-zinc-700 dark:text-zinc-300"
+        >
+          Cancelar
+        </a>
       </div>
     </form>
   );
