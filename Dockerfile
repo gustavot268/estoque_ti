@@ -14,7 +14,7 @@
 # automática). Use o alvo `migracoes` como job separado.
 # ---------------------------------------------------------------------------
 
-FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS base
+FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 # openssl é exigido pelos binários do Prisma em Alpine.
@@ -55,7 +55,7 @@ USER estoque
 ENTRYPOINT ["pnpm", "exec", "prisma", "migrate", "deploy", "--config=prisma/prisma7.config.ts"]
 
 # ---------------------------------------------------------------------------
-FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS producao
+FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS producao
 RUN apk add --no-cache openssl
 # O runtime só executa `node server.js` — nunca precisa do npm/corepack que a
 # imagem base do Node traz por padrão. Removê-los reduz a superfície de
