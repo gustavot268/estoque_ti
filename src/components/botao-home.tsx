@@ -7,17 +7,12 @@
  * `Link`, a pessoa perderia o que digitou sem nenhum aviso.
  */
 
-type Props = {
-  /** Ajustes de posição de quem usa o botão (ex.: absoluto no canto em telas largas). */
-  readonly className?: string;
-};
-
-export function BotaoHome({ className = "" }: Props) {
+export function BotaoHome() {
   return (
     <a
       href="/"
       title="Página inicial"
-      className={`inline-flex h-12 w-12 items-center justify-center rounded-lg border-2 border-zinc-900 text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800 ${className}`}
+      className="inline-flex h-12 w-12 items-center justify-center rounded-lg border-2 border-zinc-900 text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
         <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
