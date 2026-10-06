@@ -25,6 +25,12 @@ remover um equipamento que tem histórico, e a auditoria é somente inserção
 ([ADR 0008](adr/0008-auditoria-append-only.md)). A lixeira só aparece para quem tem
 permissão de arquivar (Administração).
 
+Para ver o que foi arquivado e restaurar, use **Ver arquivados** na lista (ou o endereço
+`/equipamentos/arquivados`). A tela mostra, do mais recente para o mais antigo, o status
+colorido, quando e por quem foi arquivado, tem busca e o botão **Restaurar**. Ela usa a
+mesma permissão de restaurar, então só a Administração a enxerga; Operação e Consulta
+recebem "Sem permissão", mesmo digitando o endereço.
+
 ### Perfil da demonstração (sem hierarquia)
 
 O acesso é feito **sem e-mail e sem senha**: a aplicação entra direto com um usuário

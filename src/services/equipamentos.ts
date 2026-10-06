@@ -32,6 +32,7 @@ import {
   criar,
   existeCodigoTrillogoNormalizado,
   existeNumeroSerieNormalizado,
+  listarArquivadosPaginado,
   listarPaginado,
   obterDetalhadoPorId,
   obterFotoPorId,
@@ -47,6 +48,7 @@ import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
 import {
   esquemaArquivarEquipamento,
   esquemaAtualizarEquipamento,
+  esquemaConsultaArquivados,
   esquemaConsultaEquipamentos,
   esquemaCriarEquipamento,
   esquemaRestaurarEquipamento,
@@ -450,6 +452,40 @@ export async function listarEquipamentos(
       localizacaoId: parametros.localizacaoId,
     },
     ordenacao: { campo: parametros.ordenarPor, direcao: parametros.direcao },
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+  });
+
+  return {
+    itens,
+    total,
+    totalPaginas: Math.max(1, Math.ceil(total / TAMANHO_PAGINA)),
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+    parametros,
+  };
+}
+
+/**
+ * Lista os equipamentos arquivados (tela de arquivados). Exige a mesma permissão
+ * de restaurar, de propósito: a tela existe para restaurar, e assim nenhuma
+ * ação nova entra na matriz de permissões — só Administração enxerga e restaura.
+ */
+export async function listarEquipamentosArquivados(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  parametrosBrutos: unknown,
+) {
+  exigirPermissao(ator, "RESTAURAR_EQUIPAMENTO");
+
+  const resultado = esquemaConsultaArquivados.safeParse(parametrosBrutos);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const parametros = resultado.data;
+
+  const { itens, total } = await listarArquivadosPaginado(prisma, {
+    busca: parametros.busca ?? undefined,
     pagina: parametros.pagina,
     tamanhoPagina: TAMANHO_PAGINA,
   });

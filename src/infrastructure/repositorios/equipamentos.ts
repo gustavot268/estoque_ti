@@ -164,12 +164,14 @@ export type OpcoesDeListagem = {
   readonly tamanhoPagina: number;
 };
 
-function construirFiltro(filtros: FiltrosDeEquipamento): Prisma.EquipamentoWhereInput {
+function construirFiltro(
+  filtros: FiltrosDeEquipamento,
+  arquivados = false,
+): Prisma.EquipamentoWhereInput {
   const filtro: Prisma.EquipamentoWhereInput = {
-    // A consulta geral (Etapa 4) nunca mostra arquivados — ver ADR de
-    // retenção. Uma tela específica de administração pode reabrir esse
-    // filtro no futuro (Etapa 5/7); este repositório não decide isso.
-    arquivadoEm: null,
+    // A consulta geral (Etapa 4) e a exportação nunca mostram arquivados; só a
+    // listagem de arquivados (`listarArquivadosPaginado`) inverte este filtro.
+    arquivadoEm: arquivados ? { not: null } : null,
   };
 
   if (filtros.categoriaId !== undefined) {
@@ -205,6 +207,47 @@ export async function listarPaginado(prisma: ClientePrisma, opcoes: OpcoesDeList
       where,
       select: SELECAO_DE_LISTAGEM,
       orderBy: { [opcoes.ordenacao.campo]: opcoes.ordenacao.direcao },
+      skip: (opcoes.pagina - 1) * opcoes.tamanhoPagina,
+      take: opcoes.tamanhoPagina,
+    }),
+    prisma.equipamento.count({ where }),
+  ]);
+
+  return { itens, total };
+}
+
+/** Campos da listagem de arquivados: quando e por quem foi arquivado, e a versão para restaurar. */
+const SELECAO_DE_ARQUIVADOS = {
+  id: true,
+  nome: true,
+  modelo: true,
+  versao: true,
+  arquivadoEm: true,
+  categoria: true,
+  fabricante: true,
+  status: true,
+  arquivadoPor: { select: { nome: true } },
+} as const;
+
+export type OpcoesDeListagemDeArquivados = {
+  readonly busca?: string;
+  readonly pagina: number;
+  readonly tamanhoPagina: number;
+};
+
+/** Arquivados, do mais recente para o mais antigo — paginados e processados no banco. */
+export async function listarArquivadosPaginado(
+  prisma: ClientePrisma,
+  opcoes: OpcoesDeListagemDeArquivados,
+) {
+  const where = construirFiltro({ busca: opcoes.busca }, true);
+
+  const [itens, total] = await Promise.all([
+    prisma.equipamento.findMany({
+      where,
+      select: SELECAO_DE_ARQUIVADOS,
+      // `id` desempata, para a paginação não repetir nem pular itens arquivados no mesmo instante.
+      orderBy: [{ arquivadoEm: "desc" }, { id: "asc" }],
       skip: (opcoes.pagina - 1) * opcoes.tamanhoPagina,
       take: opcoes.tamanhoPagina,
     }),

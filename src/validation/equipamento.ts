@@ -143,4 +143,12 @@ export const esquemaConsultaEquipamentos = z.object({
 
 export type EntradaConsultaEquipamentos = z.infer<typeof esquemaConsultaEquipamentos>;
 
+/** Consulta da tela de arquivados: só busca e página (a ordem é sempre do mais recente). */
+export const esquemaConsultaArquivados = z.object({
+  busca: textoOpcional("a busca", 120),
+  pagina: paginaDeConsulta,
+});
+
+export type EntradaConsultaArquivados = z.infer<typeof esquemaConsultaArquivados>;
+
 export type EntradaValorDeListaControlada = z.infer<typeof esquemaValorDeListaControlada>;

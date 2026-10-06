@@ -212,6 +212,8 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
   const podeCadastrar = acoesPermitidas(ator.perfil).includes("CADASTRAR_EQUIPAMENTO");
   const podeGerenciarListas = acoesPermitidas(ator.perfil).includes("GERENCIAR_LISTAS");
   const podeArquivar = acoesPermitidas(ator.perfil).includes("ARQUIVAR_EQUIPAMENTO");
+  // A tela de arquivados usa a mesma permissão de restaurar (só Administração).
+  const podeVerArquivados = acoesPermitidas(ator.perfil).includes("RESTAURAR_EQUIPAMENTO");
   // Volta para a mesma lista (filtros e ordenação) depois de arquivar; a página não, porque
   // ao sair um item o conjunto muda.
   const retornoDaLista = construirHref(parametros, { pagina: undefined });
@@ -228,6 +230,14 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold tracking-tight">Equipamentos</h1>
         <div className="flex items-center gap-2">
+          {podeVerArquivados && (
+            <Link
+              href="/equipamentos/arquivados"
+              className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+            >
+              Ver arquivados
+            </Link>
+          )}
           {podeGerenciarListas && (
             <Link
               href="/administracao/listas"
@@ -263,6 +273,10 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
           Equipamento arquivado. O histórico foi mantido.{" "}
           <Link href={`/equipamentos/${idArquivado}`} className="font-medium underline">
             Ver equipamento ou restaurar
+          </Link>
+          {" · "}
+          <Link href="/equipamentos/arquivados" className="font-medium underline">
+            Ver arquivados
           </Link>
         </p>
       )}

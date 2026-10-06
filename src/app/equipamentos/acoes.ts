@@ -7,21 +7,14 @@
  * (`arquivarEquipamento`), que reverifica a permissão no servidor e aplica a
  * concorrência otimista — nada de autorização é decidido aqui. Depois da
  * operação, volta para a lista com os filtros que a pessoa estava usando e um
- * indicador de resultado na URL. O indicador é sempre um código curto de uma
- * lista fixa (ou um UUID), nunca texto livre: a página escolhe a mensagem.
+ * indicador de resultado na URL (ver `./destino-de-retorno.ts`).
  */
 
 import { redirect } from "next/navigation";
-import {
-  AcessoNegadoError,
-  ConflitoDeVersaoError,
-  OperacaoNaoPermitidaError,
-  RegistroNaoEncontradoError,
-} from "../../domain/erros";
 import { obterAtorAtual } from "../../infrastructure/auth/ator-atual";
-import { logger } from "../../infrastructure/observability/logger";
 import { obterPrisma } from "../../infrastructure/prisma/cliente";
 import { arquivarEquipamento } from "../../services/equipamentos";
+import { codigoDoErroDeOperacao, montarDestinoDeRetorno } from "./destino-de-retorno";
 
 const ROTA_DA_LISTA = "/equipamentos";
 
@@ -36,68 +29,28 @@ const PARAMETROS_PRESERVADOS = [
   "direcao",
 ] as const;
 
-/**
- * Monta o endereço de volta. Só aceita um retorno que seja a própria lista
- * (nunca um endereço externo) e copia apenas os parâmetros conhecidos.
- */
-function montarDestino(retorno: unknown, indicador: Record<string, string>): string {
-  const destino = new URLSearchParams();
-
-  if (
-    typeof retorno === "string" &&
-    retorno.length <= 2000 &&
-    (retorno === ROTA_DA_LISTA || retorno.startsWith(`${ROTA_DA_LISTA}?`))
-  ) {
-    const origem = new URLSearchParams(retorno.slice(ROTA_DA_LISTA.length + 1));
-    for (const chave of PARAMETROS_PRESERVADOS) {
-      const valor = origem.get(chave);
-      if (valor !== null && valor !== "") {
-        destino.set(chave, valor);
-      }
-    }
-  }
-
-  for (const [chave, valor] of Object.entries(indicador)) {
-    destino.set(chave, valor);
-  }
-  const texto = destino.toString();
-  return texto === "" ? ROTA_DA_LISTA : `${ROTA_DA_LISTA}?${texto}`;
-}
-
-function codigoDoErro(erro: unknown): string {
-  if (erro instanceof AcessoNegadoError) {
-    return "permissao";
-  }
-  if (erro instanceof ConflitoDeVersaoError) {
-    return "conflito";
-  }
-  if (erro instanceof RegistroNaoEncontradoError || erro instanceof OperacaoNaoPermitidaError) {
-    return "nao-encontrado";
-  }
-  logger.error("Falha inesperada ao arquivar equipamento pela lista.", { erro });
-  return "indisponivel";
-}
-
 export async function arquivarEquipamentoDaListaAction(
   equipamentoId: string,
   dadosDoFormulario: FormData,
 ): Promise<void> {
   const retorno = dadosDoFormulario.get("retorno");
   const versaoBruta = dadosDoFormulario.get("versao");
+  const voltar = (indicador: Record<string, string>) =>
+    montarDestinoDeRetorno(ROTA_DA_LISTA, PARAMETROS_PRESERVADOS, retorno, indicador);
 
   let destino: string;
   try {
     const ator = await obterAtorAtual();
     if (ator === null) {
-      destino = montarDestino(retorno, { erro: "sessao" });
+      destino = voltar({ erro: "sessao" });
     } else {
       await arquivarEquipamento(obterPrisma(), ator, equipamentoId, {
         versao: typeof versaoBruta === "string" ? Number(versaoBruta) : Number.NaN,
       });
-      destino = montarDestino(retorno, { arquivado: equipamentoId });
+      destino = voltar({ arquivado: equipamentoId });
     }
   } catch (erro) {
-    destino = montarDestino(retorno, { erro: codigoDoErro(erro) });
+    destino = voltar({ erro: codigoDoErroDeOperacao(erro, "arquivar equipamento pela lista") });
   }
 
   // Fora do try/catch: `redirect` funciona lançando uma exceção interna do Next.
