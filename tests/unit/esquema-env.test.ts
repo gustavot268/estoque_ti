@@ -66,6 +66,38 @@ describe("validarAmbiente — regra dura: DEV_AUTH_ENABLED nunca em produção",
   });
 });
 
+describe("validarAmbiente — DEV_AUTH_PERFIL (perfil do usuário fictício da demonstração)", () => {
+  it("fica indefinido quando ausente ou vazio (a aplicação usa Operação)", () => {
+    expect(validarAmbiente(baseDeDesenvolvimento()).DEV_AUTH_PERFIL).toBeUndefined();
+    expect(
+      validarAmbiente(baseDeDesenvolvimento({ DEV_AUTH_PERFIL: "" })).DEV_AUTH_PERFIL,
+    ).toBeUndefined();
+  });
+
+  it.each(["CONSULTA", "OPERACAO", "ADMINISTRACAO"])("aceita o perfil %s", (perfil) => {
+    const configuracao = validarAmbiente(
+      baseDeDesenvolvimento({ DEV_AUTH_ENABLED: "true", DEV_AUTH_PERFIL: perfil }),
+    );
+    expect(configuracao.DEV_AUTH_PERFIL).toBe(perfil);
+  });
+
+  it("rejeita um perfil desconhecido, com mensagem em português", () => {
+    expect(() =>
+      validarAmbiente(
+        baseDeDesenvolvimento({ DEV_AUTH_ENABLED: "true", DEV_AUTH_PERFIL: "SUPERUSUARIO" }),
+      ),
+    ).toThrow(/DEV_AUTH_PERFIL deve ser CONSULTA, OPERACAO ou ADMINISTRACAO/);
+  });
+
+  it("não abre brecha em produção: a flag de desenvolvimento continua proibida", () => {
+    expect(() =>
+      validarAmbiente(
+        baseDeProducao({ DEV_AUTH_ENABLED: "true", DEV_AUTH_PERFIL: "ADMINISTRACAO" }),
+      ),
+    ).toThrow(ErroDeConfiguracaoError);
+  });
+});
+
 describe("validarAmbiente — exigências adicionais em produção", () => {
   it("rejeita quando falta alguma credencial do Entra ID", () => {
     expect(() => validarAmbiente(baseDeProducao({ ENTRA_CLIENT_SECRET: undefined }))).toThrow(

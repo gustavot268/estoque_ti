@@ -68,6 +68,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: urlDoBancoDeTeste,
       DEV_AUTH_ENABLED: "true",
+      // Fixa o perfil padrão dos testes (Operação), mesmo que o `.env` local
+      // use outro para a demonstração.
+      DEV_AUTH_PERFIL: "OPERACAO",
     },
   },
 });

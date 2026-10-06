@@ -11,8 +11,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MensagemDeAcesso } from "../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../components/mensagem-simples";
+import { SeloDeStatus } from "../../components/selo-de-status";
 import { AcessoNegadoError, EntradaInvalidaError } from "../../domain/erros";
 import { acoesPermitidas, exigirPermissao } from "../../domain/permissoes";
+import { BotaoArquivarEquipamento } from "../../features/equipamentos/botao-arquivar-equipamento";
 import { obterAtorAtual } from "../../infrastructure/auth/ator-atual";
 import { logger } from "../../infrastructure/observability/logger";
 import { obterPrisma } from "../../infrastructure/prisma/cliente";
@@ -28,6 +30,7 @@ import type {
   EntradaConsultaEquipamentos,
 } from "../../validation/equipamento";
 import { CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO } from "../../validation/equipamento";
+import { arquivarEquipamentoDaListaAction } from "./acoes";
 
 export const metadata: Metadata = { title: "Consultar equipamentos" };
 
@@ -118,6 +121,22 @@ function hrefDeOrdenacao(
   return construirHref(parametros, { ordenarPor: campo, direcao, pagina: undefined });
 }
 
+/**
+ * Resultado de uma lixeira acionada na lista (ver `./acoes.ts`). Só códigos de
+ * uma lista fixa e um UUID chegam pela URL — texto livre nunca é exibido, para
+ * que um link forjado não consiga mostrar mensagem arbitrária na tela.
+ */
+const MENSAGENS_DE_ERRO_DO_ARQUIVAMENTO: Readonly<Record<string, string>> = {
+  sessao: "Sessão inválida. Atualize a página e tente novamente.",
+  permissao: "Seu perfil não tem permissão para arquivar equipamentos.",
+  conflito:
+    "Este equipamento foi alterado por outra pessoa depois que a lista foi aberta. A lista foi atualizada; confira e tente de novo.",
+  "nao-encontrado": "O equipamento não foi encontrado ou já estava arquivado.",
+  indisponivel: "Não foi possível concluir a operação agora. Tente novamente em instantes.",
+};
+
+const PADRAO_DE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const CLASSE_CAMPO =
   "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
 
@@ -192,6 +211,17 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
   const podeExportar = acoesPermitidas(ator.perfil).includes("EXPORTAR_EQUIPAMENTOS");
   const podeCadastrar = acoesPermitidas(ator.perfil).includes("CADASTRAR_EQUIPAMENTO");
   const podeGerenciarListas = acoesPermitidas(ator.perfil).includes("GERENCIAR_LISTAS");
+  const podeArquivar = acoesPermitidas(ator.perfil).includes("ARQUIVAR_EQUIPAMENTO");
+  // Volta para a mesma lista (filtros e ordenação) depois de arquivar; a página não, porque
+  // ao sair um item o conjunto muda.
+  const retornoDaLista = construirHref(parametros, { pagina: undefined });
+
+  const arquivadoBruto = primeiroValor(brutos.arquivado);
+  const idArquivado =
+    arquivadoBruto !== undefined && PADRAO_DE_UUID.test(arquivadoBruto) ? arquivadoBruto : null;
+  const erroBruto = primeiroValor(brutos.erro);
+  const mensagemDeErro =
+    erroBruto !== undefined ? (MENSAGENS_DE_ERRO_DO_ARQUIVAMENTO[erroBruto] ?? null) : null;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
@@ -224,6 +254,26 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
           )}
         </div>
       </div>
+
+      {idArquivado !== null && (
+        <p
+          role="status"
+          className="rounded border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+        >
+          Equipamento arquivado. O histórico foi mantido.{" "}
+          <Link href={`/equipamentos/${idArquivado}`} className="font-medium underline">
+            Ver equipamento ou restaurar
+          </Link>
+        </p>
+      )}
+      {mensagemDeErro !== null && (
+        <p
+          role="alert"
+          className="rounded border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+        >
+          {mensagemDeErro}
+        </p>
+      )}
 
       <form method="get" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <input type="hidden" name="ordenarPor" value={parametros.ordenarPor} />
@@ -384,14 +434,29 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                   </td>
                   <td className="py-2 pr-4">{equipamento.categoria.nome}</td>
                   <td className="py-2 pr-4">{equipamento.fabricante.nome}</td>
-                  <td className="py-2 pr-4">{equipamento.status.nome}</td>
+                  <td className="py-2 pr-4">
+                    <SeloDeStatus
+                      nome={equipamento.status.nome}
+                      nomeNormalizado={equipamento.status.nomeNormalizado}
+                    />
+                  </td>
                   <td className="py-2">
-                    <Link
-                      href={`/equipamentos/${equipamento.id}`}
-                      className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
-                    >
-                      Detalhes
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      <Link
+                        href={`/equipamentos/${equipamento.id}`}
+                        className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                      >
+                        Detalhes
+                      </Link>
+                      {podeArquivar && (
+                        <BotaoArquivarEquipamento
+                          acao={arquivarEquipamentoDaListaAction.bind(null, equipamento.id)}
+                          nomeDoEquipamento={equipamento.nome}
+                          versao={equipamento.versao}
+                          retorno={retornoDaLista}
+                        />
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -412,15 +477,28 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
                   {equipamento.categoria.nome} · {equipamento.fabricante.nome}
                 </span>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {equipamento.status.nome}
+                <span>
+                  <SeloDeStatus
+                    nome={equipamento.status.nome}
+                    nomeNormalizado={equipamento.status.nomeNormalizado}
+                  />
                 </span>
-                <Link
-                  href={`/equipamentos/${equipamento.id}`}
-                  className="mt-1 font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
-                >
-                  Ver detalhes
-                </Link>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <Link
+                    href={`/equipamentos/${equipamento.id}`}
+                    className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                  >
+                    Ver detalhes
+                  </Link>
+                  {podeArquivar && (
+                    <BotaoArquivarEquipamento
+                      acao={arquivarEquipamentoDaListaAction.bind(null, equipamento.id)}
+                      nomeDoEquipamento={equipamento.nome}
+                      versao={equipamento.versao}
+                      retorno={retornoDaLista}
+                    />
+                  )}
+                </div>
               </li>
             ))}
           </ul>

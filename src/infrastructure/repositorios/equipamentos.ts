@@ -135,6 +135,8 @@ const SELECAO_DE_LISTAGEM = {
   id: true,
   nome: true,
   modelo: true,
+  // Token de concorrência otimista: a lixeira da lista arquiva com a versão que a pessoa viu.
+  versao: true,
   criadoEm: true,
   atualizadoEm: true,
   categoria: true,
