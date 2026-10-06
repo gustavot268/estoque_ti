@@ -17,7 +17,7 @@
 #
 # Este script roda uma única vez, quando o volume de dados está vazio.
 # Os ajustes finos de privilégio por tabela (por exemplo: negar UPDATE/DELETE
-# na tabela de auditoria) ficam na migração `0004_privilegios_da_aplicacao`,
+# na tabela de auditoria) ficam na migração `20261006140000_proteger_auditoria_append_only`,
 # porque dependem das tabelas já existirem.
 # ---------------------------------------------------------------------------
 set -eu

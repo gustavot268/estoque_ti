@@ -93,10 +93,25 @@ camada de interface — nunca do armazenamento.
   ainda que a exportação (Etapa 6) e a autorização (Etapa 3) não estejam implementadas
   nesta rodada.
 
-## Verificação prevista
+## Implementação e verificação
 
-A Etapa 2 prevê teste de integração que tenta `UPDATE`/`DELETE` diretamente contra a
-tabela de auditoria usando a conta de aplicação e confirma que a operação é rejeitada
-pelo trigger. Nenhum teste foi executado por este agente de documentação — a existência e
-o resultado real da migração/trigger devem ser conferidos no código (`prisma/migrations`)
-e na execução da suíte de testes.
+Implementado na migração `prisma/migrations/20261006140000_proteger_auditoria_append_only`:
+
+- `REVOKE UPDATE, DELETE, TRUNCATE` de `estoque_app` em `registros_auditoria` (guardado por
+  `IF EXISTS` sobre a role, para não falhar em um ambiente sem a conta).
+- Função `bloquear_alteracao_de_auditoria()` e dois triggers: um por linha
+  (`UPDATE`/`DELETE`) e um por comando (`TRUNCATE`, que não dispara trigger por linha).
+  A rejeição usa o código `insufficient_privilege` e a mensagem "registros_auditoria é
+  somente inserção".
+- **Exceção deliberada:** a conta dona do schema (`estoque_migrator`, ADR 0007) não é
+  bloqueada pelo trigger. Ela é dona da tabela e poderia desativá-lo de qualquer forma; na
+  prática é usada só por migrações e pela limpeza dos testes no banco isolado. A custódia
+  dessa credencial em produção é pendência de Infraestrutura
+  ([`pendencias-corporativas.md`](../pendencias-corporativas.md)).
+
+Verificado por `tests/integration/auditoria-append-only.test.ts`, que conecta como a conta
+real da aplicação (`estoque_app`) ao banco isolado de testes: a camada 1 é testada sem
+privilégio (esperando "permission denied") e a camada 2 concedendo o privilégio
+temporariamente, para simular um erro de configuração (esperando o erro do trigger); o
+privilégio é sempre revogado ao final. Um banco já existente só ganha a proteção após
+`pnpm db:migrate:deploy`.

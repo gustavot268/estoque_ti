@@ -348,12 +348,12 @@ nenhuma circunstância.
 - Verificação de segurança automatizada em pipeline cobre tipos, lint, testes,
   dependências (`pnpm audit`, não bloqueante) e imagem Docker (Trivy, bloqueante); ainda
   falta scan de segredo versionado por engano (ex.: gitleaks/truffleHog).
-- A proteção de banco em duas camadas para a auditoria (ADR 0008: privilégio de
-  `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria` + trigger que
-  bloqueia `UPDATE`/`DELETE`) ainda não existe como migração real em
-  `prisma/migrations/` — hoje a imutabilidade depende apenas de a camada de serviço não
-  expor operação de edição/remoção de auditoria. Ver a linha da Etapa 2 na tabela de
-  estado abaixo.
+- A proteção de banco em duas camadas para a auditoria (ADR 0008) existe como migração
+  (`20261006140000_proteger_auditoria_append_only`): `estoque_app` perde
+  `UPDATE`/`DELETE`/`TRUNCATE` em `registros_auditoria` e um trigger rejeita essas
+  operações mesmo se o privilégio fosse concedido por engano. A exceção deliberada é a
+  conta dona do schema (`estoque_migrator`). Um banco já existente (como o da demo)
+  só passa a ter a proteção depois de `pnpm db:migrate:deploy`.
 
 ## Decisões pendentes
 
@@ -374,7 +374,7 @@ mais atual**, já que a implementação avança em paralelo a este documento.
 | Etapa | Escopo | Estado observado |
 | --- | --- | --- |
 | 1 — Fundação | Projeto, TypeScript estrito, Docker/Postgres/Codespaces, health check, documentação inicial | **Concluído e verificado**. `package.json` com scripts e dependências normativos (Biome, Vitest, Playwright, Prisma, Zod). `Dockerfile`, `Dockerfile.dev`, `docker-compose.yml`, `.devcontainer/`, `.env.example` e a rota de health check (`GET /api/saude`) existem e foram exercitados nesta rodada (`docker compose up`, `pnpm build`). |
-| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migrações, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 115 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test` (mais 17 testes ponta a ponta via `pnpm test:e2e`, ver Etapa 7). **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. |
+| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migrações, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 115 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test` (mais 17 testes ponta a ponta via `pnpm test:e2e`, ver Etapa 7). **Proteção da auditoria no banco (ADR 0008)**: migração `20261006140000_proteger_auditoria_append_only` — privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria` + trigger que bloqueia `UPDATE`/`DELETE`/`TRUNCATE`, testada em `tests/integration/auditoria-append-only.test.ts` (8 testes, conectando como a conta real da aplicação). |
 | 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | **A autorização em si está implementada e testada** (matriz de permissões, `exigirPermissao` em todo serviço, testes de caso negativo por perfil em todas as etapas 4–7) — ver [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md), item 2. O que falta é só a fonte da identidade: hoje ela vem de uma **ponte mínima de desenvolvimento** (`src/infrastructure/auth/ator-atual.ts`, só ativa com `DEV_AUTH_ENABLED=true`, proibido em produção, com teste automatizado dedicado). A integração real com o Microsoft Entra ID (validação de token, resolução de grupo) continua **bloqueada pela pendência corporativa** de credenciais — ver [`docs/pendencias-corporativas.md`](docs/pendencias-corporativas.md). |
 | 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | **Implementado e verificado** ponta a ponta contra um Postgres real: cadastro (`/equipamentos/novo`), consulta com busca/filtros/ordenação/paginação no servidor, responsiva (tabela no desktop, cartões no celular) (`/equipamentos`), e detalhes com histórico de auditoria (`/equipamentos/[id]`). Tamanho de página fixo (não controlável pelo cliente) contra paginação abusiva. Falta apenas o painel inicial com indicadores (fora do escopo estrito da Etapa 4). |
 | 5 — Edição e auditoria | Edição, concorrência otimista, histórico, arquivamento e restauração | **Implementado e verificado** ponta a ponta contra um Postgres real: edição (`/equipamentos/[id]/editar`) com concorrência otimista (ADR 0005 — duas edições concorrentes na mesma versão: só uma aplica, a outra recebe erro de conflito, testado), arquivamento e restauração (botões na tela de detalhes, restritos ao perfil Administração), histórico de auditoria completo (Cadastro/Edição/Arquivamento/Restauração). |
