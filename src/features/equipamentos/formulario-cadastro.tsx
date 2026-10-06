@@ -142,21 +142,6 @@ export function FormularioCadastroDeEquipamento({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="nome" className={CLASSE_RASTRO}>
-            Nome <span aria-hidden="true">*</span>
-          </label>
-          <input
-            id="nome"
-            name="nome"
-            required
-            maxLength={120}
-            className={CLASSE_CAMPO}
-            aria-describedby="nome-erro"
-          />
-          <ListaDeErros id="nome-erro" erros={errosDoCampo("nome")} />
-        </div>
-
-        <div className="flex flex-col gap-1">
           <label htmlFor="fabricanteId" className={CLASSE_RASTRO}>
             Fabricante <span aria-hidden="true">*</span>
           </label>

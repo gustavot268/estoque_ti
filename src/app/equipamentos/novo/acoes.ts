@@ -23,7 +23,7 @@ export type ResultadoCadastro =
 function extrairEntradaDoFormulario(dados: FormData): Record<string, unknown> {
   return {
     categoriaId: dados.get("categoriaId"),
-    nome: dados.get("nome"),
+    // Sem `nome`: o cadastro não o pede mais e o servidor o gera (ver `gerarNomeDoEquipamento`).
     fabricanteId: dados.get("fabricanteId"),
     fabricanteOutroNome: dados.get("fabricanteOutroNome"),
     modelo: dados.get("modelo"),

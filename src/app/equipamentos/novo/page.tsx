@@ -9,6 +9,7 @@
  */
 
 import type { Metadata } from "next";
+import { BotaoHome } from "../../../components/botao-home";
 import { MensagemDeAcesso } from "../../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade } from "../../../components/mensagem-simples";
 import { AcessoNegadoError } from "../../../domain/erros";
@@ -71,18 +72,26 @@ export default async function PaginaDeCadastro() {
   const fabricanteOutro = fabricantes.find((fabricante) => fabricante.nomeNormalizado === "outro");
 
   return (
-    <FormularioCadastroDeEquipamento
-      categorias={categorias.map((categoria) => ({ id: categoria.id, nome: categoria.nome }))}
-      fabricantes={fabricantes.map((fabricante) => ({ id: fabricante.id, nome: fabricante.nome }))}
-      statusFuncionamento={statusFuncionamento.map((status) => ({
-        id: status.id,
-        nome: status.nome,
-      }))}
-      localizacoes={localizacoes.map((localizacao) => ({
-        id: localizacao.id,
-        nome: localizacao.nome,
-      }))}
-      fabricanteOutroId={fabricanteOutro?.id ?? null}
-    />
+    // Telas largas: o botão fica no canto superior esquerdo, fora da coluna do formulário.
+    // Telas estreitas: fica acima do formulário, no fluxo normal da página.
+    <div className="relative flex flex-1 flex-col">
+      <BotaoHome className="m-4 self-start lg:absolute lg:top-6 lg:left-6 lg:m-0" />
+      <FormularioCadastroDeEquipamento
+        categorias={categorias.map((categoria) => ({ id: categoria.id, nome: categoria.nome }))}
+        fabricantes={fabricantes.map((fabricante) => ({
+          id: fabricante.id,
+          nome: fabricante.nome,
+        }))}
+        statusFuncionamento={statusFuncionamento.map((status) => ({
+          id: status.id,
+          nome: status.nome,
+        }))}
+        localizacoes={localizacoes.map((localizacao) => ({
+          id: localizacao.id,
+          nome: localizacao.nome,
+        }))}
+        fabricanteOutroId={fabricanteOutro?.id ?? null}
+      />
+    </div>
   );
 }

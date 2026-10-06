@@ -5,10 +5,12 @@ import { obterClienteDeTeste } from "./suporte";
 const prefixo = `e2e-cat-${randomUUID().slice(0, 8)}`;
 
 test.describe("categorias DVR e Câmera no cadastro (perfil Operação — o padrão do ambiente)", () => {
+  // O formulário não pede mais o nome (o servidor o gera). O que identifica o
+  // equipamento criado pelo teste é o modelo, que começa com o prefixo.
   test.afterAll(async () => {
     const prisma = obterClienteDeTeste();
     const equipamentos = await prisma.equipamento.findMany({
-      where: { nome: { startsWith: prefixo } },
+      where: { modelo: { startsWith: prefixo } },
       select: { id: true },
     });
     const ids = equipamentos.map((item) => item.id);
@@ -31,13 +33,12 @@ test.describe("categorias DVR e Câmera no cadastro (perfil Operação — o pad
     test(`cadastra um equipamento da categoria ${categoria} e o encontra na consulta`, async ({
       page,
     }) => {
-      const nome = `${prefixo} ${categoria}`;
+      const modelo = `${prefixo}-${categoria}`;
 
       await page.goto("/equipamentos/novo");
       await page.getByLabel("Categoria").selectOption({ label: categoria });
-      await page.getByLabel("Nome").fill(nome);
       await page.getByLabel("Fabricante").selectOption({ label: "Hikvision" });
-      await page.getByLabel("Modelo").fill("Modelo de teste");
+      await page.getByLabel("Modelo").fill(modelo);
       await page.getByLabel("Número de série").fill(`${prefixo}-${categoria}`);
       await page.getByLabel("Status de funcionamento").selectOption({ label: "Operacional" });
       await page.getByLabel("Localização").selectOption({ label: "15º andar" });
@@ -45,10 +46,14 @@ test.describe("categorias DVR e Câmera no cadastro (perfil Operação — o pad
 
       await expect(page.getByText("Equipamento cadastrado com sucesso.")).toBeVisible();
 
-      await page.goto(`/equipamentos?busca=${encodeURIComponent(nome)}`);
-      const linha = page.getByRole("row", { name: new RegExp(nome) });
+      await page.goto(`/equipamentos?busca=${encodeURIComponent(modelo)}`);
+      const linha = page.getByRole("row", { name: new RegExp(modelo) });
       await expect(linha).toBeVisible();
       await expect(linha.getByRole("cell", { name: categoria, exact: true })).toBeVisible();
+      // O nome foi gerado pelo servidor: categoria + fabricante + modelo.
+      await expect(
+        linha.getByRole("cell", { name: `${categoria} Hikvision ${modelo}`, exact: true }),
+      ).toBeVisible();
     });
   }
 });

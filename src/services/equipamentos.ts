@@ -22,6 +22,7 @@ import {
   ValorDeListaInvalidoError,
 } from "../domain/erros";
 import { validarImagem } from "../domain/imagem";
+import { gerarNomeDoEquipamento } from "../domain/nome-do-equipamento";
 import { normalizarParDeIdentificador } from "../domain/normalizacao";
 import { exigirPermissao } from "../domain/permissoes";
 import type { ClientePrisma, PrismaClient } from "../infrastructure/prisma/criar-cliente";
@@ -44,7 +45,7 @@ import {
   obterLocalizacaoPorId,
   obterStatusFuncionamentoPorId,
 } from "../infrastructure/repositorios/listas-controladas";
-import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
+import { errosPorCampo, TAMANHOS, uuidObrigatorio } from "../validation/comum";
 import {
   esquemaArquivarEquipamento,
   esquemaAtualizarEquipamento,
@@ -173,7 +174,11 @@ async function validarReferencias(
   prisma: PrismaClient,
   entrada: EntradaComReferencias,
   atual?: ReferenciasAtuais,
-): Promise<{ ehFabricanteOutro: boolean; fabricanteSelecionado: Fabricante }> {
+): Promise<{
+  ehFabricanteOutro: boolean;
+  fabricanteSelecionado: Fabricante;
+  categoria: { readonly nome: string };
+}> {
   const [categoria, statusFuncionamento, localizacao, fabricanteSelecionado] = await Promise.all([
     obterCategoriaPorId(prisma, entrada.categoriaId),
     obterStatusFuncionamentoPorId(prisma, entrada.statusId),
@@ -211,7 +216,7 @@ async function validarReferencias(
     }
   }
 
-  return { ehFabricanteOutro, fabricanteSelecionado };
+  return { ehFabricanteOutro, fabricanteSelecionado, categoria };
 }
 
 /**
@@ -272,7 +277,10 @@ export async function cadastrarEquipamento(
 
   const foto = await processarArquivoDeFoto(arquivoDaFoto);
 
-  const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada);
+  const { ehFabricanteOutro, fabricanteSelecionado, categoria } = await validarReferencias(
+    prisma,
+    entrada,
+  );
 
   const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
   const codigoTrillogo = normalizarParDeIdentificador(entrada.codigoTrillogo);
@@ -302,14 +310,27 @@ export async function cadastrarEquipamento(
       // acontece DENTRO da transação: se a gravação do equipamento falhar
       // depois (ex.: corrida de unicidade em numeroSerie), o fabricante
       // pendente criado agora é revertido junto — não fica órfão.
-      const fabricanteResolvidoId = ehFabricanteOutro
-        ? (await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)).id
-        : fabricanteSelecionado.id;
+      const fabricanteResolvido = ehFabricanteOutro
+        ? await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)
+        : fabricanteSelecionado;
+
+      // Sem nome informado (o formulário de cadastro não pede mais), o nome é
+      // montado de categoria + fabricante + modelo.
+      const nome =
+        entrada.nome ??
+        gerarNomeDoEquipamento(
+          {
+            categoria: categoria.nome,
+            fabricante: fabricanteResolvido.nome,
+            modelo: entrada.modelo,
+          },
+          TAMANHOS.nomeEquipamento,
+        );
 
       const equipamento = await criar(tx, {
         categoriaId: entrada.categoriaId,
-        nome: entrada.nome,
-        fabricanteId: fabricanteResolvidoId,
+        nome,
+        fabricanteId: fabricanteResolvido.id,
         modelo: entrada.modelo,
         numeroSerie: numeroSerie.exibicao,
         numeroSerieNormalizado: numeroSerie.normalizado,

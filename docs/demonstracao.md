@@ -7,7 +7,9 @@ produção.
 ## O que a demonstração mostra
 
 - Página inicial com dois botões: **Cadastrar** e **Ver estoque**.
-- Cadastro de equipamento pelo formulário (com foto opcional), consulta, pesquisa,
+- Cadastro de equipamento pelo formulário (sem campo Nome: o nome é gerado como
+  "Categoria Fabricante Modelo"; com foto opcional e botão **Home** para voltar à página
+  inicial, que avisa antes de sair se houver dados digitados), consulta, pesquisa,
   filtros, detalhes e histórico de alterações.
 - Edição de equipamento.
 - Status com cor na lista: Operacional (verde), Com defeito (vermelho), Em manutenção

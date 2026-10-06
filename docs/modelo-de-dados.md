@@ -27,7 +27,7 @@
 | --- | --- | --- | --- |
 | `id` | UUID | sim | Gerado pelo banco. Imutável. |
 | `categoriaId` | UUID (FK → `Categoria`) | sim | |
-| `nome` | texto | sim | |
+| `nome` | texto | sim (gravado) | O formulário de cadastro não pede o nome: o servidor o gera como "Categoria Fabricante Modelo" (ex.: "Câmera Hikvision DS-2CD2043"), cortado em 120 caracteres; no fabricante "Outro" usa o nome digitado. Se o cadastro receber um nome explícito, ele é respeitado. A edição continua mostrando e exigindo o nome. |
 | `fabricanteId` | UUID (FK → `Fabricante`) | sim | Ver fluxo "Outro" no ADR 0004 |
 | `modelo` | texto | sim | |
 | `numeroSerie` | texto | não | Valor de exibição, como digitado (após `trim` de borda) |
