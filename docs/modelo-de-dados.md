@@ -15,7 +15,10 @@
   interno **nunca** é substituído por número de série ou código Trillogo — esses dois
   campos são identificadores de negócio opcionais, não identificadores primários.
 - **Datas**: `timestamptz`, persistidas em **UTC**. A exibição em horário local é
-  responsabilidade da camada de interface, nunca do armazenamento.
+  responsabilidade da camada de interface, nunca do armazenamento: telas e planilha
+  mostram o **horário de Brasília** (`America/Sao_Paulo`), com o fuso fixado em
+  `src/domain/data-e-hora.ts` (e não o do servidor), para o resultado ser o mesmo em
+  qualquer máquina ou contêiner.
 - **Nomes de campos**: em português, conforme o prompt original do cliente.
 - **Exclusão no fluxo comum**: lógica, nunca física. Ver
   [`docs/retencao-e-descarte.md`](retencao-e-descarte.md) para a diferença entre
@@ -27,7 +30,7 @@
 | --- | --- | --- | --- |
 | `id` | UUID | sim | Gerado pelo banco. Imutável. |
 | `categoriaId` | UUID (FK → `Categoria`) | sim | |
-| `nome` | texto | sim | |
+| `nome` | texto | sim (gravado) | O formulário de cadastro não pede o nome: o servidor o gera como "Categoria Fabricante Modelo" (ex.: "Câmera Hikvision DS-2CD2043"), cortado em 120 caracteres; no fabricante "Outro" usa o nome digitado. Se o cadastro receber um nome explícito, ele é respeitado. A edição continua mostrando e exigindo o nome. |
 | `fabricanteId` | UUID (FK → `Fabricante`) | sim | Ver fluxo "Outro" no ADR 0004 |
 | `modelo` | texto | sim | |
 | `numeroSerie` | texto | não | Valor de exibição, como digitado (após `trim` de borda) |
@@ -93,7 +96,7 @@ equipamento (mesmo arquivado) — a inativação (`ativo = false`) é o mecanism
 
 | Lista | Valores |
 | --- | --- |
-| Categoria | Notebook, Monitor, Periférico, Desktop, Nobreak |
+| Categoria | Notebook, Monitor, Periférico, Desktop, Nobreak, DVR, Câmera |
 | Fabricante | Dell, Logitech, Intelbras, Lenovo, Hikvision, Outro |
 | StatusFuncionamento | Operacional, Com defeito, Em manutenção, Não testado |
 | Localizacao | 15º andar, 16º andar |

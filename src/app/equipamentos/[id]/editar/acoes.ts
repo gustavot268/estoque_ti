@@ -46,6 +46,12 @@ function extrairEntradaDoFormulario(dados: FormData): Record<string, unknown> {
   };
 }
 
+/** Fora do objeto de entrada (que passa pelo esquema Zod `strictObject`): um arquivo não é texto. */
+function extrairArquivoDaFoto(dados: FormData): File | null {
+  const valor = dados.get("foto");
+  return valor instanceof File ? valor : null;
+}
+
 export async function editarEquipamentoAction(
   equipamentoId: string,
   _estadoAnterior: ResultadoEdicao | null,
@@ -67,6 +73,10 @@ export async function editarEquipamentoAction(
       ator,
       equipamentoId,
       extrairEntradaDoFormulario(dadosDoFormulario),
+      {
+        arquivo: extrairArquivoDaFoto(dadosDoFormulario),
+        remover: dadosDoFormulario.get("removerFoto") === "on",
+      },
     );
     idAtualizado = equipamento.id;
   } catch (erro) {

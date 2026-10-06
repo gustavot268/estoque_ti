@@ -21,6 +21,8 @@ import {
   RegistroNaoEncontradoError,
   ValorDeListaInvalidoError,
 } from "../domain/erros";
+import { validarImagem } from "../domain/imagem";
+import { gerarNomeDoEquipamento } from "../domain/nome-do-equipamento";
 import { normalizarParDeIdentificador } from "../domain/normalizacao";
 import { exigirPermissao } from "../domain/permissoes";
 import type { ClientePrisma, PrismaClient } from "../infrastructure/prisma/criar-cliente";
@@ -31,8 +33,10 @@ import {
   criar,
   existeCodigoTrillogoNormalizado,
   existeNumeroSerieNormalizado,
+  listarArquivadosPaginado,
   listarPaginado,
   obterDetalhadoPorId,
+  obterFotoPorId,
   restaurar,
 } from "../infrastructure/repositorios/equipamentos";
 import {
@@ -41,10 +45,11 @@ import {
   obterLocalizacaoPorId,
   obterStatusFuncionamentoPorId,
 } from "../infrastructure/repositorios/listas-controladas";
-import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
+import { errosPorCampo, TAMANHOS, uuidObrigatorio } from "../validation/comum";
 import {
   esquemaArquivarEquipamento,
   esquemaAtualizarEquipamento,
+  esquemaConsultaArquivados,
   esquemaConsultaEquipamentos,
   esquemaCriarEquipamento,
   esquemaRestaurarEquipamento,
@@ -62,9 +67,10 @@ type DadosDeAuditoriaDoEquipamento = {
   readonly statusId: string;
   readonly localizacaoId: string;
   readonly observacoes: string | null;
+  readonly fotoTipoMime: string | null;
 };
 
-function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento): DadosDeAuditoriaDoEquipamento {
+function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento) {
   return {
     id: equipamento.id,
     categoriaId: equipamento.categoriaId,
@@ -76,6 +82,45 @@ function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento): DadosDeAudit
     statusId: equipamento.statusId,
     localizacaoId: equipamento.localizacaoId,
     observacoes: equipamento.observacoes,
+    // Nunca o binário em si na auditoria (mesma regra da exportação) — só se
+    // há ou não uma foto anexada.
+    temFoto: equipamento.fotoTipoMime !== null,
+  };
+}
+
+type DadosDeFotoProcessada = {
+  readonly foto: Buffer;
+  readonly fotoTipoMime: string;
+  readonly fotoNomeArquivo: string;
+  readonly fotoTamanho: number;
+};
+
+/**
+ * Lê e valida um arquivo de imagem enviado pelo formulário (requisito 14.8 —
+ * o servidor nunca confia no que o navegador diz sobre o arquivo, só no
+ * conteúdo real dos bytes, ver `validarImagem`). `null`/`undefined` ou um
+ * arquivo vazio — o que o navegador envia quando o campo de arquivo é
+ * deixado em branco — significam "nenhum arquivo novo enviado": devolve
+ * `null`, não é erro.
+ */
+async function processarArquivoDeFoto(
+  arquivo: File | null | undefined,
+): Promise<DadosDeFotoProcessada | null> {
+  if (arquivo === null || arquivo === undefined || arquivo.size === 0) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+  const resultado = validarImagem(bytes, arquivo.type);
+  if (!resultado.valida) {
+    throw new EntradaInvalidaError({ foto: [resultado.motivo] });
+  }
+
+  return {
+    foto: Buffer.from(bytes),
+    fotoTipoMime: arquivo.type,
+    fotoNomeArquivo: arquivo.name.slice(0, 255),
+    fotoTamanho: bytes.length,
   };
 }
 
@@ -129,7 +174,11 @@ async function validarReferencias(
   prisma: PrismaClient,
   entrada: EntradaComReferencias,
   atual?: ReferenciasAtuais,
-): Promise<{ ehFabricanteOutro: boolean; fabricanteSelecionado: Fabricante }> {
+): Promise<{
+  ehFabricanteOutro: boolean;
+  fabricanteSelecionado: Fabricante;
+  categoria: { readonly nome: string };
+}> {
   const [categoria, statusFuncionamento, localizacao, fabricanteSelecionado] = await Promise.all([
     obterCategoriaPorId(prisma, entrada.categoriaId),
     obterStatusFuncionamentoPorId(prisma, entrada.statusId),
@@ -167,7 +216,7 @@ async function validarReferencias(
     }
   }
 
-  return { ehFabricanteOutro, fabricanteSelecionado };
+  return { ehFabricanteOutro, fabricanteSelecionado, categoria };
 }
 
 /**
@@ -216,6 +265,7 @@ export async function cadastrarEquipamento(
   prisma: PrismaClient,
   ator: AtorAutenticado,
   entradaBruta: unknown,
+  arquivoDaFoto?: File | null,
 ) {
   exigirPermissao(ator, "CADASTRAR_EQUIPAMENTO");
 
@@ -225,7 +275,12 @@ export async function cadastrarEquipamento(
   }
   const entrada = resultado.data;
 
-  const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada);
+  const foto = await processarArquivoDeFoto(arquivoDaFoto);
+
+  const { ehFabricanteOutro, fabricanteSelecionado, categoria } = await validarReferencias(
+    prisma,
+    entrada,
+  );
 
   const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
   const codigoTrillogo = normalizarParDeIdentificador(entrada.codigoTrillogo);
@@ -255,14 +310,27 @@ export async function cadastrarEquipamento(
       // acontece DENTRO da transação: se a gravação do equipamento falhar
       // depois (ex.: corrida de unicidade em numeroSerie), o fabricante
       // pendente criado agora é revertido junto — não fica órfão.
-      const fabricanteResolvidoId = ehFabricanteOutro
-        ? (await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)).id
-        : fabricanteSelecionado.id;
+      const fabricanteResolvido = ehFabricanteOutro
+        ? await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)
+        : fabricanteSelecionado;
+
+      // Sem nome informado (o formulário de cadastro não pede mais), o nome é
+      // montado de categoria + fabricante + modelo.
+      const nome =
+        entrada.nome ??
+        gerarNomeDoEquipamento(
+          {
+            categoria: categoria.nome,
+            fabricante: fabricanteResolvido.nome,
+            modelo: entrada.modelo,
+          },
+          TAMANHOS.nomeEquipamento,
+        );
 
       const equipamento = await criar(tx, {
         categoriaId: entrada.categoriaId,
-        nome: entrada.nome,
-        fabricanteId: fabricanteResolvidoId,
+        nome,
+        fabricanteId: fabricanteResolvido.id,
         modelo: entrada.modelo,
         numeroSerie: numeroSerie.exibicao,
         numeroSerieNormalizado: numeroSerie.normalizado,
@@ -271,6 +339,10 @@ export async function cadastrarEquipamento(
         statusId: entrada.statusId,
         localizacaoId: entrada.localizacaoId,
         observacoes: entrada.observacoes,
+        foto: foto?.foto ?? null,
+        fotoTipoMime: foto?.fotoTipoMime ?? null,
+        fotoNomeArquivo: foto?.fotoNomeArquivo ?? null,
+        fotoTamanho: foto?.fotoTamanho ?? null,
         criadoPorId: ator.usuarioId,
         atualizadoPorId: ator.usuarioId,
       });
@@ -325,6 +397,36 @@ export async function obterEquipamentoPorId(
     throw new RegistroNaoEncontradoError();
   }
   return equipamento;
+}
+
+/**
+ * Foto de um equipamento — usada pela rota de download
+ * (`GET /api/equipamentos/[id]/foto`). Mesma permissão de visualizar o
+ * equipamento; nunca passa pela consulta/detalhe normal, que nunca carrega
+ * o binário (ver `SELECAO_DETALHADA` no repositório).
+ */
+export async function obterFotoDoEquipamento(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  id: string,
+) {
+  exigirPermissao(ator, "VISUALIZAR_EQUIPAMENTO");
+
+  const idValido = uuidObrigatorio("o identificador do equipamento").safeParse(id);
+  if (!idValido.success) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const registro = await obterFotoPorId(prisma, idValido.data);
+  if (registro === null || registro.foto === null || registro.fotoTipoMime === null) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  return {
+    foto: registro.foto,
+    fotoTipoMime: registro.fotoTipoMime,
+    fotoNomeArquivo: registro.fotoNomeArquivo,
+  };
 }
 
 /** Histórico de alterações de um equipamento — usado na tela de detalhes. */
@@ -386,6 +488,40 @@ export async function listarEquipamentos(
 }
 
 /**
+ * Lista os equipamentos arquivados (tela de arquivados). Exige a mesma permissão
+ * de restaurar, de propósito: a tela existe para restaurar, e assim nenhuma
+ * ação nova entra na matriz de permissões — só Administração enxerga e restaura.
+ */
+export async function listarEquipamentosArquivados(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  parametrosBrutos: unknown,
+) {
+  exigirPermissao(ator, "RESTAURAR_EQUIPAMENTO");
+
+  const resultado = esquemaConsultaArquivados.safeParse(parametrosBrutos);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const parametros = resultado.data;
+
+  const { itens, total } = await listarArquivadosPaginado(prisma, {
+    busca: parametros.busca ?? undefined,
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+  });
+
+  return {
+    itens,
+    total,
+    totalPaginas: Math.max(1, Math.ceil(total / TAMANHO_PAGINA)),
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+    parametros,
+  };
+}
+
+/**
  * Edita um equipamento (Etapa 5, ADR 0005). `entradaBruta.versao` é o token
  * de concorrência: se o registro já tiver sido alterado por outra pessoa
  * desde que esta tela foi aberta, a gravação é recusada em vez de
@@ -400,6 +536,7 @@ export async function editarEquipamento(
   ator: AtorAutenticado,
   id: string,
   entradaBruta: unknown,
+  opcoesDeFoto?: { readonly arquivo?: File | null; readonly remover?: boolean },
 ) {
   exigirPermissao(ator, "EDITAR_EQUIPAMENTO");
 
@@ -413,6 +550,8 @@ export async function editarEquipamento(
     throw new EntradaInvalidaError(errosPorCampo(resultado.error));
   }
   const entrada = resultado.data;
+
+  const novaFoto = await processarArquivoDeFoto(opcoesDeFoto?.arquivo);
 
   const atual = await obterDetalhadoPorId(prisma, idValido.data);
   if (atual === null) {
@@ -478,6 +617,20 @@ export async function editarEquipamento(
         localizacaoId: entrada.localizacaoId,
         observacoes: entrada.observacoes,
         atualizadoPorId: ator.usuarioId,
+        // Três casos: uma foto nova substitui; `remover` sem foto nova
+        // limpa; nenhum dos dois não toca no campo (mantém a foto atual) —
+        // por isso as chaves de foto só aparecem no objeto quando um dos
+        // dois casos realmente se aplica.
+        ...(novaFoto !== null
+          ? {
+              foto: novaFoto.foto,
+              fotoTipoMime: novaFoto.fotoTipoMime,
+              fotoNomeArquivo: novaFoto.fotoNomeArquivo,
+              fotoTamanho: novaFoto.fotoTamanho,
+            }
+          : opcoesDeFoto?.remover === true
+            ? { foto: null, fotoTipoMime: null, fotoNomeArquivo: null, fotoTamanho: null }
+            : {}),
       });
       await exigirAtualizacaoAplicada(tx, idValido.data, entrada.versao, resultadoUpdate);
 

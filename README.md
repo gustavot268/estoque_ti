@@ -25,6 +25,7 @@ Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline
 - [Microsoft Entra ID](#microsoft-entra-id)
 - [Como funciona a autorização](#como-funciona-a-autorização)
 - [Exportação para Excel](#exportação-para-excel)
+- [Foto do equipamento](#foto-do-equipamento)
 - [PostgreSQL é a fonte única e oficial dos dados](#postgresql-é-a-fonte-única-e-oficial-dos-dados)
 - [Limitações conhecidas](#limitações-conhecidas)
 - [Decisões pendentes](#decisões-pendentes)
@@ -137,6 +138,10 @@ porta da aplicação encaminhada para o host. O `Dockerfile` de produção é mu
 roda com usuário não privilegiado e não inclui arquivos de desenvolvimento nem segredos —
 detalhes completos em
 [`docs/implantacao-docker.md`](docs/implantacao-docker.md).
+
+Para **mostrar o sistema funcionando sem login** (modo de demonstração local, perfil
+Operação, escutando só em `127.0.0.1`), use `pnpm demo` e siga
+[`docs/demonstracao.md`](docs/demonstracao.md).
 
 ## Variáveis de ambiente
 
@@ -279,7 +284,8 @@ Proteção contra formula injection: todo campo de texto vindo de entrada do usu
 `-`, `@`, tabulação ou retorno de carro recebe um apóstrofo à frente antes de ir para a
 célula. Cabeçalhos em português, identificador interno, número de série e código
 Trillogo, nomes das listas relacionadas, quem cadastrou/alterou e indicação de data/hora
-de geração (UTC) constam do arquivo. A exportação é limitada a `EXPORT_MAX_ROWS`
+de geração constam do arquivo, todas as datas e horas no **horário de Brasília** (o
+banco guarda em UTC; a conversão acontece na exibição, em `src/domain/data-e-hora.ts`). A exportação é limitada a `EXPORT_MAX_ROWS`
 registros (variável de ambiente); se o filtro atual ultrapassar o limite, a exportação é
 recusada com uma mensagem pedindo para refinar a busca, em vez de gerar um arquivo
 parcial silenciosamente. A auditoria registra quem exportou, quando e quais filtros —
@@ -289,6 +295,31 @@ nunca o arquivo em si.
 pontual dos dados no momento da geração; alterações feitas nesse arquivo **nunca**
 retornam ao aplicativo. Não há, e não haverá, importação automática de planilha nem uso
 do Excel como fonte de dados.
+
+## Foto do equipamento
+
+Cadastro e edição de equipamento aceitam uma foto opcional, via um campo de arquivo
+padrão (`<input type="file" accept="image/jpeg,image/png,image/webp">`) — funciona sem
+nenhum tratamento especial tanto no celular (abre a opção de tirar foto ou escolher da
+galeria) quanto no computador (abre o seletor de arquivos do sistema).
+
+A foto é armazenada como bytes diretamente no PostgreSQL (coluna `Bytes`), sem depender
+de nenhum serviço de armazenamento externo. O servidor nunca confia no tipo declarado
+pelo navegador: o conteúdo do arquivo é inspecionado pela assinatura binária real (os
+primeiros bytes do arquivo, os *magic bytes*) e comparado ao tipo declarado — um arquivo
+renomeado ou de tipo não permitido (só JPEG, PNG e WEBP são aceitos, até 5 MB) é
+rejeitado, mesmo que a extensão do nome sugira o contrário. Essa mesma lógica de "o
+servidor é a autoridade final" já é usada na proteção contra formula injection da
+exportação.
+
+A foto **nunca** é carregada pelas consultas de listagem, detalhe (exceto a metadados) ou
+exportação — só uma rota dedicada e autenticada (`GET
+/api/equipamentos/[id]/foto`) busca os bytes, evitando que toda consulta à lista de
+equipamentos arraste o conteúdo binário de cada foto. Na edição, o comportamento é claro
+em três cenários: enviar um novo arquivo substitui a foto atual; marcar "Remover a foto
+atual" sem enviar um novo arquivo apaga a foto; não tocar no campo preserva a foto
+existente. A auditoria registra apenas se o equipamento passou a ter foto ou não
+(`temFoto: true/false`) — nunca o conteúdo binário.
 
 ## PostgreSQL é a fonte única e oficial dos dados
 
@@ -318,12 +349,12 @@ nenhuma circunstância.
 - Verificação de segurança automatizada em pipeline cobre tipos, lint, testes,
   dependências (`pnpm audit`, não bloqueante) e imagem Docker (Trivy, bloqueante); ainda
   falta scan de segredo versionado por engano (ex.: gitleaks/truffleHog).
-- A proteção de banco em duas camadas para a auditoria (ADR 0008: privilégio de
-  `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria` + trigger que
-  bloqueia `UPDATE`/`DELETE`) ainda não existe como migração real em
-  `prisma/migrations/` — hoje a imutabilidade depende apenas de a camada de serviço não
-  expor operação de edição/remoção de auditoria. Ver a linha da Etapa 2 na tabela de
-  estado abaixo.
+- A proteção de banco em duas camadas para a auditoria (ADR 0008) existe como migração
+  (`20261006140000_proteger_auditoria_append_only`): `estoque_app` perde
+  `UPDATE`/`DELETE`/`TRUNCATE` em `registros_auditoria` e um trigger rejeita essas
+  operações mesmo se o privilégio fosse concedido por engano. A exceção deliberada é a
+  conta dona do schema (`estoque_migrator`). Um banco já existente (como o da demo)
+  só passa a ter a proteção depois de `pnpm db:migrate:deploy`.
 
 ## Decisões pendentes
 
@@ -344,7 +375,7 @@ mais atual**, já que a implementação avança em paralelo a este documento.
 | Etapa | Escopo | Estado observado |
 | --- | --- | --- |
 | 1 — Fundação | Projeto, TypeScript estrito, Docker/Postgres/Codespaces, health check, documentação inicial | **Concluído e verificado**. `package.json` com scripts e dependências normativos (Biome, Vitest, Playwright, Prisma, Zod). `Dockerfile`, `Dockerfile.dev`, `docker-compose.yml`, `.devcontainer/`, `.env.example` e a rota de health check (`GET /api/saude`) existem e foram exercitados nesta rodada (`docker compose up`, `pnpm build`). |
-| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migrações, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 115 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test` (mais 17 testes ponta a ponta via `pnpm test:e2e`, ver Etapa 7). **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. |
+| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migrações, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 115 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test` (mais 17 testes ponta a ponta via `pnpm test:e2e`, ver Etapa 7). **Proteção da auditoria no banco (ADR 0008)**: migração `20261006140000_proteger_auditoria_append_only` — privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria` + trigger que bloqueia `UPDATE`/`DELETE`/`TRUNCATE`, testada em `tests/integration/auditoria-append-only.test.ts` (8 testes, conectando como a conta real da aplicação). |
 | 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | **A autorização em si está implementada e testada** (matriz de permissões, `exigirPermissao` em todo serviço, testes de caso negativo por perfil em todas as etapas 4–7) — ver [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md), item 2. O que falta é só a fonte da identidade: hoje ela vem de uma **ponte mínima de desenvolvimento** (`src/infrastructure/auth/ator-atual.ts`, só ativa com `DEV_AUTH_ENABLED=true`, proibido em produção, com teste automatizado dedicado). A integração real com o Microsoft Entra ID (validação de token, resolução de grupo) continua **bloqueada pela pendência corporativa** de credenciais — ver [`docs/pendencias-corporativas.md`](docs/pendencias-corporativas.md). |
 | 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | **Implementado e verificado** ponta a ponta contra um Postgres real: cadastro (`/equipamentos/novo`), consulta com busca/filtros/ordenação/paginação no servidor, responsiva (tabela no desktop, cartões no celular) (`/equipamentos`), e detalhes com histórico de auditoria (`/equipamentos/[id]`). Tamanho de página fixo (não controlável pelo cliente) contra paginação abusiva. Falta apenas o painel inicial com indicadores (fora do escopo estrito da Etapa 4). |
 | 5 — Edição e auditoria | Edição, concorrência otimista, histórico, arquivamento e restauração | **Implementado e verificado** ponta a ponta contra um Postgres real: edição (`/equipamentos/[id]/editar`) com concorrência otimista (ADR 0005 — duas edições concorrentes na mesma versão: só uma aplica, a outra recebe erro de conflito, testado), arquivamento e restauração (botões na tela de detalhes, restritos ao perfil Administração), histórico de auditoria completo (Cadastro/Edição/Arquivamento/Restauração). |

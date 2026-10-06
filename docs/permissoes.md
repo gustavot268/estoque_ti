@@ -31,6 +31,7 @@ autenticado sem perfil resolvido não executa nenhuma ação protegida.
 | Alterar status e localização | ❌ | ✅ | ✅ |
 | Arquivar equipamento | ❌ | ❌ | ✅ |
 | Restaurar equipamento | ❌ | ❌ | ✅ |
+| Ver a lista de equipamentos arquivados (`/equipamentos/arquivados`) | ❌ | ❌ | ✅ |
 | Gerenciar listas controladas (Categoria, Fabricante, Status, Localização) | ❌ | ❌ | ✅ |
 
 Fonte normativa: contrato técnico das Etapas 1–2, seção 7.5, que reflete a seção 6 dos

@@ -166,6 +166,15 @@ model Equipamento {
 
   observacoes String? @db.VarChar(1000)
 
+  /// Conteúdo binário da foto. Nunca selecionado pelas consultas de listagem
+  /// nem de exportação — só a rota dedicada de download
+  /// (`GET /api/equipamentos/[id]/foto`) busca este campo. `null` quando o
+  /// equipamento não tem foto.
+  foto            Bytes?  @map("foto")
+  fotoTipoMime    String? @map("foto_tipo_mime") @db.VarChar(100)
+  fotoNomeArquivo String? @map("foto_nome_arquivo") @db.VarChar(255)
+  fotoTamanho     Int?    @map("foto_tamanho")
+
   criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm    DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
   criadoPorId     String    @map("criado_por_id") @db.Uuid

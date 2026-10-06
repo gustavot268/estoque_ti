@@ -21,10 +21,32 @@ import {
   versaoDeConcorrencia,
 } from "./comum";
 
+/**
+ * Nome do equipamento no CADASTRO: opcional. Ausente ou em branco vira `null`
+ * e o serviço gera o nome a partir de categoria, fabricante e modelo
+ * (`gerarNomeDoEquipamento`). Se vier preenchido, vale a mesma regra de antes.
+ */
+const nomeOpcionalDoEquipamento = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((valor) => {
+    if (valor === null || valor === undefined) {
+      return null;
+    }
+    const aparado = valor.trim();
+    return aparado === "" ? null : aparado;
+  })
+  .refine((valor) => valor === null || valor.length >= 2, {
+    error: () => "o nome do equipamento deve ter pelo menos 2 caracteres.",
+  })
+  .refine((valor) => valor === null || valor.length <= TAMANHOS.nomeEquipamento, {
+    error: () => `o nome do equipamento deve ter no máximo ${TAMANHOS.nomeEquipamento} caracteres.`,
+  });
+
 /** Campos preenchidos pelo usuário ao cadastrar um equipamento. */
 export const esquemaCriarEquipamento = z.strictObject({
   categoriaId: uuidObrigatorio("a categoria"),
-  nome: textoObrigatorio("o nome do equipamento", TAMANHOS.nomeEquipamento, 2),
+  nome: nomeOpcionalDoEquipamento,
   fabricanteId: uuidObrigatorio("o fabricante"),
   /**
    * Nome livre usado somente quando o fabricante escolhido é "Outro".
@@ -67,6 +89,8 @@ export type EntradaCriarEquipamento = z.infer<typeof esquemaCriarEquipamento>;
  * recente em silêncio.
  */
 export const esquemaAtualizarEquipamento = esquemaCriarEquipamento.extend({
+  // Na edição o nome continua obrigatório: o formulário de edição o mostra preenchido.
+  nome: textoObrigatorio("o nome do equipamento", TAMANHOS.nomeEquipamento, 2),
   versao: versaoDeConcorrencia,
 });
 
@@ -142,5 +166,13 @@ export const esquemaConsultaEquipamentos = z.object({
 });
 
 export type EntradaConsultaEquipamentos = z.infer<typeof esquemaConsultaEquipamentos>;
+
+/** Consulta da tela de arquivados: só busca e página (a ordem é sempre do mais recente). */
+export const esquemaConsultaArquivados = z.object({
+  busca: textoOpcional("a busca", 120),
+  pagina: paginaDeConsulta,
+});
+
+export type EntradaConsultaArquivados = z.infer<typeof esquemaConsultaArquivados>;
 
 export type EntradaValorDeListaControlada = z.infer<typeof esquemaValorDeListaControlada>;

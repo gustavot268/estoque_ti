@@ -33,6 +33,7 @@ type DadosDoEquipamento = {
   readonly statusId: string;
   readonly localizacaoId: string;
   readonly observacoes: string | null;
+  readonly temFoto: boolean;
   readonly versao: number;
 };
 
@@ -292,6 +293,40 @@ export function FormularioEdicaoDeEquipamento({
             Não inclua senhas, documentos pessoais ou outras informações sensíveis.
           </p>
           <ListaDeErros id="observacoes-erro" erros={errosDoCampo("observacoes")} />
+        </div>
+
+        <div className="flex flex-col gap-2 md:col-span-2">
+          <label htmlFor="foto" className={CLASSE_RASTRO}>
+            Foto
+          </label>
+          {equipamento.temFoto && (
+            <div className="flex items-center gap-3">
+              {/* biome-ignore lint/performance/noImgElement: imagem enviada pelo usuário, servida por uma rota própria autenticada. */}
+              <img
+                src={`/api/equipamentos/${equipamento.id}/foto`}
+                alt={`Foto atual de ${equipamento.nome}`}
+                className="h-20 w-20 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+              />
+              <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <input id="removerFoto" name="removerFoto" type="checkbox" className="h-4 w-4" />
+                Remover a foto atual
+              </label>
+            </div>
+          )}
+          <input
+            id="foto"
+            name="foto"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className={CLASSE_CAMPO}
+            aria-describedby="foto-dica foto-erro"
+          />
+          <p id="foto-dica" className="text-xs text-zinc-500 dark:text-zinc-400">
+            {equipamento.temFoto
+              ? "Enviar um novo arquivo substitui a foto atual. JPEG, PNG ou WEBP, até 5 MB."
+              : "Opcional. JPEG, PNG ou WEBP, até 5 MB."}
+          </p>
+          <ListaDeErros id="foto-erro" erros={errosDoCampo("foto")} />
         </div>
       </fieldset>
 

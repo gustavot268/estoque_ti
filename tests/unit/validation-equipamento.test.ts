@@ -27,8 +27,39 @@ describe("esquemaCriarEquipamento", () => {
   });
 
   it("rejeita quando falta um campo obrigatório", () => {
-    const { nome: _nome, ...semNome } = ENTRADA_VALIDA;
-    expect(esquemaCriarEquipamento.safeParse(semNome).success).toBe(false);
+    const { modelo: _modelo, ...semModelo } = ENTRADA_VALIDA;
+    expect(esquemaCriarEquipamento.safeParse(semModelo).success).toBe(false);
+  });
+
+  describe("nome opcional no cadastro (o servidor gera quando não vem)", () => {
+    it("ausente vira null", () => {
+      const { nome: _nome, ...semNome } = ENTRADA_VALIDA;
+      expect(esquemaCriarEquipamento.parse(semNome).nome).toBeNull();
+    });
+
+    it.each([null, "", "   "])("%j vira null", (valor) => {
+      expect(esquemaCriarEquipamento.parse({ ...ENTRADA_VALIDA, nome: valor }).nome).toBeNull();
+    });
+
+    it("quando informado, mantém a regra de tamanho (2 a 120 caracteres)", () => {
+      expect(esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, nome: "a" }).success).toBe(
+        false,
+      );
+      expect(
+        esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, nome: "a".repeat(121) }).success,
+      ).toBe(false);
+      expect(
+        esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, nome: "a".repeat(120) }).success,
+      ).toBe(true);
+    });
+
+    it("na edição o nome continua obrigatório", () => {
+      const { nome: _nome, ...semNome } = ENTRADA_VALIDA;
+      expect(esquemaAtualizarEquipamento.safeParse({ ...semNome, versao: 1 }).success).toBe(false);
+      expect(
+        esquemaAtualizarEquipamento.safeParse({ ...ENTRADA_VALIDA, nome: "", versao: 1 }).success,
+      ).toBe(false);
+    });
   });
 
   it("rejeita campo interno não previsto no contrato — proteção contra mass assignment (14.8)", () => {

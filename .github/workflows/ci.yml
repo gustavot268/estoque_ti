@@ -56,6 +56,19 @@ jobs:
         # descartável. Nunca é um segredo real (ver docs/variaveis-de-ambiente.md).
         run: cp .env.example .env
 
+      - name: Gerar o Prisma Client
+        # O pnpm só roda scripts de instalação da lista de `pnpm-workspace.yaml`
+        # (cadeia de fornecimento, requisito 14.16) e `@prisma/client` não está
+        # nela, então o cliente não se gera sozinho na instalação. Sem ele o `tsc`
+        # e os testes falham numa cópia limpa. Mesmo comando do `Dockerfile.dev`.
+        run: pnpm exec prisma generate --config=prisma/prisma7.config.ts
+
+      - name: Gerar os tipos de rota do Next.js
+        # `PageProps` e `RouteContext` são tipos globais gerados pelo Next; só
+        # existem depois de `next dev`/`next build`/`next typegen`. Sem este passo,
+        # o `tsc` (que roda antes do build) não os encontra numa cópia limpa.
+        run: pnpm exec next typegen
+
       - name: Subir PostgreSQL isolado do job (docker compose)
         run: docker compose up -d db
 

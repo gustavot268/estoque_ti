@@ -24,6 +24,8 @@ export const CATEGORIAS_SEMENTE = [
   "Periférico",
   "Desktop",
   "Nobreak",
+  "DVR",
+  "Câmera",
 ] as const;
 
 export const FABRICANTES_SEMENTE = [
@@ -123,6 +125,13 @@ if (ehExecucaoDireta) {
 }
 
 async function main(): Promise<void> {
+  // Ao contrário do `next dev` e do Vitest, o `tsx` não define NODE_ENV, e a
+  // validação de ambiente abaixo o exige. `??=` respeita um valor já definido
+  // (ex.: production). O cast existe porque os tipos do Next declaram NODE_ENV
+  // como somente leitura.
+  const ambiente = process.env as { NODE_ENV?: string };
+  ambiente.NODE_ENV ??= "development";
+
   // O Prisma 7 não carrega `.env` automaticamente (ver `prisma7.config.ts`);
   // reaproveitamos o mesmo carregador do Next.js para ler as mesmas variáveis.
   loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production", {
