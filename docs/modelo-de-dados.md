@@ -93,7 +93,7 @@ equipamento (mesmo arquivado) — a inativação (`ativo = false`) é o mecanism
 
 | Lista | Valores |
 | --- | --- |
-| Categoria | Notebook, Monitor, Periférico, Desktop, Nobreak |
+| Categoria | Notebook, Monitor, Periférico, Desktop, Nobreak, DVR, Câmera |
 | Fabricante | Dell, Logitech, Intelbras, Lenovo, Hikvision, Outro |
 | StatusFuncionamento | Operacional, Com defeito, Em manutenção, Não testado |
 | Localizacao | 15º andar, 16º andar |
