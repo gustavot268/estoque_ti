@@ -61,7 +61,9 @@ export default defineConfig({
   webServer: {
     command: "pnpm dev",
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // Nunca reaproveitar um servidor já aberto na porta: ele pode estar ligado ao
+    // banco de desenvolvimento/demonstração, e os testes gravariam registros ali.
+    reuseExistingServer: false,
     timeout: 120_000,
     env: {
       DATABASE_URL: urlDoBancoDeTeste,

@@ -139,6 +139,10 @@ roda com usuário não privilegiado e não inclui arquivos de desenvolvimento ne
 detalhes completos em
 [`docs/implantacao-docker.md`](docs/implantacao-docker.md).
 
+Para **mostrar o sistema funcionando sem login** (modo de demonstração local, perfil
+Operação, escutando só em `127.0.0.1`), use `pnpm demo` e siga
+[`docs/demonstracao.md`](docs/demonstracao.md).
+
 ## Variáveis de ambiente
 
 Todas as variáveis, com obrigatoriedade, finalidade, se são segredo e se são expostas ao
