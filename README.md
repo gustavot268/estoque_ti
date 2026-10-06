@@ -25,6 +25,7 @@ Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline
 - [Microsoft Entra ID](#microsoft-entra-id)
 - [Como funciona a autorização](#como-funciona-a-autorização)
 - [Exportação para Excel](#exportação-para-excel)
+- [Foto do equipamento](#foto-do-equipamento)
 - [PostgreSQL é a fonte única e oficial dos dados](#postgresql-é-a-fonte-única-e-oficial-dos-dados)
 - [Limitações conhecidas](#limitações-conhecidas)
 - [Decisões pendentes](#decisões-pendentes)
@@ -289,6 +290,31 @@ nunca o arquivo em si.
 pontual dos dados no momento da geração; alterações feitas nesse arquivo **nunca**
 retornam ao aplicativo. Não há, e não haverá, importação automática de planilha nem uso
 do Excel como fonte de dados.
+
+## Foto do equipamento
+
+Cadastro e edição de equipamento aceitam uma foto opcional, via um campo de arquivo
+padrão (`<input type="file" accept="image/jpeg,image/png,image/webp">`) — funciona sem
+nenhum tratamento especial tanto no celular (abre a opção de tirar foto ou escolher da
+galeria) quanto no computador (abre o seletor de arquivos do sistema).
+
+A foto é armazenada como bytes diretamente no PostgreSQL (coluna `Bytes`), sem depender
+de nenhum serviço de armazenamento externo. O servidor nunca confia no tipo declarado
+pelo navegador: o conteúdo do arquivo é inspecionado pela assinatura binária real (os
+primeiros bytes do arquivo, os *magic bytes*) e comparado ao tipo declarado — um arquivo
+renomeado ou de tipo não permitido (só JPEG, PNG e WEBP são aceitos, até 5 MB) é
+rejeitado, mesmo que a extensão do nome sugira o contrário. Essa mesma lógica de "o
+servidor é a autoridade final" já é usada na proteção contra formula injection da
+exportação.
+
+A foto **nunca** é carregada pelas consultas de listagem, detalhe (exceto a metadados) ou
+exportação — só uma rota dedicada e autenticada (`GET
+/api/equipamentos/[id]/foto`) busca os bytes, evitando que toda consulta à lista de
+equipamentos arraste o conteúdo binário de cada foto. Na edição, o comportamento é claro
+em três cenários: enviar um novo arquivo substitui a foto atual; marcar "Remover a foto
+atual" sem enviar um novo arquivo apaga a foto; não tocar no campo preserva a foto
+existente. A auditoria registra apenas se o equipamento passou a ter foto ou não
+(`temFoto: true/false`) — nunca o conteúdo binário.
 
 ## PostgreSQL é a fonte única e oficial dos dados
 

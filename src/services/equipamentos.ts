@@ -21,6 +21,7 @@ import {
   RegistroNaoEncontradoError,
   ValorDeListaInvalidoError,
 } from "../domain/erros";
+import { validarImagem } from "../domain/imagem";
 import { normalizarParDeIdentificador } from "../domain/normalizacao";
 import { exigirPermissao } from "../domain/permissoes";
 import type { ClientePrisma, PrismaClient } from "../infrastructure/prisma/criar-cliente";
@@ -33,6 +34,7 @@ import {
   existeNumeroSerieNormalizado,
   listarPaginado,
   obterDetalhadoPorId,
+  obterFotoPorId,
   restaurar,
 } from "../infrastructure/repositorios/equipamentos";
 import {
@@ -62,9 +64,10 @@ type DadosDeAuditoriaDoEquipamento = {
   readonly statusId: string;
   readonly localizacaoId: string;
   readonly observacoes: string | null;
+  readonly fotoTipoMime: string | null;
 };
 
-function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento): DadosDeAuditoriaDoEquipamento {
+function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento) {
   return {
     id: equipamento.id,
     categoriaId: equipamento.categoriaId,
@@ -76,6 +79,45 @@ function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento): DadosDeAudit
     statusId: equipamento.statusId,
     localizacaoId: equipamento.localizacaoId,
     observacoes: equipamento.observacoes,
+    // Nunca o binário em si na auditoria (mesma regra da exportação) — só se
+    // há ou não uma foto anexada.
+    temFoto: equipamento.fotoTipoMime !== null,
+  };
+}
+
+type DadosDeFotoProcessada = {
+  readonly foto: Buffer;
+  readonly fotoTipoMime: string;
+  readonly fotoNomeArquivo: string;
+  readonly fotoTamanho: number;
+};
+
+/**
+ * Lê e valida um arquivo de imagem enviado pelo formulário (requisito 14.8 —
+ * o servidor nunca confia no que o navegador diz sobre o arquivo, só no
+ * conteúdo real dos bytes, ver `validarImagem`). `null`/`undefined` ou um
+ * arquivo vazio — o que o navegador envia quando o campo de arquivo é
+ * deixado em branco — significam "nenhum arquivo novo enviado": devolve
+ * `null`, não é erro.
+ */
+async function processarArquivoDeFoto(
+  arquivo: File | null | undefined,
+): Promise<DadosDeFotoProcessada | null> {
+  if (arquivo === null || arquivo === undefined || arquivo.size === 0) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+  const resultado = validarImagem(bytes, arquivo.type);
+  if (!resultado.valida) {
+    throw new EntradaInvalidaError({ foto: [resultado.motivo] });
+  }
+
+  return {
+    foto: Buffer.from(bytes),
+    fotoTipoMime: arquivo.type,
+    fotoNomeArquivo: arquivo.name.slice(0, 255),
+    fotoTamanho: bytes.length,
   };
 }
 
@@ -216,6 +258,7 @@ export async function cadastrarEquipamento(
   prisma: PrismaClient,
   ator: AtorAutenticado,
   entradaBruta: unknown,
+  arquivoDaFoto?: File | null,
 ) {
   exigirPermissao(ator, "CADASTRAR_EQUIPAMENTO");
 
@@ -224,6 +267,8 @@ export async function cadastrarEquipamento(
     throw new EntradaInvalidaError(errosPorCampo(resultado.error));
   }
   const entrada = resultado.data;
+
+  const foto = await processarArquivoDeFoto(arquivoDaFoto);
 
   const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada);
 
@@ -271,6 +316,10 @@ export async function cadastrarEquipamento(
         statusId: entrada.statusId,
         localizacaoId: entrada.localizacaoId,
         observacoes: entrada.observacoes,
+        foto: foto?.foto ?? null,
+        fotoTipoMime: foto?.fotoTipoMime ?? null,
+        fotoNomeArquivo: foto?.fotoNomeArquivo ?? null,
+        fotoTamanho: foto?.fotoTamanho ?? null,
         criadoPorId: ator.usuarioId,
         atualizadoPorId: ator.usuarioId,
       });
@@ -325,6 +374,36 @@ export async function obterEquipamentoPorId(
     throw new RegistroNaoEncontradoError();
   }
   return equipamento;
+}
+
+/**
+ * Foto de um equipamento — usada pela rota de download
+ * (`GET /api/equipamentos/[id]/foto`). Mesma permissão de visualizar o
+ * equipamento; nunca passa pela consulta/detalhe normal, que nunca carrega
+ * o binário (ver `SELECAO_DETALHADA` no repositório).
+ */
+export async function obterFotoDoEquipamento(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  id: string,
+) {
+  exigirPermissao(ator, "VISUALIZAR_EQUIPAMENTO");
+
+  const idValido = uuidObrigatorio("o identificador do equipamento").safeParse(id);
+  if (!idValido.success) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const registro = await obterFotoPorId(prisma, idValido.data);
+  if (registro === null || registro.foto === null || registro.fotoTipoMime === null) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  return {
+    foto: registro.foto,
+    fotoTipoMime: registro.fotoTipoMime,
+    fotoNomeArquivo: registro.fotoNomeArquivo,
+  };
 }
 
 /** Histórico de alterações de um equipamento — usado na tela de detalhes. */
@@ -400,6 +479,7 @@ export async function editarEquipamento(
   ator: AtorAutenticado,
   id: string,
   entradaBruta: unknown,
+  opcoesDeFoto?: { readonly arquivo?: File | null; readonly remover?: boolean },
 ) {
   exigirPermissao(ator, "EDITAR_EQUIPAMENTO");
 
@@ -413,6 +493,8 @@ export async function editarEquipamento(
     throw new EntradaInvalidaError(errosPorCampo(resultado.error));
   }
   const entrada = resultado.data;
+
+  const novaFoto = await processarArquivoDeFoto(opcoesDeFoto?.arquivo);
 
   const atual = await obterDetalhadoPorId(prisma, idValido.data);
   if (atual === null) {
@@ -478,6 +560,20 @@ export async function editarEquipamento(
         localizacaoId: entrada.localizacaoId,
         observacoes: entrada.observacoes,
         atualizadoPorId: ator.usuarioId,
+        // Três casos: uma foto nova substitui; `remover` sem foto nova
+        // limpa; nenhum dos dois não toca no campo (mantém a foto atual) —
+        // por isso as chaves de foto só aparecem no objeto quando um dos
+        // dois casos realmente se aplica.
+        ...(novaFoto !== null
+          ? {
+              foto: novaFoto.foto,
+              fotoTipoMime: novaFoto.fotoTipoMime,
+              fotoNomeArquivo: novaFoto.fotoNomeArquivo,
+              fotoTamanho: novaFoto.fotoTamanho,
+            }
+          : opcoesDeFoto?.remover === true
+            ? { foto: null, fotoTipoMime: null, fotoNomeArquivo: null, fotoTamanho: null }
+            : {}),
       });
       await exigirAtualizacaoAplicada(tx, idValido.data, entrada.versao, resultadoUpdate);
 

@@ -117,6 +117,7 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
         statusId: equipamento.statusId,
         localizacaoId: equipamento.localizacaoId,
         observacoes: equipamento.observacoes,
+        temFoto: equipamento.fotoTipoMime !== null,
         versao: equipamento.versao,
       }}
       categorias={comOpcaoAtual(

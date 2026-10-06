@@ -35,6 +35,12 @@ function extrairEntradaDoFormulario(dados: FormData): Record<string, unknown> {
   };
 }
 
+/** Fora do objeto de entrada (que passa pelo esquema Zod `strictObject`): um arquivo não é texto. */
+function extrairArquivoDaFoto(dados: FormData): File | null {
+  const valor = dados.get("foto");
+  return valor instanceof File ? valor : null;
+}
+
 export async function cadastrarEquipamentoAction(
   _estadoAnterior: ResultadoCadastro | null,
   dadosDoFormulario: FormData,
@@ -53,6 +59,7 @@ export async function cadastrarEquipamentoAction(
       obterPrisma(),
       ator,
       extrairEntradaDoFormulario(dadosDoFormulario),
+      extrairArquivoDaFoto(dadosDoFormulario),
     );
     return { sucesso: true, equipamentoId: equipamento.id };
   } catch (erro) {

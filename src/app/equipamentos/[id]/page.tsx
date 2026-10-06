@@ -199,6 +199,15 @@ export default async function PaginaDeDetalhes({
         </p>
       )}
 
+      {equipamento.fotoTipoMime !== null && (
+        // biome-ignore lint/performance/noImgElement: imagem enviada pelo usuário, servida por uma rota própria autenticada — next/image exige um domínio remoto configurado, que não se aplica aqui.
+        <img
+          src={`/api/equipamentos/${equipamento.id}/foto`}
+          alt={`Foto de ${equipamento.nome}`}
+          className="h-auto max-h-80 w-auto max-w-full rounded border border-zinc-200 object-contain dark:border-zinc-800"
+        />
+      )}
+
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Campo rotulo="Categoria" valor={equipamento.categoria.nome} />
         <Campo rotulo="Fabricante" valor={equipamento.fabricante.nome} />

@@ -4,6 +4,12 @@
  * Validação, normalização e a resolução do fluxo "Outro" ficam na camada de
  * serviço (`src/services/equipamentos.ts`). Este módulo apenas fala com o
  * Prisma.
+ *
+ * Todo `select` abaixo é explícito de propósito (nunca `include`, que
+ * devolveria implicitamente TODOS os escalares do modelo, inclusive o
+ * binário da foto): assim uma listagem de 20 linhas ou uma exportação de
+ * milhares de linhas nunca carrega bytes de imagem sem necessidade. Só
+ * `obterFotoPorId` busca o binário, e só quando a rota de download pede.
  */
 
 import type { Prisma } from "@prisma/client";
@@ -22,12 +28,43 @@ export type DadosParaCriarEquipamento = {
   readonly statusId: string;
   readonly localizacaoId: string;
   readonly observacoes: string | null;
+  readonly foto: Buffer | null;
+  readonly fotoTipoMime: string | null;
+  readonly fotoNomeArquivo: string | null;
+  readonly fotoTamanho: number | null;
   readonly criadoPorId: string;
   readonly atualizadoPorId: string;
 };
 
-/** Relações incluídas em toda leitura detalhada de um equipamento. */
-const INCLUSAO_DETALHADA = {
+/**
+ * Campos e relações de toda leitura detalhada de um equipamento. Traz os
+ * metadados da foto (tipo, nome, tamanho) para a tela saber se existe uma
+ * foto e montar o `<img src="/api/equipamentos/{id}/foto">` — nunca o
+ * binário em si.
+ */
+const SELECAO_DETALHADA = {
+  id: true,
+  categoriaId: true,
+  nome: true,
+  fabricanteId: true,
+  modelo: true,
+  numeroSerie: true,
+  numeroSerieNormalizado: true,
+  codigoTrillogo: true,
+  codigoTrillogoNormalizado: true,
+  statusId: true,
+  localizacaoId: true,
+  observacoes: true,
+  fotoTipoMime: true,
+  fotoNomeArquivo: true,
+  fotoTamanho: true,
+  criadoEm: true,
+  atualizadoEm: true,
+  criadoPorId: true,
+  atualizadoPorId: true,
+  arquivadoEm: true,
+  arquivadoPorId: true,
+  versao: true,
   categoria: true,
   fabricante: true,
   status: true,
@@ -61,8 +98,11 @@ export async function existeCodigoTrillogoNormalizado(
 
 export async function criar(prisma: ClientePrisma, dados: DadosParaCriarEquipamento) {
   return prisma.equipamento.create({
-    data: dados,
-    include: INCLUSAO_DETALHADA,
+    // `Buffer` é `Uint8Array<ArrayBufferLike>`; o campo `Bytes` do Prisma
+    // exige `Uint8Array<ArrayBuffer>` — a cópia resolve a incompatibilidade
+    // de tipo (mesma situação já resolvida na rota de exportação).
+    data: { ...dados, foto: dados.foto === null ? null : Uint8Array.from(dados.foto) },
+    select: SELECAO_DETALHADA,
   });
 }
 
@@ -74,16 +114,32 @@ export async function criar(prisma: ClientePrisma, dados: DadosParaCriarEquipame
 export async function obterDetalhadoPorId(prisma: ClientePrisma, id: string) {
   return prisma.equipamento.findUnique({
     where: { id },
-    include: INCLUSAO_DETALHADA,
+    select: SELECAO_DETALHADA,
   });
 }
 
-/** Relações incluídas na listagem — mais leves que a leitura detalhada. */
-const INCLUSAO_DE_LISTAGEM = {
+/**
+ * Só o binário da foto (e o tipo MIME para o cabeçalho `Content-Type`) — a
+ * única função deste repositório que busca o campo `foto`. Usada
+ * exclusivamente pela rota de download (`GET /api/equipamentos/[id]/foto`).
+ */
+export async function obterFotoPorId(prisma: ClientePrisma, id: string) {
+  return prisma.equipamento.findUnique({
+    where: { id },
+    select: { foto: true, fotoTipoMime: true, fotoNomeArquivo: true },
+  });
+}
+
+/** Campos e relações da listagem — mais leves que a leitura detalhada. */
+const SELECAO_DE_LISTAGEM = {
+  id: true,
+  nome: true,
+  modelo: true,
+  criadoEm: true,
+  atualizadoEm: true,
   categoria: true,
   fabricante: true,
   status: true,
-  localizacao: true,
 } as const;
 
 export type FiltrosDeEquipamento = {
@@ -145,7 +201,7 @@ export async function listarPaginado(prisma: ClientePrisma, opcoes: OpcoesDeList
   const [itens, total] = await Promise.all([
     prisma.equipamento.findMany({
       where,
-      include: INCLUSAO_DE_LISTAGEM,
+      select: SELECAO_DE_LISTAGEM,
       orderBy: { [opcoes.ordenacao.campo]: opcoes.ordenacao.direcao },
       skip: (opcoes.pagina - 1) * opcoes.tamanhoPagina,
       take: opcoes.tamanhoPagina,
@@ -156,8 +212,16 @@ export async function listarPaginado(prisma: ClientePrisma, opcoes: OpcoesDeList
   return { itens, total };
 }
 
-/** Relações incluídas na exportação — precisa do nome de quem criou/alterou. */
-const INCLUSAO_DE_EXPORTACAO = {
+/** Campos e relações da exportação — precisa do nome de quem criou/alterou, nunca da foto. */
+const SELECAO_DE_EXPORTACAO = {
+  id: true,
+  nome: true,
+  modelo: true,
+  numeroSerie: true,
+  codigoTrillogo: true,
+  observacoes: true,
+  criadoEm: true,
+  atualizadoEm: true,
   categoria: true,
   fabricante: true,
   status: true,
@@ -183,7 +247,7 @@ export async function listarParaExportacao(
 ) {
   return prisma.equipamento.findMany({
     where: construirFiltro(filtros),
-    include: INCLUSAO_DE_EXPORTACAO,
+    select: SELECAO_DE_EXPORTACAO,
     orderBy: { [ordenacao.campo]: ordenacao.direcao },
     take: limiteMaximo + 1,
   });
@@ -193,6 +257,11 @@ export async function listarParaExportacao(
  * Campos aceitos numa edição completa — já normalizados pelo serviço. Sem
  * `id`/`criadoEm`/`criadoPorId`/`arquivadoEm`/`arquivadoPorId`: a edição
  * nunca toca esses campos (ADR 0005, requisito 7.4).
+ *
+ * Os campos de foto são opcionais E aceitam `null` explicitamente — a
+ * distinção importa: `undefined` (chave omitida) significa "não mexer na
+ * foto atual"; `null` significa "remover a foto atual"; um valor significa
+ * "substituir pela nova foto". Ver `src/services/equipamentos.ts`.
  */
 export type DadosParaAtualizarEquipamento = {
   readonly categoriaId: string;
@@ -206,6 +275,10 @@ export type DadosParaAtualizarEquipamento = {
   readonly statusId: string;
   readonly localizacaoId: string;
   readonly observacoes: string | null;
+  readonly foto?: Buffer | null;
+  readonly fotoTipoMime?: string | null;
+  readonly fotoNomeArquivo?: string | null;
+  readonly fotoTamanho?: number | null;
   readonly atualizadoPorId: string;
 };
 
@@ -221,9 +294,16 @@ export async function atualizar(
   versaoEsperada: number,
   dados: DadosParaAtualizarEquipamento,
 ) {
+  const { foto, ...resto } = dados;
   return prisma.equipamento.updateMany({
     where: { id, versao: versaoEsperada, arquivadoEm: null },
-    data: { ...dados, versao: { increment: 1 } },
+    data: {
+      ...resto,
+      // `undefined` = não mexer na foto atual; `null` = remover; um
+      // `Buffer` = substituir. Mesma conversão de tipo de `criar()`.
+      ...(foto !== undefined ? { foto: foto === null ? null : Uint8Array.from(foto) } : {}),
+      versao: { increment: 1 },
+    },
   });
 }
 

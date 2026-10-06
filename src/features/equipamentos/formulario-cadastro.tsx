@@ -308,6 +308,25 @@ export function FormularioCadastroDeEquipamento({
           </p>
           <ListaDeErros id="observacoes-erro" erros={errosDoCampo("observacoes")} />
         </div>
+
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label htmlFor="foto" className={CLASSE_RASTRO}>
+            Foto
+          </label>
+          <input
+            id="foto"
+            name="foto"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className={CLASSE_CAMPO}
+            aria-describedby="foto-dica foto-erro"
+          />
+          <p id="foto-dica" className="text-xs text-zinc-500 dark:text-zinc-400">
+            Opcional. JPEG, PNG ou WEBP, até 5 MB. No celular, abre a opção de tirar uma foto ou
+            escolher da galeria.
+          </p>
+          <ListaDeErros id="foto-erro" erros={errosDoCampo("foto")} />
+        </div>
       </fieldset>
 
       <div>
