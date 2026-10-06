@@ -284,7 +284,8 @@ Proteção contra formula injection: todo campo de texto vindo de entrada do usu
 `-`, `@`, tabulação ou retorno de carro recebe um apóstrofo à frente antes de ir para a
 célula. Cabeçalhos em português, identificador interno, número de série e código
 Trillogo, nomes das listas relacionadas, quem cadastrou/alterou e indicação de data/hora
-de geração (UTC) constam do arquivo. A exportação é limitada a `EXPORT_MAX_ROWS`
+de geração constam do arquivo, todas as datas e horas no **horário de Brasília** (o
+banco guarda em UTC; a conversão acontece na exibição, em `src/domain/data-e-hora.ts`). A exportação é limitada a `EXPORT_MAX_ROWS`
 registros (variável de ambiente); se o filtro atual ultrapassar o limite, a exportação é
 recusada com uma mensagem pedindo para refinar a busca, em vez de gerar um arquivo
 parcial silenciosamente. A auditoria registra quem exportou, quando e quais filtros —

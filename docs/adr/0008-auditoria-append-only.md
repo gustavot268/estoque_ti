@@ -78,6 +78,11 @@ Todos os timestamps do sistema (incluindo `ocorridoEm`) são `timestamptz`, pers
 **UTC**. A exibição em horário local (fuso do Brasil) é responsabilidade exclusiva da
 camada de interface — nunca do armazenamento.
 
+Implementação: todas as telas e a planilha de exportação formatam datas por
+`src/domain/data-e-hora.ts`, que fixa o fuso `America/Sao_Paulo` (horário de Brasília) em
+vez de herdar o do servidor. Sem isso, uma máquina em UTC (típico de contêiner) mostraria
+3 horas à frente, e um cadastro feito à noite apareceria com a data do dia seguinte.
+
 ## Consequências
 
 - Corrigir um registro de auditoria incorreto (ex.: erro de digitação em um campo

@@ -12,6 +12,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MensagemDeAcesso } from "../../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../../components/mensagem-simples";
+import { formatarDataEHora } from "../../../domain/data-e-hora";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../domain/erros";
 import { acoesPermitidas, exigirPermissao } from "../../../domain/permissoes";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
@@ -46,10 +47,6 @@ const ROTULOS_DE_RESULTADO: Record<ResultadoAuditoria, string> = {
   SUCESSO: "sucesso",
   FALHA: "falha",
 };
-
-function formatarData(data: Date): string {
-  return new Date(data).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-}
 
 function primeiroValor(valor: string | string[] | undefined): string | undefined {
   return Array.isArray(valor) ? valor[0] : valor;
@@ -194,7 +191,7 @@ export default async function PaginaDeDetalhes({
           role="status"
           className="rounded border border-amber-500 bg-amber-100 px-3 py-2 text-sm text-amber-950"
         >
-          Equipamento arquivado em {formatarData(equipamento.arquivadoEm)}
+          Equipamento arquivado em {formatarDataEHora(equipamento.arquivadoEm)}
           {equipamento.arquivadoPor !== null && ` por ${equipamento.arquivadoPor.nome}`}.
         </p>
       )}
@@ -231,11 +228,11 @@ export default async function PaginaDeDetalhes({
       <dl className="grid grid-cols-1 gap-4 border-t border-zinc-200 pt-4 sm:grid-cols-2 dark:border-zinc-800">
         <Campo
           rotulo="Criado em"
-          valor={`${formatarData(equipamento.criadoEm)} por ${equipamento.criadoPor.nome}`}
+          valor={`${formatarDataEHora(equipamento.criadoEm)} por ${equipamento.criadoPor.nome}`}
         />
         <Campo
           rotulo="Última alteração"
-          valor={`${formatarData(equipamento.atualizadoEm)} por ${equipamento.atualizadoPor.nome}`}
+          valor={`${formatarDataEHora(equipamento.atualizadoEm)} por ${equipamento.atualizadoPor.nome}`}
         />
       </dl>
 
@@ -254,7 +251,7 @@ export default async function PaginaDeDetalhes({
               >
                 <span className="font-medium">{ROTULOS_DE_ACAO[registro.tipoAcao]}</span>
                 <span className="text-zinc-600 dark:text-zinc-400">
-                  {formatarData(registro.ocorridoEm)}
+                  {formatarDataEHora(registro.ocorridoEm)}
                   {registro.usuarioNome !== null && ` · ${registro.usuarioNome}`} ·{" "}
                   {ROTULOS_DE_RESULTADO[registro.resultado]}
                 </span>

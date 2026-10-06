@@ -12,6 +12,7 @@ import Link from "next/link";
 import { MensagemDeAcesso } from "../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../components/mensagem-simples";
 import { SeloDeStatus } from "../../components/selo-de-status";
+import { formatarData } from "../../domain/data-e-hora";
 import { AcessoNegadoError, EntradaInvalidaError } from "../../domain/erros";
 import { acoesPermitidas, exigirPermissao } from "../../domain/permissoes";
 import { BotaoArquivarEquipamento } from "../../features/equipamentos/botao-arquivar-equipamento";
@@ -440,12 +441,8 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 <tr key={equipamento.id} className="border-b border-zinc-200 dark:border-zinc-800">
                   <td className="py-2 pr-4">{equipamento.nome}</td>
                   <td className="py-2 pr-4">{equipamento.modelo}</td>
-                  <td className="py-2 pr-4">
-                    {new Date(equipamento.criadoEm).toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="py-2 pr-4">
-                    {new Date(equipamento.atualizadoEm).toLocaleDateString("pt-BR")}
-                  </td>
+                  <td className="py-2 pr-4">{formatarData(equipamento.criadoEm)}</td>
+                  <td className="py-2 pr-4">{formatarData(equipamento.atualizadoEm)}</td>
                   <td className="py-2 pr-4">{equipamento.categoria.nome}</td>
                   <td className="py-2 pr-4">{equipamento.fabricante.nome}</td>
                   <td className="py-2 pr-4">

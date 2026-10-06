@@ -15,7 +15,10 @@
   interno **nunca** é substituído por número de série ou código Trillogo — esses dois
   campos são identificadores de negócio opcionais, não identificadores primários.
 - **Datas**: `timestamptz`, persistidas em **UTC**. A exibição em horário local é
-  responsabilidade da camada de interface, nunca do armazenamento.
+  responsabilidade da camada de interface, nunca do armazenamento: telas e planilha
+  mostram o **horário de Brasília** (`America/Sao_Paulo`), com o fuso fixado em
+  `src/domain/data-e-hora.ts` (e não o do servidor), para o resultado ser o mesmo em
+  qualquer máquina ou contêiner.
 - **Nomes de campos**: em português, conforme o prompt original do cliente.
 - **Exclusão no fluxo comum**: lógica, nunca física. Ver
   [`docs/retencao-e-descarte.md`](retencao-e-descarte.md) para a diferença entre

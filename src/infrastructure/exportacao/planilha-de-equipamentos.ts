@@ -6,6 +6,7 @@
  */
 
 import ExcelJS from "exceljs";
+import { formatarDataEHora, ROTULO_DO_FUSO } from "../../domain/data-e-hora";
 
 /**
  * Neutraliza formula injection (requisito 14.12): um valor de texto cujo
@@ -39,7 +40,7 @@ export type LinhaDeEquipamento = {
   readonly status: string;
   readonly localizacao: string;
   readonly observacoes: string | null;
-  /** Já formatada como texto (UTC) — datas não passam por neutralização. */
+  /** Já formatada como texto (horário de Brasília) — datas não passam por neutralização. */
   readonly criadoEm: string;
   readonly criadoPor: string;
   readonly atualizadoEm: string;
@@ -57,13 +58,13 @@ const CABECALHOS = [
   "Status de funcionamento",
   "Localização",
   "Observações",
-  "Criado em (UTC)",
+  "Criado em (Brasília)",
   "Criado por",
-  "Atualizado em (UTC)",
+  "Atualizado em (Brasília)",
   "Atualizado por",
 ] as const;
 
-const LARGURAS = [38, 16, 16, 28, 20, 20, 18, 20, 14, 40, 20, 22, 20, 22];
+const LARGURAS = [38, 16, 16, 28, 20, 20, 18, 20, 14, 40, 22, 22, 26, 22];
 
 const LINHA_DO_CABECALHO = 4;
 
@@ -85,18 +86,14 @@ export async function gerarPlanilhaDeEquipamentos(
   const planilha = workbook.addWorksheet("Equipamentos");
   planilha.columns = LARGURAS.map((width) => ({ width }));
 
-  const dataGeracao = geradoEm.toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "UTC",
-  });
+  const dataGeracao = formatarDataEHora(geradoEm);
 
   const linhaTitulo = planilha.addRow(["Estoque de TI — Exportação de equipamentos"]);
   linhaTitulo.font = { bold: true, size: 13 };
   planilha.mergeCells(1, 1, 1, CABECALHOS.length);
 
   const linhaAviso = planilha.addRow([
-    `Gerado em ${dataGeracao} UTC · Documento interno · Representa os dados existentes neste momento — alterações feitas neste arquivo não retornam ao sistema.`,
+    `Gerado em ${dataGeracao} (${ROTULO_DO_FUSO}) · Documento interno · Representa os dados existentes neste momento — alterações feitas neste arquivo não retornam ao sistema.`,
   ]);
   linhaAviso.font = { italic: true, size: 10, color: { argb: "FF52514E" } };
   planilha.mergeCells(2, 1, 2, CABECALHOS.length);

@@ -12,6 +12,7 @@ import Link from "next/link";
 import { MensagemDeAcesso } from "../../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../../components/mensagem-simples";
 import { SeloDeStatus } from "../../../components/selo-de-status";
+import { formatarDataEHora } from "../../../domain/data-e-hora";
 import { AcessoNegadoError, EntradaInvalidaError } from "../../../domain/erros";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
@@ -55,15 +56,8 @@ function construirHref(busca: string | null | undefined, pagina?: number): strin
   return texto === "" ? "/equipamentos/arquivados" : `/equipamentos/arquivados?${texto}`;
 }
 
-function formatarDataEHora(data: Date | null): string {
-  if (data === null) {
-    return "—";
-  }
-  return new Date(data).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Sao_Paulo",
-  });
+function formatarArquivadoEm(data: Date | null): string {
+  return data === null ? "—" : formatarDataEHora(data);
 }
 
 export default async function PaginaDeArquivados({
@@ -226,7 +220,7 @@ export default async function PaginaDeArquivados({
                       nomeNormalizado={equipamento.status.nomeNormalizado}
                     />
                   </td>
-                  <td className="py-2 pr-4">{formatarDataEHora(equipamento.arquivadoEm)}</td>
+                  <td className="py-2 pr-4">{formatarArquivadoEm(equipamento.arquivadoEm)}</td>
                   <td className="py-2 pr-4">{equipamento.arquivadoPor?.nome ?? "—"}</td>
                   <td className="py-2">
                     <div className="flex items-center justify-end gap-3">
@@ -272,7 +266,7 @@ export default async function PaginaDeArquivados({
                   />
                 </span>
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Arquivado em {formatarDataEHora(equipamento.arquivadoEm)} por{" "}
+                  Arquivado em {formatarArquivadoEm(equipamento.arquivadoEm)} por{" "}
                   {equipamento.arquivadoPor?.nome ?? "—"}
                 </span>
                 <div className="mt-1 flex items-center justify-between gap-3">

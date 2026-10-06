@@ -9,6 +9,7 @@
  */
 
 import type { AtorAutenticado } from "../domain/ator";
+import { carimboParaNomeDeArquivo, formatarDataEHora } from "../domain/data-e-hora";
 import { EntradaInvalidaError, ExportacaoExcedeLimiteError } from "../domain/erros";
 import { exigirPermissao } from "../domain/permissoes";
 import {
@@ -21,23 +22,12 @@ import { listarParaExportacao } from "../infrastructure/repositorios/equipamento
 import { errosPorCampo } from "../validation/comum";
 import { esquemaConsultaEquipamentos } from "../validation/equipamento";
 
-function formatarDataUtc(data: Date): string {
-  return data.toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "UTC",
-  });
-}
-
-/** Nome de arquivo previsível e seguro (requisito 14.12) — só dígitos, sem entrada do usuário. */
+/**
+ * Nome de arquivo previsível e seguro (requisito 14.12) — só dígitos, sem
+ * entrada do usuário. O carimbo usa o horário de Brasília, o mesmo da planilha.
+ */
 function nomeDoArquivo(geradoEm: Date): string {
-  const aaaa = geradoEm.getUTCFullYear();
-  const mm = String(geradoEm.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(geradoEm.getUTCDate()).padStart(2, "0");
-  const hh = String(geradoEm.getUTCHours()).padStart(2, "0");
-  const mi = String(geradoEm.getUTCMinutes()).padStart(2, "0");
-  const ss = String(geradoEm.getUTCSeconds()).padStart(2, "0");
-  return `estoque-ti-equipamentos-${aaaa}${mm}${dd}-${hh}${mi}${ss}.xlsx`;
+  return `estoque-ti-equipamentos-${carimboParaNomeDeArquivo(geradoEm)}.xlsx`;
 }
 
 export type ResultadoDeExportacao = {
@@ -91,9 +81,9 @@ export async function exportarEquipamentos(
     status: equipamento.status.nome,
     localizacao: equipamento.localizacao.nome,
     observacoes: equipamento.observacoes,
-    criadoEm: formatarDataUtc(equipamento.criadoEm),
+    criadoEm: formatarDataEHora(equipamento.criadoEm),
     criadoPor: equipamento.criadoPor.nome,
-    atualizadoEm: formatarDataUtc(equipamento.atualizadoEm),
+    atualizadoEm: formatarDataEHora(equipamento.atualizadoEm),
     atualizadoPor: equipamento.atualizadoPor.nome,
   }));
 

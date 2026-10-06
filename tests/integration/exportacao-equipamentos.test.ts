@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { executarSeed } from "../../prisma/seed";
+import { formatarDataEHora } from "../../src/domain/data-e-hora";
 import { ExportacaoExcedeLimiteError } from "../../src/domain/erros";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { exportarEquipamentos } from "../../src/services/exportacao";
@@ -14,6 +15,8 @@ const prisma = obterClienteDeTeste();
 const PRIMEIRA_LINHA_DE_DADOS = 5;
 const COLUNA_NOME = 4;
 const COLUNA_OBSERVACOES = 10;
+const COLUNA_CRIADO_EM = 11;
+const COLUNA_ATUALIZADO_EM = 13;
 
 /**
  * O próprio `exceljs` declara uma interface `Buffer` global (`extends
@@ -109,6 +112,51 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
       nomesLidos.add(String(planilha?.getRow(linha).getCell(COLUNA_NOME).value));
     }
     expect(nomesLidos).toEqual(new Set(nomes));
+  });
+
+  it("mostra as datas no horário de Brasília, não em UTC, e o nome do arquivo bate com a hora de geração", async () => {
+    const equipamento = await cadastrarEquipamento(
+      prisma,
+      ator,
+      entrada({ nome: `${prefixo} data`, numeroSerie: `${prefixo}-sn-data` }),
+    );
+    equipamentosCriados.push(equipamento.id);
+
+    const resultado = await exportarEquipamentos(
+      prisma,
+      ator,
+      { busca: `${prefixo} data` },
+      10_000,
+    );
+    const planilha = await carregarPlanilha(resultado.buffer);
+
+    // Cabeçalhos: o fuso aparece no nome da coluna.
+    expect(planilha?.getRow(4).getCell(COLUNA_CRIADO_EM).value).toBe("Criado em (Brasília)");
+    expect(planilha?.getRow(4).getCell(COLUNA_ATUALIZADO_EM).value).toBe(
+      "Atualizado em (Brasília)",
+    );
+
+    // Os valores são os do banco convertidos para Brasília (o caso reportado: 18:49 UTC → 15:49).
+    const dados = planilha?.getRow(PRIMEIRA_LINHA_DE_DADOS);
+    expect(dados?.getCell(COLUNA_CRIADO_EM).value).toBe(formatarDataEHora(equipamento.criadoEm));
+    expect(dados?.getCell(COLUNA_ATUALIZADO_EM).value).toBe(
+      formatarDataEHora(equipamento.atualizadoEm),
+    );
+
+    // Aviso do topo: horário de Brasília, nunca "UTC".
+    const aviso = String(planilha?.getRow(2).getCell(1).value);
+    expect(aviso).toContain("(horário de Brasília)");
+    expect(aviso).not.toContain("UTC");
+
+    // "Gerado em dd/mm/aaaa, hh:mm" e o carimbo do arquivo (aaaammdd-hhmmss) vêm do mesmo instante.
+    const geradoEm = /Gerado em (\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2})/.exec(aviso);
+    const carimbo = /-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}\.xlsx$/.exec(
+      resultado.nomeDoArquivo,
+    );
+    expect(geradoEm).not.toBeNull();
+    expect(carimbo).not.toBeNull();
+    const [, dd, mm, aaaa, hh, mi] = geradoEm ?? [];
+    expect(carimbo?.slice(1, 6)).toEqual([aaaa, mm, dd, hh, mi]);
   });
 
   it("rejeita com ExportacaoExcedeLimiteError quando o total ultrapassa o limite", async () => {
