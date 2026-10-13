@@ -199,7 +199,7 @@ revisada pela equipe de Segurança da Informação antes da implantação em pro
 
 ### 8. Formula injection no Excel
 
-- **Cenário:** um valor de campo (ex.: `nome`, `observacoes`, ou nome de fabricante
+- **Cenário:** um valor de campo (ex.: `modelo`, `observacoes`, ou nome de fabricante
   criado via "Outro") começa com um caractere interpretado como fórmula pelo Excel
   (`=`, `+`, `-`, `@`, tabulação, retorno de carro) e, ao ser aberto pela vítima, executa
   conteúdo não pretendido.
@@ -210,10 +210,10 @@ revisada pela equipe de Segurança da Informação antes da implantação em pro
   padrão de entrada, deliberadamente ou não.
 - **Controle preventivo:** neutralização de valores iniciados por esses caracteres antes
   da exportação (prefixo de apóstrofo — técnica padrão de proteção contra formula
-  injection), aplicada em todo campo de texto de entrada do usuário (nome, modelo,
-  observações, identificadores, nomes de lista relacionados). **Implementado nesta
-  rodada (Etapa 6)** —
-  [`src/infrastructure/exportacao/planilha-de-equipamentos.ts`](../src/infrastructure/exportacao/planilha-de-equipamentos.ts).
+  injection), aplicada em todo campo de texto de entrada do usuário (modelo, tipo,
+  especificação, observações, identificadores, nomes de lista relacionados), nas duas abas da planilha
+  (equipamentos e materiais). **Implementado nesta rodada (Etapa 6)** —
+  [`src/infrastructure/exportacao/planilha-do-estoque.ts`](../src/infrastructure/exportacao/planilha-do-estoque.ts).
 - **Controle de detecção:** teste automatizado dedicado (requisito explícito do cliente,
   seção 12) existe em duas camadas: teste unitário de `neutralizarFormula` para os seis
   caracteres de risco, e teste de integração que cadastra um equipamento com um valor de

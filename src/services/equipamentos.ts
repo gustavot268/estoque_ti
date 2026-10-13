@@ -21,6 +21,7 @@ import {
   RegistroNaoEncontradoError,
   ValorDeListaInvalidoError,
 } from "../domain/erros";
+import { validarImagem } from "../domain/imagem";
 import { normalizarParDeIdentificador } from "../domain/normalizacao";
 import { exigirPermissao } from "../domain/permissoes";
 import type { ClientePrisma, PrismaClient } from "../infrastructure/prisma/criar-cliente";
@@ -31,51 +32,96 @@ import {
   criar,
   existeCodigoTrillogoNormalizado,
   existeNumeroSerieNormalizado,
+  listarArquivadosPaginado,
   listarPaginado,
   obterDetalhadoPorId,
+  obterFotoPorId,
   restaurar,
 } from "../infrastructure/repositorios/equipamentos";
 import {
   obterCategoriaPorId,
   obterFabricantePorId,
-  obterLocalizacaoPorId,
   obterStatusFuncionamentoPorId,
 } from "../infrastructure/repositorios/listas-controladas";
 import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
 import {
   esquemaArquivarEquipamento,
   esquemaAtualizarEquipamento,
+  esquemaConsultaArquivados,
   esquemaConsultaEquipamentos,
   esquemaCriarEquipamento,
   esquemaRestaurarEquipamento,
 } from "../validation/equipamento";
 import { resolverFabricanteOutro } from "./fabricantes";
+import { type OndeFica, validarOndeFica } from "./onde-fica";
 
 type DadosDeAuditoriaDoEquipamento = {
   readonly id: string;
   readonly categoriaId: string;
-  readonly nome: string;
   readonly fabricanteId: string;
   readonly modelo: string;
   readonly numeroSerie: string | null;
   readonly codigoTrillogo: string | null;
   readonly statusId: string;
-  readonly localizacaoId: string;
+  readonly andarId: string;
+  readonly localArmazenamentoId: string | null;
+  readonly orientacaoId: string | null;
   readonly observacoes: string | null;
+  readonly fotoTipoMime: string | null;
 };
 
-function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento): DadosDeAuditoriaDoEquipamento {
+function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento) {
   return {
     id: equipamento.id,
     categoriaId: equipamento.categoriaId,
-    nome: equipamento.nome,
     fabricanteId: equipamento.fabricanteId,
     modelo: equipamento.modelo,
     numeroSerie: equipamento.numeroSerie,
     codigoTrillogo: equipamento.codigoTrillogo,
     statusId: equipamento.statusId,
-    localizacaoId: equipamento.localizacaoId,
+    andarId: equipamento.andarId,
+    localArmazenamentoId: equipamento.localArmazenamentoId,
+    orientacaoId: equipamento.orientacaoId,
     observacoes: equipamento.observacoes,
+    // Nunca o binário em si na auditoria (mesma regra da exportação) — só se
+    // há ou não uma foto anexada.
+    temFoto: equipamento.fotoTipoMime !== null,
+  };
+}
+
+type DadosDeFotoProcessada = {
+  readonly foto: Buffer;
+  readonly fotoTipoMime: string;
+  readonly fotoNomeArquivo: string;
+  readonly fotoTamanho: number;
+};
+
+/**
+ * Lê e valida um arquivo de imagem enviado pelo formulário (requisito 14.8 —
+ * o servidor nunca confia no que o navegador diz sobre o arquivo, só no
+ * conteúdo real dos bytes, ver `validarImagem`). `null`/`undefined` ou um
+ * arquivo vazio — o que o navegador envia quando o campo de arquivo é
+ * deixado em branco — significam "nenhum arquivo novo enviado": devolve
+ * `null`, não é erro.
+ */
+async function processarArquivoDeFoto(
+  arquivo: File | null | undefined,
+): Promise<DadosDeFotoProcessada | null> {
+  if (arquivo === null || arquivo === undefined || arquivo.size === 0) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+  const resultado = validarImagem(bytes, arquivo.type);
+  if (!resultado.valida) {
+    throw new EntradaInvalidaError({ foto: [resultado.motivo] });
+  }
+
+  return {
+    foto: Buffer.from(bytes),
+    fotoTipoMime: arquivo.type,
+    fotoNomeArquivo: arquivo.name.slice(0, 255),
+    fotoTamanho: bytes.length,
   };
 }
 
@@ -101,23 +147,21 @@ function mapearConflitoDeUnicidade(
   return new ConflitoDeUnicidadeError("equipamento", "Este equipamento já existe.");
 }
 
-type EntradaComReferencias = {
+type EntradaComReferencias = OndeFica & {
   readonly categoriaId: string;
   readonly statusId: string;
-  readonly localizacaoId: string;
   readonly fabricanteId: string;
   readonly fabricanteOutroNome: string | null;
 };
 
-type ReferenciasAtuais = {
+type ReferenciasAtuais = OndeFica & {
   readonly categoriaId: string;
   readonly statusId: string;
-  readonly localizacaoId: string;
   readonly fabricanteId: string;
 };
 
 /**
- * Valida categoria/status/localização/fabricante: precisam existir e estar
+ * Valida categoria/status/fabricante e onde o item fica: precisam existir e estar
  * ativos. Exceção deliberada (só relevante em edição, por isso `atual` é
  * opcional): um valor que o equipamento **já tinha** pode continuar inativo
  * — regra 4.2 ("registros inativos... precisam continuar associados aos
@@ -129,12 +173,15 @@ async function validarReferencias(
   prisma: PrismaClient,
   entrada: EntradaComReferencias,
   atual?: ReferenciasAtuais,
-): Promise<{ ehFabricanteOutro: boolean; fabricanteSelecionado: Fabricante }> {
-  const [categoria, statusFuncionamento, localizacao, fabricanteSelecionado] = await Promise.all([
+): Promise<{
+  ehFabricanteOutro: boolean;
+  fabricanteSelecionado: Fabricante;
+}> {
+  const [categoria, statusFuncionamento, fabricanteSelecionado] = await Promise.all([
     obterCategoriaPorId(prisma, entrada.categoriaId),
     obterStatusFuncionamentoPorId(prisma, entrada.statusId),
-    obterLocalizacaoPorId(prisma, entrada.localizacaoId),
     obterFabricantePorId(prisma, entrada.fabricanteId),
+    validarOndeFica(prisma, entrada, atual),
   ]);
 
   const categoriaInalterada = atual?.categoriaId === entrada.categoriaId;
@@ -145,10 +192,7 @@ async function validarReferencias(
   if (statusFuncionamento === null || (!statusFuncionamento.ativo && !statusInalterado)) {
     throw new ValorDeListaInvalidoError("statusId");
   }
-  const localizacaoInalterada = atual?.localizacaoId === entrada.localizacaoId;
-  if (localizacao === null || (!localizacao.ativo && !localizacaoInalterada)) {
-    throw new ValorDeListaInvalidoError("localizacaoId");
-  }
+
   if (fabricanteSelecionado === null) {
     throw new ValorDeListaInvalidoError("fabricanteId");
   }
@@ -216,6 +260,7 @@ export async function cadastrarEquipamento(
   prisma: PrismaClient,
   ator: AtorAutenticado,
   entradaBruta: unknown,
+  arquivoDaFoto?: File | null,
 ) {
   exigirPermissao(ator, "CADASTRAR_EQUIPAMENTO");
 
@@ -224,6 +269,8 @@ export async function cadastrarEquipamento(
     throw new EntradaInvalidaError(errosPorCampo(resultado.error));
   }
   const entrada = resultado.data;
+
+  const foto = await processarArquivoDeFoto(arquivoDaFoto);
 
   const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada);
 
@@ -255,22 +302,27 @@ export async function cadastrarEquipamento(
       // acontece DENTRO da transação: se a gravação do equipamento falhar
       // depois (ex.: corrida de unicidade em numeroSerie), o fabricante
       // pendente criado agora é revertido junto — não fica órfão.
-      const fabricanteResolvidoId = ehFabricanteOutro
-        ? (await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)).id
-        : fabricanteSelecionado.id;
+      const fabricanteResolvido = ehFabricanteOutro
+        ? await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)
+        : fabricanteSelecionado;
 
       const equipamento = await criar(tx, {
         categoriaId: entrada.categoriaId,
-        nome: entrada.nome,
-        fabricanteId: fabricanteResolvidoId,
+        fabricanteId: fabricanteResolvido.id,
         modelo: entrada.modelo,
         numeroSerie: numeroSerie.exibicao,
         numeroSerieNormalizado: numeroSerie.normalizado,
         codigoTrillogo: codigoTrillogo.exibicao,
         codigoTrillogoNormalizado: codigoTrillogo.normalizado,
         statusId: entrada.statusId,
-        localizacaoId: entrada.localizacaoId,
+        andarId: entrada.andarId,
+        localArmazenamentoId: entrada.localArmazenamentoId,
+        orientacaoId: entrada.orientacaoId,
         observacoes: entrada.observacoes,
+        foto: foto?.foto ?? null,
+        fotoTipoMime: foto?.fotoTipoMime ?? null,
+        fotoNomeArquivo: foto?.fotoNomeArquivo ?? null,
+        fotoTamanho: foto?.fotoTamanho ?? null,
         criadoPorId: ator.usuarioId,
         atualizadoPorId: ator.usuarioId,
       });
@@ -327,6 +379,36 @@ export async function obterEquipamentoPorId(
   return equipamento;
 }
 
+/**
+ * Foto de um equipamento — usada pela rota de download
+ * (`GET /api/equipamentos/[id]/foto`). Mesma permissão de visualizar o
+ * equipamento; nunca passa pela consulta/detalhe normal, que nunca carrega
+ * o binário (ver `SELECAO_DETALHADA` no repositório).
+ */
+export async function obterFotoDoEquipamento(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  id: string,
+) {
+  exigirPermissao(ator, "VISUALIZAR_EQUIPAMENTO");
+
+  const idValido = uuidObrigatorio("o identificador do equipamento").safeParse(id);
+  if (!idValido.success) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const registro = await obterFotoPorId(prisma, idValido.data);
+  if (registro === null || registro.foto === null || registro.fotoTipoMime === null) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  return {
+    foto: registro.foto,
+    fotoTipoMime: registro.fotoTipoMime,
+    fotoNomeArquivo: registro.fotoNomeArquivo,
+  };
+}
+
 /** Histórico de alterações de um equipamento — usado na tela de detalhes. */
 export async function obterHistoricoDoEquipamento(
   prisma: PrismaClient,
@@ -344,7 +426,7 @@ export async function obterHistoricoDoEquipamento(
 const TAMANHO_PAGINA = 20;
 
 /**
- * Consulta paginada (Etapa 4): busca por nome/modelo/número de série/código
+ * Consulta paginada (Etapa 4): busca por categoria/fabricante/modelo/número de série/código
  * Trillogo, filtros por lista controlada, ordenação e paginação — tudo
  * processado no banco, nunca carregando o estoque inteiro no servidor nem no
  * navegador (requisito 7).
@@ -368,9 +450,43 @@ export async function listarEquipamentos(
       categoriaId: parametros.categoriaId,
       fabricanteId: parametros.fabricanteId,
       statusId: parametros.statusId,
-      localizacaoId: parametros.localizacaoId,
+      andarId: parametros.andarId,
     },
     ordenacao: { campo: parametros.ordenarPor, direcao: parametros.direcao },
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+  });
+
+  return {
+    itens,
+    total,
+    totalPaginas: Math.max(1, Math.ceil(total / TAMANHO_PAGINA)),
+    pagina: parametros.pagina,
+    tamanhoPagina: TAMANHO_PAGINA,
+    parametros,
+  };
+}
+
+/**
+ * Lista os equipamentos arquivados (tela de arquivados). Exige a mesma permissão
+ * de restaurar, de propósito: a tela existe para restaurar, e assim nenhuma
+ * ação nova entra na matriz de permissões — só Administração enxerga e restaura.
+ */
+export async function listarEquipamentosArquivados(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  parametrosBrutos: unknown,
+) {
+  exigirPermissao(ator, "RESTAURAR_EQUIPAMENTO");
+
+  const resultado = esquemaConsultaArquivados.safeParse(parametrosBrutos);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const parametros = resultado.data;
+
+  const { itens, total } = await listarArquivadosPaginado(prisma, {
+    busca: parametros.busca ?? undefined,
     pagina: parametros.pagina,
     tamanhoPagina: TAMANHO_PAGINA,
   });
@@ -400,6 +516,7 @@ export async function editarEquipamento(
   ator: AtorAutenticado,
   id: string,
   entradaBruta: unknown,
+  opcoesDeFoto?: { readonly arquivo?: File | null; readonly remover?: boolean },
 ) {
   exigirPermissao(ator, "EDITAR_EQUIPAMENTO");
 
@@ -414,6 +531,8 @@ export async function editarEquipamento(
   }
   const entrada = resultado.data;
 
+  const novaFoto = await processarArquivoDeFoto(opcoesDeFoto?.arquivo);
+
   const atual = await obterDetalhadoPorId(prisma, idValido.data);
   if (atual === null) {
     throw new RegistroNaoEncontradoError();
@@ -427,8 +546,10 @@ export async function editarEquipamento(
   const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada, {
     categoriaId: atual.categoriaId,
     statusId: atual.statusId,
-    localizacaoId: atual.localizacaoId,
     fabricanteId: atual.fabricanteId,
+    andarId: atual.andarId,
+    localArmazenamentoId: atual.localArmazenamentoId,
+    orientacaoId: atual.orientacaoId,
   });
 
   const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
@@ -467,7 +588,6 @@ export async function editarEquipamento(
 
       const resultadoUpdate = await atualizar(tx, idValido.data, entrada.versao, {
         categoriaId: entrada.categoriaId,
-        nome: entrada.nome,
         fabricanteId: fabricanteResolvidoId,
         modelo: entrada.modelo,
         numeroSerie: numeroSerie.exibicao,
@@ -475,9 +595,25 @@ export async function editarEquipamento(
         codigoTrillogo: codigoTrillogo.exibicao,
         codigoTrillogoNormalizado: codigoTrillogo.normalizado,
         statusId: entrada.statusId,
-        localizacaoId: entrada.localizacaoId,
+        andarId: entrada.andarId,
+        localArmazenamentoId: entrada.localArmazenamentoId,
+        orientacaoId: entrada.orientacaoId,
         observacoes: entrada.observacoes,
         atualizadoPorId: ator.usuarioId,
+        // Três casos: uma foto nova substitui; `remover` sem foto nova
+        // limpa; nenhum dos dois não toca no campo (mantém a foto atual) —
+        // por isso as chaves de foto só aparecem no objeto quando um dos
+        // dois casos realmente se aplica.
+        ...(novaFoto !== null
+          ? {
+              foto: novaFoto.foto,
+              fotoTipoMime: novaFoto.fotoTipoMime,
+              fotoNomeArquivo: novaFoto.fotoNomeArquivo,
+              fotoTamanho: novaFoto.fotoTamanho,
+            }
+          : opcoesDeFoto?.remover === true
+            ? { foto: null, fotoTipoMime: null, fotoNomeArquivo: null, fotoTamanho: null }
+            : {}),
       });
       await exigirAtualizacaoAplicada(tx, idValido.data, entrada.versao, resultadoUpdate);
 

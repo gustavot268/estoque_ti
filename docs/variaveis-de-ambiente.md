@@ -31,6 +31,7 @@
 | `ENTRA_GROUP_ID_OPERACAO` | sim em produção | todos (obrigatória em produção) | Mapeia grupo do Entra ID → perfil Operação | não é segredo, mas é dado interno — não publicar | não |
 | `ENTRA_GROUP_ID_ADMINISTRACAO` | sim em produção | todos (obrigatória em produção) | Mapeia grupo do Entra ID → perfil Administração | não é segredo, mas é dado interno — não publicar | não |
 | `DEV_AUTH_ENABLED` | não | apenas desenvolvimento local | Ativa modo de autenticação simplificado para desenvolvimento sem credenciais reais. Default **`false`**; exige valor explícito `"true"` para ativar | não | não |
+| `DEV_AUTH_PERFIL` | não | apenas desenvolvimento local | Perfil do usuário fictício do modo `DEV_AUTH_ENABLED`: `CONSULTA`, `OPERACAO` ou `ADMINISTRACAO`. Vazio = `OPERACAO`. Sem efeito com `DEV_AUTH_ENABLED=false`; valor inválido impede a inicialização. Na demonstração usa-se `ADMINISTRACAO` | não | não |
 | `EXPORT_MAX_ROWS` | não | todos | Limite de linhas por exportação para Excel. Default `10000` | não | não |
 | `LOG_LEVEL` | não | todos | Nível do log técnico (não afeta gravação de auditoria). Default `info` | não | não |
 

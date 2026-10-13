@@ -23,16 +23,23 @@ export type ResultadoCadastro =
 function extrairEntradaDoFormulario(dados: FormData): Record<string, unknown> {
   return {
     categoriaId: dados.get("categoriaId"),
-    nome: dados.get("nome"),
     fabricanteId: dados.get("fabricanteId"),
     fabricanteOutroNome: dados.get("fabricanteOutroNome"),
     modelo: dados.get("modelo"),
     numeroSerie: dados.get("numeroSerie"),
     codigoTrillogo: dados.get("codigoTrillogo"),
     statusId: dados.get("statusId"),
-    localizacaoId: dados.get("localizacaoId"),
+    andarId: dados.get("andarId"),
+    localArmazenamentoId: dados.get("localArmazenamentoId"),
+    orientacaoId: dados.get("orientacaoId"),
     observacoes: dados.get("observacoes"),
   };
+}
+
+/** Fora do objeto de entrada (que passa pelo esquema Zod `strictObject`): um arquivo não é texto. */
+function extrairArquivoDaFoto(dados: FormData): File | null {
+  const valor = dados.get("foto");
+  return valor instanceof File ? valor : null;
 }
 
 export async function cadastrarEquipamentoAction(
@@ -53,6 +60,7 @@ export async function cadastrarEquipamentoAction(
       obterPrisma(),
       ator,
       extrairEntradaDoFormulario(dadosDoFormulario),
+      extrairArquivoDaFoto(dadosDoFormulario),
     );
     return { sucesso: true, equipamentoId: equipamento.id };
   } catch (erro) {

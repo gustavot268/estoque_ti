@@ -12,6 +12,7 @@ import {
   MensagemDeIndisponibilidade,
   MensagemSimples,
 } from "../../../../components/mensagem-simples";
+import { descricaoDoEquipamento } from "../../../../domain/descricao-do-item";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../../domain/erros";
 import { exigirPermissao } from "../../../../domain/permissoes";
 import { FormularioEdicaoDeEquipamento } from "../../../../features/equipamentos/formulario-edicao";
@@ -19,9 +20,11 @@ import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
 import {
+  listarAndaresAtivos,
   listarCategoriasAtivas,
   listarFabricantesAtivos,
-  listarLocalizacoesAtivas,
+  listarLocaisDeArmazenamentoAtivos,
+  listarOrientacoesAtivas,
   listarStatusFuncionamentoAtivos,
 } from "../../../../infrastructure/repositorios/listas-controladas";
 import { obterEquipamentoPorId } from "../../../../services/equipamentos";
@@ -33,11 +36,20 @@ export const dynamic = "force-dynamic";
 
 type OpcaoDeLista = { readonly id: string; readonly nome: string };
 
-function comOpcaoAtual(ativos: readonly OpcaoDeLista[], atual: OpcaoDeLista): OpcaoDeLista[] {
-  if (ativos.some((opcao) => opcao.id === atual.id)) {
-    return [...ativos];
+function paraOpcao(valor: OpcaoDeLista): OpcaoDeLista {
+  return { id: valor.id, nome: valor.nome };
+}
+
+/** tual é 
+ull quando o campo é opcional e o equipamento não tem valor nele. */
+function comOpcaoAtual(
+  ativos: readonly OpcaoDeLista[],
+  atual: OpcaoDeLista | null,
+): OpcaoDeLista[] {
+  if (atual === null || ativos.some((opcao) => opcao.id === atual.id)) {
+    return ativos.map(paraOpcao);
   }
-  return [...ativos, atual];
+  return [...ativos.map(paraOpcao), paraOpcao(atual)];
 }
 
 export default async function PaginaDeEdicao({ params }: PageProps<"/equipamentos/[id]/editar">) {
@@ -69,15 +81,20 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
-  let localizacoes: Awaited<ReturnType<typeof listarLocalizacoesAtivas>>;
+  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
+  let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
+  let orientacoes: Awaited<ReturnType<typeof listarOrientacoesAtivas>>;
   try {
     equipamento = await obterEquipamentoPorId(prisma, ator, id);
-    [categorias, fabricantes, statusFuncionamento, localizacoes] = await Promise.all([
-      listarCategoriasAtivas(prisma),
-      listarFabricantesAtivos(prisma),
-      listarStatusFuncionamentoAtivos(prisma),
-      listarLocalizacoesAtivas(prisma),
-    ]);
+    [categorias, fabricantes, statusFuncionamento, andares, locaisDeArmazenamento, orientacoes] =
+      await Promise.all([
+        listarCategoriasAtivas(prisma),
+        listarFabricantesAtivos(prisma),
+        listarStatusFuncionamentoAtivos(prisma),
+        listarAndaresAtivos(prisma),
+        listarLocaisDeArmazenamentoAtivos(prisma),
+        listarOrientacoesAtivas(prisma),
+      ]);
   } catch (erro) {
     if (erro instanceof RegistroNaoEncontradoError) {
       return (
@@ -109,32 +126,31 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
       equipamento={{
         id: equipamento.id,
         categoriaId: equipamento.categoriaId,
-        nome: equipamento.nome,
+        descricao: descricaoDoEquipamento({
+          categoria: equipamento.categoria.nome,
+          fabricante: equipamento.fabricante.nome,
+          modelo: equipamento.modelo,
+        }),
         fabricanteId: equipamento.fabricanteId,
         modelo: equipamento.modelo,
         numeroSerie: equipamento.numeroSerie,
         codigoTrillogo: equipamento.codigoTrillogo,
         statusId: equipamento.statusId,
-        localizacaoId: equipamento.localizacaoId,
+        andarId: equipamento.andarId,
+        localArmazenamentoId: equipamento.localArmazenamentoId,
+        orientacaoId: equipamento.orientacaoId,
         observacoes: equipamento.observacoes,
+        temFoto: equipamento.fotoTipoMime !== null,
         versao: equipamento.versao,
       }}
-      categorias={comOpcaoAtual(
-        categorias.map((categoria) => ({ id: categoria.id, nome: categoria.nome })),
-        { id: equipamento.categoria.id, nome: equipamento.categoria.nome },
-      )}
-      fabricantes={comOpcaoAtual(
-        fabricantes.map((fabricante) => ({ id: fabricante.id, nome: fabricante.nome })),
-        { id: equipamento.fabricante.id, nome: equipamento.fabricante.nome },
-      )}
-      statusFuncionamento={comOpcaoAtual(
-        statusFuncionamento.map((status) => ({ id: status.id, nome: status.nome })),
-        { id: equipamento.status.id, nome: equipamento.status.nome },
-      )}
-      localizacoes={comOpcaoAtual(
-        localizacoes.map((localizacao) => ({ id: localizacao.id, nome: localizacao.nome })),
-        { id: equipamento.localizacao.id, nome: equipamento.localizacao.nome },
-      )}
+      categorias={comOpcaoAtual(categorias, equipamento.categoria)}
+      fabricantes={comOpcaoAtual(fabricantes, equipamento.fabricante)}
+      statusFuncionamento={comOpcaoAtual(statusFuncionamento, equipamento.status)}
+      ondeFica={{
+        andares: comOpcaoAtual(andares, equipamento.andar),
+        locaisDeArmazenamento: comOpcaoAtual(locaisDeArmazenamento, equipamento.localArmazenamento),
+        orientacoes: comOpcaoAtual(orientacoes, equipamento.orientacao),
+      }}
       fabricanteOutroId={fabricanteOutro?.id ?? null}
     />
   );

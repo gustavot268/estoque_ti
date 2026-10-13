@@ -4,6 +4,12 @@
  * Validação, normalização e a resolução do fluxo "Outro" ficam na camada de
  * serviço (`src/services/equipamentos.ts`). Este módulo apenas fala com o
  * Prisma.
+ *
+ * Todo `select` abaixo é explícito de propósito (nunca `include`, que
+ * devolveria implicitamente TODOS os escalares do modelo, inclusive o
+ * binário da foto): assim uma listagem de 20 linhas ou uma exportação de
+ * milhares de linhas nunca carrega bytes de imagem sem necessidade. Só
+ * `obterFotoPorId` busca o binário, e só quando a rota de download pede.
  */
 
 import type { Prisma } from "@prisma/client";
@@ -12,7 +18,6 @@ import type { ClientePrisma } from "../prisma/criar-cliente";
 /** Campos aceitos como entrada de escrita — já normalizados pelo serviço. */
 export type DadosParaCriarEquipamento = {
   readonly categoriaId: string;
-  readonly nome: string;
   readonly fabricanteId: string;
   readonly modelo: string;
   readonly numeroSerie: string | null;
@@ -20,18 +25,54 @@ export type DadosParaCriarEquipamento = {
   readonly codigoTrillogo: string | null;
   readonly codigoTrillogoNormalizado: string | null;
   readonly statusId: string;
-  readonly localizacaoId: string;
+  readonly andarId: string;
+  readonly localArmazenamentoId: string | null;
+  readonly orientacaoId: string | null;
   readonly observacoes: string | null;
+  readonly foto: Buffer | null;
+  readonly fotoTipoMime: string | null;
+  readonly fotoNomeArquivo: string | null;
+  readonly fotoTamanho: number | null;
   readonly criadoPorId: string;
   readonly atualizadoPorId: string;
 };
 
-/** Relações incluídas em toda leitura detalhada de um equipamento. */
-const INCLUSAO_DETALHADA = {
+/**
+ * Campos e relações de toda leitura detalhada de um equipamento. Traz os
+ * metadados da foto (tipo, nome, tamanho) para a tela saber se existe uma
+ * foto e montar o `<img src="/api/equipamentos/{id}/foto">` — nunca o
+ * binário em si.
+ */
+const SELECAO_DETALHADA = {
+  id: true,
+  categoriaId: true,
+  fabricanteId: true,
+  modelo: true,
+  numeroSerie: true,
+  numeroSerieNormalizado: true,
+  codigoTrillogo: true,
+  codigoTrillogoNormalizado: true,
+  statusId: true,
+  andarId: true,
+  localArmazenamentoId: true,
+  orientacaoId: true,
+  observacoes: true,
+  fotoTipoMime: true,
+  fotoNomeArquivo: true,
+  fotoTamanho: true,
+  criadoEm: true,
+  atualizadoEm: true,
+  criadoPorId: true,
+  atualizadoPorId: true,
+  arquivadoEm: true,
+  arquivadoPorId: true,
+  versao: true,
   categoria: true,
   fabricante: true,
   status: true,
-  localizacao: true,
+  andar: true,
+  localArmazenamento: true,
+  orientacao: true,
   criadoPor: true,
   atualizadoPor: true,
   arquivadoPor: true,
@@ -61,8 +102,11 @@ export async function existeCodigoTrillogoNormalizado(
 
 export async function criar(prisma: ClientePrisma, dados: DadosParaCriarEquipamento) {
   return prisma.equipamento.create({
-    data: dados,
-    include: INCLUSAO_DETALHADA,
+    // `Buffer` é `Uint8Array<ArrayBufferLike>`; o campo `Bytes` do Prisma
+    // exige `Uint8Array<ArrayBuffer>` — a cópia resolve a incompatibilidade
+    // de tipo (mesma situação já resolvida na rota de exportação).
+    data: { ...dados, foto: dados.foto === null ? null : Uint8Array.from(dados.foto) },
+    select: SELECAO_DETALHADA,
   });
 }
 
@@ -74,16 +118,35 @@ export async function criar(prisma: ClientePrisma, dados: DadosParaCriarEquipame
 export async function obterDetalhadoPorId(prisma: ClientePrisma, id: string) {
   return prisma.equipamento.findUnique({
     where: { id },
-    include: INCLUSAO_DETALHADA,
+    select: SELECAO_DETALHADA,
   });
 }
 
-/** Relações incluídas na listagem — mais leves que a leitura detalhada. */
-const INCLUSAO_DE_LISTAGEM = {
+/**
+ * Só o binário da foto (e o tipo MIME para o cabeçalho `Content-Type`) — a
+ * única função deste repositório que busca o campo `foto`. Usada
+ * exclusivamente pela rota de download (`GET /api/equipamentos/[id]/foto`).
+ */
+export async function obterFotoPorId(prisma: ClientePrisma, id: string) {
+  return prisma.equipamento.findUnique({
+    where: { id },
+    select: { foto: true, fotoTipoMime: true, fotoNomeArquivo: true },
+  });
+}
+
+/** Campos e relações da listagem — mais leves que a leitura detalhada. */
+const SELECAO_DE_LISTAGEM = {
+  id: true,
+  modelo: true,
+  codigoTrillogo: true,
+  // Token de concorrência otimista: a lixeira da lista arquiva com a versão que a pessoa viu.
+  versao: true,
+  criadoEm: true,
+  atualizadoEm: true,
   categoria: true,
   fabricante: true,
   status: true,
-  localizacao: true,
+  andar: { select: { nome: true } },
 } as const;
 
 export type FiltrosDeEquipamento = {
@@ -91,11 +154,11 @@ export type FiltrosDeEquipamento = {
   readonly categoriaId?: string;
   readonly fabricanteId?: string;
   readonly statusId?: string;
-  readonly localizacaoId?: string;
+  readonly andarId?: string;
 };
 
 export type OrdenacaoDeEquipamento = {
-  readonly campo: "nome" | "modelo" | "criadoEm" | "atualizadoEm";
+  readonly campo: "modelo" | "criadoEm" | "atualizadoEm";
   readonly direcao: "asc" | "desc";
 };
 
@@ -106,12 +169,14 @@ export type OpcoesDeListagem = {
   readonly tamanhoPagina: number;
 };
 
-function construirFiltro(filtros: FiltrosDeEquipamento): Prisma.EquipamentoWhereInput {
+function construirFiltro(
+  filtros: FiltrosDeEquipamento,
+  arquivados = false,
+): Prisma.EquipamentoWhereInput {
   const filtro: Prisma.EquipamentoWhereInput = {
-    // A consulta geral (Etapa 4) nunca mostra arquivados — ver ADR de
-    // retenção. Uma tela específica de administração pode reabrir esse
-    // filtro no futuro (Etapa 5/7); este repositório não decide isso.
-    arquivadoEm: null,
+    // A consulta geral (Etapa 4) e a exportação nunca mostram arquivados; só a
+    // listagem de arquivados (`listarArquivadosPaginado`) inverte este filtro.
+    arquivadoEm: arquivados ? { not: null } : null,
   };
 
   if (filtros.categoriaId !== undefined) {
@@ -123,12 +188,15 @@ function construirFiltro(filtros: FiltrosDeEquipamento): Prisma.EquipamentoWhere
   if (filtros.statusId !== undefined) {
     filtro.statusId = filtros.statusId;
   }
-  if (filtros.localizacaoId !== undefined) {
-    filtro.localizacaoId = filtros.localizacaoId;
+  if (filtros.andarId !== undefined) {
+    filtro.andarId = filtros.andarId;
   }
   if (filtros.busca !== undefined) {
+    // Sem campo de nome, a busca também olha a categoria e o fabricante — as
+    // partes da descrição que a pessoa vê na tela ("Câmera Hikvision ...").
     filtro.OR = [
-      { nome: { contains: filtros.busca, mode: "insensitive" } },
+      { categoria: { nome: { contains: filtros.busca, mode: "insensitive" } } },
+      { fabricante: { nome: { contains: filtros.busca, mode: "insensitive" } } },
       { modelo: { contains: filtros.busca, mode: "insensitive" } },
       { numeroSerie: { contains: filtros.busca, mode: "insensitive" } },
       { codigoTrillogo: { contains: filtros.busca, mode: "insensitive" } },
@@ -145,7 +213,7 @@ export async function listarPaginado(prisma: ClientePrisma, opcoes: OpcoesDeList
   const [itens, total] = await Promise.all([
     prisma.equipamento.findMany({
       where,
-      include: INCLUSAO_DE_LISTAGEM,
+      select: SELECAO_DE_LISTAGEM,
       orderBy: { [opcoes.ordenacao.campo]: opcoes.ordenacao.direcao },
       skip: (opcoes.pagina - 1) * opcoes.tamanhoPagina,
       take: opcoes.tamanhoPagina,
@@ -156,12 +224,61 @@ export async function listarPaginado(prisma: ClientePrisma, opcoes: OpcoesDeList
   return { itens, total };
 }
 
-/** Relações incluídas na exportação — precisa do nome de quem criou/alterou. */
-const INCLUSAO_DE_EXPORTACAO = {
+/** Campos da listagem de arquivados: quando e por quem foi arquivado, e a versão para restaurar. */
+const SELECAO_DE_ARQUIVADOS = {
+  id: true,
+  modelo: true,
+  versao: true,
+  arquivadoEm: true,
   categoria: true,
   fabricante: true,
   status: true,
-  localizacao: true,
+  arquivadoPor: { select: { nome: true } },
+} as const;
+
+export type OpcoesDeListagemDeArquivados = {
+  readonly busca?: string;
+  readonly pagina: number;
+  readonly tamanhoPagina: number;
+};
+
+/** Arquivados, do mais recente para o mais antigo — paginados e processados no banco. */
+export async function listarArquivadosPaginado(
+  prisma: ClientePrisma,
+  opcoes: OpcoesDeListagemDeArquivados,
+) {
+  const where = construirFiltro({ busca: opcoes.busca }, true);
+
+  const [itens, total] = await Promise.all([
+    prisma.equipamento.findMany({
+      where,
+      select: SELECAO_DE_ARQUIVADOS,
+      // `id` desempata, para a paginação não repetir nem pular itens arquivados no mesmo instante.
+      orderBy: [{ arquivadoEm: "desc" }, { id: "asc" }],
+      skip: (opcoes.pagina - 1) * opcoes.tamanhoPagina,
+      take: opcoes.tamanhoPagina,
+    }),
+    prisma.equipamento.count({ where }),
+  ]);
+
+  return { itens, total };
+}
+
+/** Campos e relações da exportação — precisa do nome de quem criou/alterou, nunca da foto. */
+const SELECAO_DE_EXPORTACAO = {
+  id: true,
+  modelo: true,
+  numeroSerie: true,
+  codigoTrillogo: true,
+  observacoes: true,
+  criadoEm: true,
+  atualizadoEm: true,
+  categoria: true,
+  fabricante: true,
+  status: true,
+  andar: true,
+  localArmazenamento: true,
+  orientacao: true,
   criadoPor: true,
   atualizadoPor: true,
 } as const;
@@ -183,7 +300,7 @@ export async function listarParaExportacao(
 ) {
   return prisma.equipamento.findMany({
     where: construirFiltro(filtros),
-    include: INCLUSAO_DE_EXPORTACAO,
+    select: SELECAO_DE_EXPORTACAO,
     orderBy: { [ordenacao.campo]: ordenacao.direcao },
     take: limiteMaximo + 1,
   });
@@ -193,10 +310,14 @@ export async function listarParaExportacao(
  * Campos aceitos numa edição completa — já normalizados pelo serviço. Sem
  * `id`/`criadoEm`/`criadoPorId`/`arquivadoEm`/`arquivadoPorId`: a edição
  * nunca toca esses campos (ADR 0005, requisito 7.4).
+ *
+ * Os campos de foto são opcionais E aceitam `null` explicitamente — a
+ * distinção importa: `undefined` (chave omitida) significa "não mexer na
+ * foto atual"; `null` significa "remover a foto atual"; um valor significa
+ * "substituir pela nova foto". Ver `src/services/equipamentos.ts`.
  */
 export type DadosParaAtualizarEquipamento = {
   readonly categoriaId: string;
-  readonly nome: string;
   readonly fabricanteId: string;
   readonly modelo: string;
   readonly numeroSerie: string | null;
@@ -204,8 +325,14 @@ export type DadosParaAtualizarEquipamento = {
   readonly codigoTrillogo: string | null;
   readonly codigoTrillogoNormalizado: string | null;
   readonly statusId: string;
-  readonly localizacaoId: string;
+  readonly andarId: string;
+  readonly localArmazenamentoId: string | null;
+  readonly orientacaoId: string | null;
   readonly observacoes: string | null;
+  readonly foto?: Buffer | null;
+  readonly fotoTipoMime?: string | null;
+  readonly fotoNomeArquivo?: string | null;
+  readonly fotoTamanho?: number | null;
   readonly atualizadoPorId: string;
 };
 
@@ -221,9 +348,16 @@ export async function atualizar(
   versaoEsperada: number,
   dados: DadosParaAtualizarEquipamento,
 ) {
+  const { foto, ...resto } = dados;
   return prisma.equipamento.updateMany({
     where: { id, versao: versaoEsperada, arquivadoEm: null },
-    data: { ...dados, versao: { increment: 1 } },
+    data: {
+      ...resto,
+      // `undefined` = não mexer na foto atual; `null` = remover; um
+      // `Buffer` = substituir. Mesma conversão de tipo de `criar()`.
+      ...(foto !== undefined ? { foto: foto === null ? null : Uint8Array.from(foto) } : {}),
+      versao: { increment: 1 },
+    },
   });
 }
 
@@ -241,17 +375,17 @@ export async function alterarStatus(
   });
 }
 
-/** Mudança isolada de localização — mesma técnica de concorrência otimista. */
-export async function alterarLocalizacao(
+/** Mudança isolada de andar — mesma técnica de concorrência otimista. */
+export async function alterarAndar(
   prisma: ClientePrisma,
   id: string,
   versaoEsperada: number,
-  localizacaoId: string,
+  andarId: string,
   atualizadoPorId: string,
 ) {
   return prisma.equipamento.updateMany({
     where: { id, versao: versaoEsperada, arquivadoEm: null },
-    data: { localizacaoId, atualizadoPorId, versao: { increment: 1 } },
+    data: { andarId, atualizadoPorId, versao: { increment: 1 } },
   });
 }
 

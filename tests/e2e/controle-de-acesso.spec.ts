@@ -23,4 +23,14 @@ test.describe("controle de acesso por perfil (Consulta — só leitura e exporta
     await page.goto("/administracao/listas");
     await expect(page.getByText("Sem permissão para esta ação")).toBeVisible();
   });
+
+  test("em materiais, vê a lista e exporta, mas não cadastra", async ({ page }) => {
+    await page.goto("/materiais");
+    await expect(page.getByRole("heading", { name: "Materiais", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Cadastrar material" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Exportar" })).toBeVisible();
+
+    await page.goto("/materiais/novo");
+    await expect(page.getByText("Sem permissão para esta ação")).toBeVisible();
+  });
 });

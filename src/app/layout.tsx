@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { BannerAmbiente } from "@/components/banner-ambiente";
+import { BarraDeNavegacao } from "@/components/barra-de-navegacao";
 import "./globals.css";
 
 /**
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="pt-BR" className="h-full antialiased">
       <body className="flex min-h-full flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
         <BannerAmbiente />
+        <BarraDeNavegacao />
         {children}
       </body>
     </html>

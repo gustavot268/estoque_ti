@@ -172,6 +172,22 @@ export const esquemaAmbiente = z.object({
   ENTRA_GROUP_ID_ADMINISTRACAO: uuidOpcional("ENTRA_GROUP_ID_ADMINISTRACAO"),
 
   DEV_AUTH_ENABLED: booleanoEstrito("DEV_AUTH_ENABLED", false),
+  /**
+   * Perfil do usuário fictício do modo de desenvolvimento. Só tem efeito com
+   * `DEV_AUTH_ENABLED=true` (que já é proibido em produção). Ausente = Operação.
+   */
+  DEV_AUTH_PERFIL: z
+    .string()
+    .trim()
+    .optional()
+    .transform((valor) => (valor === undefined || valor === "" ? undefined : valor))
+    .refine(
+      (valor) => valor === undefined || ["CONSULTA", "OPERACAO", "ADMINISTRACAO"].includes(valor),
+      {
+        error: () => "DEV_AUTH_PERFIL deve ser CONSULTA, OPERACAO ou ADMINISTRACAO.",
+      },
+    )
+    .transform((valor) => valor as "CONSULTA" | "OPERACAO" | "ADMINISTRACAO" | undefined),
   EXPORT_MAX_ROWS: inteiroOpcional("EXPORT_MAX_ROWS", 10_000, 1, 1_000_000),
   LOG_LEVEL: z
     .enum(NIVEIS_DE_LOG, {

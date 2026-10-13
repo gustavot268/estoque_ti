@@ -15,7 +15,10 @@
   interno **nunca** é substituído por número de série ou código Trillogo — esses dois
   campos são identificadores de negócio opcionais, não identificadores primários.
 - **Datas**: `timestamptz`, persistidas em **UTC**. A exibição em horário local é
-  responsabilidade da camada de interface, nunca do armazenamento.
+  responsabilidade da camada de interface, nunca do armazenamento: telas e planilha
+  mostram o **horário de Brasília** (`America/Sao_Paulo`), com o fuso fixado em
+  `src/domain/data-e-hora.ts` (e não o do servidor), para o resultado ser o mesmo em
+  qualquer máquina ou contêiner.
 - **Nomes de campos**: em português, conforme o prompt original do cliente.
 - **Exclusão no fluxo comum**: lógica, nunca física. Ver
   [`docs/retencao-e-descarte.md`](retencao-e-descarte.md) para a diferença entre
@@ -27,7 +30,7 @@
 | --- | --- | --- | --- |
 | `id` | UUID | sim | Gerado pelo banco. Imutável. |
 | `categoriaId` | UUID (FK → `Categoria`) | sim | |
-| `nome` | texto | sim | |
+
 | `fabricanteId` | UUID (FK → `Fabricante`) | sim | Ver fluxo "Outro" no ADR 0004 |
 | `modelo` | texto | sim | |
 | `numeroSerie` | texto | não | Valor de exibição, como digitado (após `trim` de borda) |
@@ -35,7 +38,9 @@
 | `codigoTrillogo` | texto | não | Valor de exibição, como digitado |
 | `codigoTrillogoNormalizado` | texto | não | Derivado; vazio ⇒ `null`; ver ADR 0003 |
 | `statusId` | UUID (FK → `StatusFuncionamento`) | sim | |
-| `localizacaoId` | UUID (FK → `Localizacao`) | sim | |
+| `andarId` | UUID (FK → `Andar`) | sim | Única parte da localização que aparece na lista de equipamentos |
+| `localArmazenamentoId` | UUID (FK → `LocalArmazenamento`) | não | Ex.: 1º armário. Aparece nos detalhes e na planilha |
+| `orientacaoId` | UUID (FK → `Orientacao`) | não | Ex.: Prateleira de cima. Aparece nos detalhes e na planilha |
 | `observacoes` | texto | não | Ver limite de tamanho e orientação anti-dado-sensível em [`docs/inventario-de-dados.md`](inventario-de-dados.md) |
 | `criadoEm` | timestamptz | sim | Automático |
 | `atualizadoEm` | timestamptz | sim | Automático |
@@ -54,20 +59,64 @@
     constraint. Ver [`docs/adr/0003-normalizacao-de-identificadores.md`](adr/0003-normalizacao-de-identificadores.md).
 - Índices de apoio para os filtros, ordenação e paginação previstos na consulta de
   equipamentos (Etapa 4): tipicamente por `categoriaId`, `fabricanteId`, `statusId`,
-  `localizacaoId` e `arquivadoEm`, e índices de texto para busca por `nome`/`modelo`
-  quando aplicável. O conjunto definitivo de índices de apoio é detalhe de implementação
+  `andarId`, `localArmazenamentoId`, `orientacaoId` e `arquivadoEm`. A busca textual
+  procura em modelo, número de série, código Trillogo, categoria e fabricante. O conjunto definitivo de índices de apoio é detalhe de implementação
   do `schema.prisma` e deve ser conferido lá.
 
 ### Regras de negócio associadas
 
 - Referências às listas controladas (`categoriaId`, `fabricanteId`, `statusId`,
-  `localizacaoId`) são validadas no servidor antes de gravar.
+  `andarId`, `localArmazenamentoId`, `orientacaoId`) são validadas no servidor antes de
+  gravar.
+- O equipamento **não tem nome**. Onde a tela precisa de um título (detalhes, cartões,
+  lixeira, texto alternativo da foto), ele é montado na hora como "Categoria Fabricante
+  Modelo" (`src/domain/descricao-do-item.ts`); nada disso é gravado.
 - Campos internos (`id`, `criadoEm`, `atualizadoEm`, `criadoPorId`, `atualizadoPorId`,
   `arquivadoEm`, `arquivadoPorId`, e `versao` exceto como token de concorrência) **não**
   são aceitos como entrada do usuário — esquemas Zod `.strict()` rejeitam campos
   inesperados (proteção contra mass assignment).
 
-## Listas controladas: `Categoria`, `Fabricante`, `StatusFuncionamento`, `Localizacao`
+## Entidade `Material` (Materiais de TI — controle por quantidade)
+
+Itens sem etiqueta individual e numerosos (cabos, conectores, adaptadores…). Cada registro
+é uma peça num lugar (andar, local de armazenamento e orientação), com a quantidade contada; a mesma peça guardada em dois
+lugares vira dois registros. Os campos seguem as colunas da planilha "Materiais de TI –
+Controle por Quantidade".
+
+| Campo | Tipo | Obrigatório | Observações |
+| --- | --- | --- | --- |
+| `id` | UUID | sim | Gerado pelo banco. Imutável. |
+| `codigoTrillogo` | texto | não | Como digitado. **Não é único** (ao contrário do equipamento): identifica o tipo de peça, que pode ter um registro por lugar. Mesma lista de caracteres permitidos do equipamento |
+| `categoriaId` | UUID (FK → `CategoriaMaterial`) | sim | Lista própria dos materiais, separada da `Categoria` dos equipamentos |
+| `tipo` | texto | sim | Ex.: HDMI, RJ45. O material não tem nome: o título exibido é "Categoria Tipo Especificação" (`src/domain/descricao-do-item.ts`), montado na hora |
+| `especificacao` | texto | não | Ex.: 2 metros, Cat6 |
+| `fabricanteId` | UUID (FK → `Fabricante`) | não | Mesma lista dos equipamentos, inclusive o fluxo "Outro" (ADR 0004). Vazio = sem marca |
+| `unidadeMedidaId` | UUID (FK → `UnidadeMedida`) | sim | |
+| `quantidade` | inteiro | sim | `CHECK (quantidade >= 0)` no banco |
+| `estoqueMinimo` | inteiro | não | `CHECK (estoque_minimo >= 0)`. `null` = sem mínimo |
+| `andarId` | UUID (FK → `Andar`) | sim | Mesma lista dos equipamentos; única parte da localização mostrada na lista |
+| `localArmazenamentoId` | UUID (FK → `LocalArmazenamento`) | não | Mesma lista dos equipamentos |
+| `orientacaoId` | UUID (FK → `Orientacao`) | não | Mesma lista dos equipamentos |
+| `dataUltimaContagem` | `date` | não | Só o dia, sem hora nem fuso — por isso é exibido sem conversão para Brasília (ver `formatarDataDoCalendario` em `src/domain/data-e-hora.ts`). Não aceita dia depois de hoje |
+| `observacoes` | texto | não | Mesma orientação anti-dado-sensível do equipamento |
+| `criadoEm`, `atualizadoEm`, `criadoPorId`, `atualizadoPorId`, `arquivadoEm`, `arquivadoPorId`, `versao` | — | — | Mesmo significado e mesmas regras do `Equipamento` (exclusão lógica, concorrência otimista — ADR 0005) |
+
+Regras associadas:
+
+- A quantidade muda pela edição (recontagem); a auditoria guarda o valor anterior e o novo.
+  Não há lançamentos de entrada/saída.
+- Situação em relação ao estoque mínimo (`src/domain/estoque-minimo.ts`): chegar ao mínimo é
+  "No mínimo"; ficar abaixo, "Abaixo do mínimo"; sem mínimo, nada é sinalizado.
+- Referências às listas controladas são validadas no servidor; como no equipamento, um valor
+  que o material já tinha pode continuar inativo numa edição (regra 4.2).
+
+## Listas controladas: `Categoria`, `Fabricante`, `StatusFuncionamento`, `Andar`, `LocalArmazenamento`, `Orientacao`, `CategoriaMaterial`, `UnidadeMedida`
+
+`Categoria` e `StatusFuncionamento` são só dos equipamentos; `CategoriaMaterial` e
+`UnidadeMedida`, só dos materiais; `Fabricante`, `Andar`, `LocalArmazenamento` e
+`Orientacao` são compartilhadas. As três últimas substituíram a antiga `Localizacao`
+(migração `20261008180000_dividir_localizacao_e_remover_nome`: a tabela `localizacoes`
+foi renomeada para `andares`, preservando os valores e os vínculos).
 
 | Campo | Tipo | Observações |
 | --- | --- | --- |
@@ -85,18 +134,22 @@
 | --- | --- | --- |
 | `pendenteRevisao` | booleano | Default `false`. `true` para fabricantes criados via "Outro" até revisão por Administração — ver [`docs/adr/0004-fabricante-outro.md`](adr/0004-fabricante-outro.md) |
 
-**Regra comum às quatro listas:** não é permitido excluir um valor já em uso por algum
-equipamento (mesmo arquivado) — a inativação (`ativo = false`) é o mecanismo para
-"remover" um valor do fluxo de novos cadastros sem quebrar o histórico.
+**Regra comum às oito listas:** não é permitido excluir um valor já em uso por algum
+equipamento ou material (mesmo arquivado) — a inativação (`ativo = false`) é o mecanismo
+para "remover" um valor do fluxo de novos cadastros sem quebrar o histórico.
 
 ### Valores semente (seed idempotente)
 
 | Lista | Valores |
 | --- | --- |
-| Categoria | Notebook, Monitor, Periférico, Desktop, Nobreak |
+| Categoria | Notebook, Monitor, Periférico, Desktop, Nobreak, DVR, Câmera |
 | Fabricante | Dell, Logitech, Intelbras, Lenovo, Hikvision, Outro |
 | StatusFuncionamento | Operacional, Com defeito, Em manutenção, Não testado |
-| Localizacao | 15º andar, 16º andar |
+| Andar | 15º andar, 16º andar |
+| LocalArmazenamento | 1º armário |
+| Orientacao | Prateleira de cima, Prateleira de baixo |
+| CategoriaMaterial | Cabo, Conector, Adaptador, Periférico, Peça de reposição, Suprimento |
+| UnidadeMedida | Unidade, Metro, Caixa, Pacote, Rolo, Par, Kit |
 
 O seed usa `upsert` por `nomeNormalizado`, de modo que executá-lo mais de uma vez não
 duplica registros. A verificação automatizada dessa idempotência é escopo de teste da
@@ -125,6 +178,7 @@ variáveis `ENTRA_GROUP_ID_*`, não persistido por usuário — ver
 | --- | --- | --- |
 | `id` | UUID | |
 | `equipamentoId` | UUID (FK → `Equipamento`) | Opcional — nem toda ação de auditoria está ligada a um equipamento (ex.: `ACESSO_NEGADO` a uma tela) |
+| `materialId` | UUID (FK → `Material`) | Opcional — preenchido nas ações sobre um material. Nunca junto com `equipamentoId` (`CHECK` no banco) |
 | `tipoAcao` | enum | `CRIACAO`, `EDICAO`, `MUDANCA_STATUS`, `MUDANCA_LOCALIZACAO`, `ARQUIVAMENTO`, `RESTAURACAO`, `EXPORTACAO`, `ACESSO_NEGADO` |
 | `dadosAnteriores` | JSON | Opcional; apenas campos relevantes que mudaram |
 | `dadosPosteriores` | JSON | Opcional; apenas campos relevantes que mudaram |
@@ -141,18 +195,29 @@ Proteção e regras completas em
 ## Diagrama de relações (resumo)
 
 ```
-Categoria ──┐
-Fabricante ─┼──< Equipamento >── Usuario (criadoPor / atualizadoPor / arquivadoPor)
-Status ─────┤        │
-Localizacao ┘        └──< RegistroAuditoria >── Usuario (usuarioId)
+Categoria ─────────┐ (só equipamento)
+Status ────────────┤
+                   ├──< Equipamento ──┐
+Fabricante ────────┤ (os dois)        ├──< RegistroAuditoria   (equipamento OU material)
+Andar ─────────────┤                  │
+LocalArmazenamento ┤                  │
+Orientacao ────────┤                  │
+                   ├──< Material ─────┘
+CategoriaMaterial ─┤ (só material)
+UnidadeMedida ─────┘
+
+Equipamento, Material e RegistroAuditoria ──> Usuario (quem criou / alterou / arquivou / agiu)
 ```
 
-- `Equipamento` referencia quatro listas controladas e até três papéis de `Usuario`
+- `Equipamento` referencia seis listas controladas e até três papéis de `Usuario`
   (criador, último editor, quem arquivou).
-- `RegistroAuditoria` referencia opcionalmente um `Equipamento` e opcionalmente um
-  `Usuario`, mas guarda também `usuarioNome`/`usuarioEmail` capturados no momento do
-  evento — para que o histórico continue legível mesmo que o vínculo de FK precise ser
-  interpretado à luz da política de retenção (ver
+- `Material` referencia `CategoriaMaterial`, `UnidadeMedida`, `Andar` e, opcionalmente,
+  `Fabricante`, `LocalArmazenamento` e `Orientacao` — as quatro últimas compartilhadas com
+  `Equipamento` —, e os mesmos três papéis de `Usuario`.
+- `RegistroAuditoria` referencia opcionalmente um `Equipamento` **ou** um `Material` e
+  opcionalmente um `Usuario`, mas guarda também `usuarioNome`/`usuarioEmail` capturados
+  no momento do evento — para que o histórico continue legível mesmo que o vínculo de FK
+  precise ser interpretado à luz da política de retenção (ver
   [`docs/retencao-e-descarte.md`](retencao-e-descarte.md)).
 
 ## Registro ativo, arquivado, mantido para auditoria e elegível para descarte

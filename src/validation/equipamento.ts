@@ -6,52 +6,41 @@
  * nestes esquemas e, por serem objetos estritos, enviá-los é rejeitado.
  * `versao` aparece apenas na atualização, e somente como token de
  * concorrência — nunca como valor a gravar.
+ *
+ * O equipamento não tem nome: é identificado por categoria, fabricante e modelo
+ * (`descricaoDoEquipamento`). Um `nome` enviado é campo inesperado e é recusado.
  */
 
 import { z } from "zod";
 import {
   identificadorPatrimonialOpcional,
+  nomeDeFabricanteOutro,
   ordemDeExibicao,
+  paginaDeConsulta,
   TAMANHOS,
   textoLongoOpcional,
   textoObrigatorio,
   textoOpcional,
   uuidObrigatorio,
   uuidOpcional,
+  uuidOpcionalDeFormulario,
   versaoDeConcorrencia,
 } from "./comum";
 
 /** Campos preenchidos pelo usuário ao cadastrar um equipamento. */
 export const esquemaCriarEquipamento = z.strictObject({
   categoriaId: uuidObrigatorio("a categoria"),
-  nome: textoObrigatorio("o nome do equipamento", TAMANHOS.nomeEquipamento, 2),
   fabricanteId: uuidObrigatorio("o fabricante"),
-  /**
-   * Nome livre usado somente quando o fabricante escolhido é "Outro".
-   * O serviço decide se reutiliza um fabricante existente ou cria um novo
-   * inativo e pendente de revisão (regra 7.2).
-   */
-  fabricanteOutroNome: z
-    .union([z.string(), z.null()])
-    .optional()
-    .transform((valor) => {
-      if (valor === null || valor === undefined) {
-        return null;
-      }
-      const aparado = valor.trim().replaceAll(/\s+/gu, " ");
-      return aparado === "" ? null : aparado;
-    })
-    .refine((valor) => valor === null || valor.length >= 2, {
-      error: () => "O nome do fabricante deve ter pelo menos 2 caracteres.",
-    })
-    .refine((valor) => valor === null || valor.length <= TAMANHOS.nomeDeLista, {
-      error: () => `O nome do fabricante deve ter no máximo ${TAMANHOS.nomeDeLista} caracteres.`,
-    }),
+  /** Nome livre usado somente quando o fabricante escolhido é "Outro". */
+  fabricanteOutroNome: nomeDeFabricanteOutro,
   modelo: textoObrigatorio("o modelo", TAMANHOS.modelo),
   numeroSerie: identificadorPatrimonialOpcional("o número de série", TAMANHOS.numeroSerie),
   codigoTrillogo: identificadorPatrimonialOpcional("o código Trillogo", TAMANHOS.codigoTrillogo),
   statusId: uuidObrigatorio("o status de funcionamento"),
-  localizacaoId: uuidObrigatorio("a localização"),
+  /** Onde o item está: o andar é obrigatório; local e orientação detalham, se informados. */
+  andarId: uuidObrigatorio("o andar"),
+  localArmazenamentoId: uuidOpcionalDeFormulario("o local de armazenamento"),
+  orientacaoId: uuidOpcionalDeFormulario("a orientação"),
   /**
    * Aviso na interface: não inclua senhas, documentos pessoais, informações
    * médicas ou outros dados sensíveis neste campo (requisito 14.1).
@@ -78,9 +67,9 @@ export const esquemaAlterarStatus = z.strictObject({
   versao: versaoDeConcorrencia,
 });
 
-/** Mudança isolada de localização. */
-export const esquemaAlterarLocalizacao = z.strictObject({
-  localizacaoId: uuidObrigatorio("a localização"),
+/** Mudança isolada de andar. */
+export const esquemaAlterarAndar = z.strictObject({
+  andarId: uuidObrigatorio("o andar"),
   versao: versaoDeConcorrencia,
 });
 
@@ -91,7 +80,7 @@ export const esquemaArquivarEquipamento = z.strictObject({
 
 export const esquemaRestaurarEquipamento = esquemaArquivarEquipamento;
 
-/** Valor de lista controlada (Categoria, Fabricante, Status, Localização). */
+/** Valor de lista controlada (as listas dos equipamentos e as dos materiais). */
 export const esquemaValorDeListaControlada = z.strictObject({
   nome: textoObrigatorio("o nome", TAMANHOS.nomeDeLista, 2),
   ativo: z.boolean({ error: () => "Informe se a opção está ativa." }),
@@ -108,28 +97,15 @@ export const esquemaValorDeListaControlada = z.strictObject({
  * extensão do navegador) são apenas ignorados, não é um caso de mass
  * assignment — nada aqui é gravado.
  */
-export const CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO = [
-  "nome",
-  "modelo",
-  "criadoEm",
-  "atualizadoEm",
-] as const;
+export const CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO = ["modelo", "criadoEm", "atualizadoEm"] as const;
 export type CampoOrdenavelDeEquipamento = (typeof CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO)[number];
-
-const paginaDeConsulta = z
-  .string()
-  .optional()
-  .transform((valor) => (valor === undefined || valor.trim() === "" ? "1" : valor.trim()))
-  .refine((valor) => /^\d+$/.test(valor), { error: () => "Página inválida." })
-  .transform((valor) => Number.parseInt(valor, 10))
-  .refine((valor) => valor >= 1 && valor <= 100_000, { error: () => "Página inválida." });
 
 export const esquemaConsultaEquipamentos = z.object({
   busca: textoOpcional("a busca", 120),
   categoriaId: uuidOpcional("a categoria"),
   fabricanteId: uuidOpcional("o fabricante"),
   statusId: uuidOpcional("o status de funcionamento"),
-  localizacaoId: uuidOpcional("a localização"),
+  andarId: uuidOpcional("o andar"),
   pagina: paginaDeConsulta,
   ordenarPor: z
     .enum(CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO, { error: () => "Campo de ordenação inválido." })
@@ -142,5 +118,13 @@ export const esquemaConsultaEquipamentos = z.object({
 });
 
 export type EntradaConsultaEquipamentos = z.infer<typeof esquemaConsultaEquipamentos>;
+
+/** Consulta da tela de arquivados: só busca e página (a ordem é sempre do mais recente). */
+export const esquemaConsultaArquivados = z.object({
+  busca: textoOpcional("a busca", 120),
+  pagina: paginaDeConsulta,
+});
+
+export type EntradaConsultaArquivados = z.infer<typeof esquemaConsultaArquivados>;
 
 export type EntradaValorDeListaControlada = z.infer<typeof esquemaValorDeListaControlada>;

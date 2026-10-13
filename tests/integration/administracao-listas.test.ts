@@ -17,7 +17,7 @@ import {
 } from "../../src/services/administracao-listas";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -26,7 +26,7 @@ describe("administração de listas controladas (caso de uso — Etapa 7)", () =
   let atorAdministracao: ReturnType<typeof criarAtorDeTeste>;
   let atorOperacao: ReturnType<typeof criarAtorDeTeste>;
   let statusId: string;
-  let localizacaoId: string;
+  let andarId: string;
   let fabricanteId: string;
 
   const categoriasCriadas: string[] = [];
@@ -43,7 +43,7 @@ describe("administração de listas controladas (caso de uso — Etapa 7)", () =
     atorOperacao = criarAtorDeTeste(usuario, "OPERACAO");
 
     statusId = await idDoStatus(prisma, "Operacional");
-    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    andarId = await idDoAndar(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -224,13 +224,12 @@ describe("administração de listas controladas (caso de uso — Etapa 7)", () =
 
     const equipamento = await cadastrarEquipamento(prisma, atorOperacao, {
       categoriaId: categoriaEmUso.id,
-      nome: `${prefixo} Equipamento`,
       fabricanteId,
       modelo: "Modelo",
       numeroSerie: `${prefixo}-sn`,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
       observacoes: null,
     });
 

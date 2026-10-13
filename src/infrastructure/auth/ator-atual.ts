@@ -32,7 +32,8 @@ import { obterConfiguracao } from "../config/env";
 import { obterPrisma } from "../prisma/cliente";
 
 const ENTRA_OBJECT_ID_DE_DESENVOLVIMENTO = "00000000-dev0-0000-0000-000000000000";
-const PERFIL_DE_DESENVOLVIMENTO: PerfilAcesso = "OPERACAO";
+/** Perfil padrão do usuário fictício; `DEV_AUTH_PERFIL` o sobrescreve (ex.: demonstração). */
+const PERFIL_PADRAO_DE_DESENVOLVIMENTO: PerfilAcesso = "OPERACAO";
 
 /** Nome do cabeçalho de override de perfil — só os testes ponta a ponta usam isto. */
 export const CABECALHO_DE_PERFIL_DE_TESTE = "x-dev-perfil";
@@ -40,9 +41,10 @@ export const CABECALHO_DE_PERFIL_DE_TESTE = "x-dev-perfil";
 async function resolverPerfilDeDesenvolvimento(): Promise<PerfilAcesso> {
   const cabecalhos = await headers();
   const sobrescrita = cabecalhos.get(CABECALHO_DE_PERFIL_DE_TESTE);
-  return sobrescrita !== null && ehPerfilDeAcesso(sobrescrita)
-    ? sobrescrita
-    : PERFIL_DE_DESENVOLVIMENTO;
+  if (sobrescrita !== null && ehPerfilDeAcesso(sobrescrita)) {
+    return sobrescrita;
+  }
+  return obterConfiguracao().DEV_AUTH_PERFIL ?? PERFIL_PADRAO_DE_DESENVOLVIMENTO;
 }
 
 /**

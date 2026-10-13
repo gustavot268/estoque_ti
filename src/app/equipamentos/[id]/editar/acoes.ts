@@ -33,17 +33,24 @@ function extrairEntradaDoFormulario(dados: FormData): Record<string, unknown> {
 
   return {
     categoriaId: dados.get("categoriaId"),
-    nome: dados.get("nome"),
     fabricanteId: dados.get("fabricanteId"),
     fabricanteOutroNome: dados.get("fabricanteOutroNome"),
     modelo: dados.get("modelo"),
     numeroSerie: dados.get("numeroSerie"),
     codigoTrillogo: dados.get("codigoTrillogo"),
     statusId: dados.get("statusId"),
-    localizacaoId: dados.get("localizacaoId"),
+    andarId: dados.get("andarId"),
+    localArmazenamentoId: dados.get("localArmazenamentoId"),
+    orientacaoId: dados.get("orientacaoId"),
     observacoes: dados.get("observacoes"),
     versao,
   };
+}
+
+/** Fora do objeto de entrada (que passa pelo esquema Zod `strictObject`): um arquivo não é texto. */
+function extrairArquivoDaFoto(dados: FormData): File | null {
+  const valor = dados.get("foto");
+  return valor instanceof File ? valor : null;
 }
 
 export async function editarEquipamentoAction(
@@ -67,6 +74,10 @@ export async function editarEquipamentoAction(
       ator,
       equipamentoId,
       extrairEntradaDoFormulario(dadosDoFormulario),
+      {
+        arquivo: extrairArquivoDaFoto(dadosDoFormulario),
+        remover: dadosDoFormulario.get("removerFoto") === "on",
+      },
     );
     idAtualizado = equipamento.id;
   } catch (erro) {

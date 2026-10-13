@@ -14,6 +14,7 @@ import {
 import { AcessoNegadoError, EntradaInvalidaError } from "../../../../domain/erros";
 import { BotaoExcluirValorDeLista } from "../../../../features/administracao/botao-excluir-valor-de-lista";
 import { FormularioValorDeLista } from "../../../../features/administracao/formulario-valor-de-lista";
+import { rotuloDoTipoDeLista } from "../../../../features/administracao/rotulos-de-lista";
 import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
@@ -23,18 +24,11 @@ import { criarValorDeListaAction, excluirValorDeListaAction } from "./acoes";
 // Depende de sessão e de dado vivo do banco — nunca cacheado (ADR 0006).
 export const dynamic = "force-dynamic";
 
-const ROTULOS_DE_TIPO: Record<string, string> = {
-  categoria: "Categoria",
-  fabricante: "Fabricante",
-  status: "Status de funcionamento",
-  localizacao: "Localização",
-};
-
 export async function generateMetadata({
   params,
 }: PageProps<"/administracao/listas/[tipo]">): Promise<Metadata> {
   const { tipo } = await params;
-  return { title: `Gestão de ${(ROTULOS_DE_TIPO[tipo] ?? tipo).toLowerCase()}` };
+  return { title: `Gestão de ${rotuloDoTipoDeLista(tipo).toLowerCase()}` };
 }
 
 function primeiroValor(valor: string | string[] | undefined): string | undefined {
@@ -80,7 +74,7 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
     return <MensagemDeIndisponibilidade />;
   }
 
-  const rotuloDoTipo = ROTULOS_DE_TIPO[tipo] ?? tipo;
+  const rotuloDoTipo = rotuloDoTipoDeLista(tipo);
   const acaoDeCriar = criarValorDeListaAction.bind(null, tipo);
 
   const erro = primeiroValor(parametrosDeBusca.erro);

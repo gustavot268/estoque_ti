@@ -7,28 +7,50 @@ import {
 
 const ENTRADA_VALIDA = {
   categoriaId: "11111111-1111-4111-8111-111111111111",
-  nome: "Notebook Latitude",
   fabricanteId: "22222222-2222-4222-8222-222222222222",
   modelo: "Latitude 5420",
   numeroSerie: "abc 123",
   codigoTrillogo: null,
   statusId: "33333333-3333-4333-8333-333333333333",
-  localizacaoId: "44444444-4444-4444-8444-444444444444",
+  andarId: "44444444-4444-4444-8444-444444444444",
+  localArmazenamentoId: "",
+  orientacaoId: null,
   observacoes: null,
 } as const;
 
 describe("esquemaCriarEquipamento", () => {
-  it("aceita uma entrada válida e apara espaços do nome", () => {
-    const resultado = esquemaCriarEquipamento.parse({
-      ...ENTRADA_VALIDA,
-      nome: "  Notebook Latitude  ",
-    });
-    expect(resultado.nome).toBe("Notebook Latitude");
+  it("aceita uma entrada válida", () => {
+    expect(esquemaCriarEquipamento.safeParse(ENTRADA_VALIDA).success).toBe(true);
   });
 
   it("rejeita quando falta um campo obrigatório", () => {
-    const { nome: _nome, ...semNome } = ENTRADA_VALIDA;
-    expect(esquemaCriarEquipamento.safeParse(semNome).success).toBe(false);
+    const { modelo: _modelo, ...semModelo } = ENTRADA_VALIDA;
+    expect(esquemaCriarEquipamento.safeParse(semModelo).success).toBe(false);
+    const { andarId: _andar, ...semAndar } = ENTRADA_VALIDA;
+    expect(esquemaCriarEquipamento.safeParse(semAndar).success).toBe(false);
+  });
+
+  it("o equipamento não tem mais nome: um nome enviado é recusado, no cadastro e na edição", () => {
+    expect(esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, nome: "Notebook" }).success).toBe(
+      false,
+    );
+    expect(
+      esquemaAtualizarEquipamento.safeParse({ ...ENTRADA_VALIDA, nome: "Notebook", versao: 1 })
+        .success,
+    ).toBe(false);
+  });
+
+  it("local de armazenamento e orientação são opcionais: vazio ou null vira null", () => {
+    const resultado = esquemaCriarEquipamento.parse(ENTRADA_VALIDA);
+    expect(resultado.localArmazenamentoId).toBeNull();
+    expect(resultado.orientacaoId).toBeNull();
+  });
+
+  it("local de armazenamento informado precisa ser um identificador válido", () => {
+    expect(
+      esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, localArmazenamentoId: "armario" })
+        .success,
+    ).toBe(false);
   });
 
   it("rejeita campo interno não previsto no contrato — proteção contra mass assignment (14.8)", () => {
@@ -124,7 +146,7 @@ describe("esquemaConsultaEquipamentos (Etapa 4)", () => {
       categoriaId: undefined,
       fabricanteId: undefined,
       statusId: undefined,
-      localizacaoId: undefined,
+      andarId: undefined,
       pagina: 1,
       ordenarPor: "criadoEm",
       direcao: "desc",

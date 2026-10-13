@@ -1,6 +1,7 @@
 # Estoque de TI
 
-Aplicação web interna para controle de estoque de equipamentos de TI, substituindo o
+Aplicação web interna para controle do estoque de TI — equipamentos com etiqueta
+(inventário de ativos) e materiais controlados por quantidade —, substituindo o
 preenchimento direto de uma planilha. Uso exclusivo corporativo, autenticado pelo
 Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline).
 
@@ -24,7 +25,9 @@ Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline
 - [Build de produção](#build-de-produção)
 - [Microsoft Entra ID](#microsoft-entra-id)
 - [Como funciona a autorização](#como-funciona-a-autorização)
+- [Ativos e materiais de TI](#ativos-e-materiais-de-ti)
 - [Exportação para Excel](#exportação-para-excel)
+- [Foto do equipamento](#foto-do-equipamento)
 - [PostgreSQL é a fonte única e oficial dos dados](#postgresql-é-a-fonte-única-e-oficial-dos-dados)
 - [Limitações conhecidas](#limitações-conhecidas)
 - [Decisões pendentes](#decisões-pendentes)
@@ -34,10 +37,10 @@ Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline
 ## Objetivo
 
 Permitir que uma equipe corporativa: autentique-se com sua conta corporativa; cadastre,
-consulte, pesquise, filtre e edite equipamentos de TI; arquive equipamentos sem exclusão
-física; consulte o histórico de alterações de cada equipamento; exporte os dados para
-Excel; e administre as listas auxiliares (categoria, fabricante, status, localização)
-conforme sua permissão. A interface é responsiva (computador, tablet, celular). Não há
+consulte, pesquise, filtre e edite equipamentos e materiais de TI; arquive itens sem
+exclusão física; consulte o histórico de alterações de cada item; exporte os dados para
+Excel; e administre as listas auxiliares (categoria, fabricante, status, andar,
+local de armazenamento, orientação, categoria de material, unidade de medida) conforme sua permissão. A interface é responsiva (computador, tablet, celular). Não há
 funcionamento offline, aplicativo móvel nativo ou sincronização com o arquivo Excel
 exportado.
 
@@ -57,7 +60,7 @@ Versões efetivamente fixadas no `package.json` no momento desta documentação:
 | ORM | Prisma / `@prisma/client` / `@prisma/adapter-pg` | `7.10.0` |
 | Validação | Zod | `4.6.5` |
 | Testes unitários/integração | Vitest | `5.0.0` |
-| Testes ponta a ponta | Playwright (`@playwright/test`) | `1.63.0` — 17 testes cobrindo cadastro/consulta, edição/arquivamento/restauração, exportação (incluindo limite de taxa), gestão de listas, controle de acesso por perfil e acessibilidade (axe-core) |
+| Testes ponta a ponta | Playwright (`@playwright/test`) | `1.63.0` — 60 testes cobrindo cadastro/consulta (equipamentos e materiais), edição/arquivamento/restauração, exportação (incluindo a planilha de duas abas e o limite de taxa), gestão de listas, controle de acesso por perfil e acessibilidade (axe-core) |
 | Execução de scripts TypeScript | tsx | `4.23.13` |
 | Gerenciador de pacotes | pnpm | `11.24.0` |
 | Runtime | Node.js | `>=22.18.0` |
@@ -138,6 +141,10 @@ roda com usuário não privilegiado e não inclui arquivos de desenvolvimento ne
 detalhes completos em
 [`docs/implantacao-docker.md`](docs/implantacao-docker.md).
 
+Para **mostrar o sistema funcionando sem login** (modo de demonstração local, perfil
+Operação, escutando só em `127.0.0.1`), use `pnpm demo` e siga
+[`docs/demonstracao.md`](docs/demonstracao.md).
+
 ## Variáveis de ambiente
 
 Todas as variáveis, com obrigatoriedade, finalidade, se são segredo e se são expostas ao
@@ -180,9 +187,11 @@ pnpm db:seed
 ```
 
 Popula as listas controladas com os valores iniciais do cliente (Categoria, Fabricante,
-Status de funcionamento, Localização). O seed é **idempotente**: executá-lo mais de uma
-vez não duplica registros (usa `upsert` por `nomeNormalizado`). Detalhes do modelo e dos
-valores semente em [`docs/modelo-de-dados.md`](docs/modelo-de-dados.md).
+Status de funcionamento, Andar, Local de armazenamento, Orientação) e um ponto de partida para as listas dos materiais
+(Categoria de material, Unidade de medida). O seed é **idempotente**: executá-lo mais de
+uma vez não duplica registros (usa `upsert` por `nomeNormalizado`) e não desfaz o que a
+Administração já tiver editado. Detalhes do modelo e dos valores semente em
+[`docs/modelo-de-dados.md`](docs/modelo-de-dados.md).
 
 ## Testes
 
@@ -268,27 +277,97 @@ oculto na interface. Matriz completa de permissões por ação em
 > O que falta é só a resolução do perfil a partir de um grupo real do Microsoft Entra ID —
 > escopo da **Etapa 3**, bloqueada pela pendência corporativa de credenciais.
 
+## Ativos e materiais de TI
+
+O estoque tem dois tipos de item, cada um numa aba da mesma moldura (nas telas de
+consulta e de cadastro) e da mesma planilha exportada:
+
+- **Inventário de Ativos de TI** (`/equipamentos`): equipamentos com etiqueta, um
+  registro por item físico. Número de série e código Trillogo são únicos.
+- **Materiais de TI – Controle por Quantidade** (`/materiais`): itens sem etiqueta
+  individual e numerosos (cabos, conectores, adaptadores…), um registro por peça em cada
+  lugar, com a quantidade contada. Os campos são as colunas da planilha de controle:
+  código Trillogo, categoria, tipo, especificação, fabricante (opcional), unidade de
+  medida, quantidade, estoque mínimo, andar, local de armazenamento, orientação, data da
+  última contagem, observações e quem cadastrou.
+
+Nos dois tipos de item, a localização é dividida em três listas controladas: **Andar**
+(obrigatório e a única que aparece na lista), **Local de armazenamento** e **Orientação**
+(opcionais; aparecem nos detalhes e na planilha). Nenhum dos dois tem campo "Nome": o
+título exibido é montado na hora — "Categoria Fabricante Modelo" no equipamento e
+"Categoria Tipo Especificação" no material.
+
+Regras dos materiais:
+
+- O código Trillogo **não** é único: a mesma peça guardada em dois lugares vira dois
+  registros com o mesmo código.
+- A quantidade muda pela edição (uma recontagem), com concorrência otimista (ADR 0005) e
+  auditoria do valor anterior e do novo. Não há, por ora, lançamentos de entrada e saída.
+- A consulta avisa quando a quantidade chega ao estoque mínimo ("No mínimo") ou fica
+  abaixo dele ("Abaixo do mínimo"); a planilha destaca a célula da quantidade com a mesma
+  cor.
+- Categoria de material e Unidade de medida são listas controladas próprias, em
+  "Gerenciar listas"; Fabricante, Andar, Local de armazenamento e Orientação são as mesmas dos
+  equipamentos.
+- Mesmas regras de acesso dos equipamentos, com ações próprias (`*_MATERIAL`) — ver
+  [`docs/permissoes.md`](docs/permissoes.md).
+
+Nos dois tipos, o código Trillogo aparece em destaque (selo lilás) nas listas e nos
+detalhes.
+
 ## Exportação para Excel
 
 A exportação para `.xlsx` é gerada **sob demanda, pelo servidor** (`GET
-/api/equipamentos/exportar`), sempre em memória — nenhum arquivo temporário é escrito em
-disco. Respeita a mesma pesquisa/filtros/ordenação ativos na tela de consulta e a
-permissão do usuário (`EXPORTAR_EQUIPAMENTOS`, verificada de novo dentro do serviço).
+/api/equipamentos/exportar` na tela de equipamentos e `GET /api/materiais/exportar` na de
+materiais), sempre em memória — nenhum arquivo temporário é escrito em disco. O arquivo
+tem sempre **duas abas**, "Inventário de Ativos de TI" e "Materiais de TI": a aba de onde
+a exportação foi pedida respeita a mesma pesquisa/filtros/ordenação ativos na tela e abre
+selecionada; a outra vai completa (todos os itens ativos). A terceira linha de cada aba
+diz qual dos dois casos vale para ela. Exige as permissões `EXPORTAR_EQUIPAMENTOS` e
+`EXPORTAR_MATERIAIS`, verificadas de novo dentro do serviço.
 Proteção contra formula injection: todo campo de texto vindo de entrada do usuário
-(nome, modelo, observações, identificadores, nomes de lista) que comece com `=`, `+`,
+(modelo, tipo, especificação, observações, identificadores, nomes de lista) que comece com `=`, `+`,
 `-`, `@`, tabulação ou retorno de carro recebe um apóstrofo à frente antes de ir para a
 célula. Cabeçalhos em português, identificador interno, número de série e código
 Trillogo, nomes das listas relacionadas, quem cadastrou/alterou e indicação de data/hora
-de geração (UTC) constam do arquivo. A exportação é limitada a `EXPORT_MAX_ROWS`
-registros (variável de ambiente); se o filtro atual ultrapassar o limite, a exportação é
-recusada com uma mensagem pedindo para refinar a busca, em vez de gerar um arquivo
-parcial silenciosamente. A auditoria registra quem exportou, quando e quais filtros —
-nunca o arquivo em si.
+de geração constam do arquivo, todas as datas e horas no **horário de Brasília** (o
+banco guarda em UTC; a conversão acontece na exibição, em `src/domain/data-e-hora.ts`).
+Na aba de materiais, quantidade e estoque mínimo são números e a data da última contagem
+é uma data de verdade (dá para somar, filtrar e ordenar no Excel). A exportação é
+limitada a `EXPORT_MAX_ROWS` registros **por aba** (variável de ambiente); se o filtro
+atual ultrapassar o limite, a exportação é recusada com uma mensagem pedindo para refinar
+a busca, em vez de gerar um arquivo parcial silenciosamente. A auditoria registra quem
+exportou, quando, de qual aba e quais filtros — nunca o arquivo em si.
 
 **Não existe sincronização bidirecional com Excel.** O arquivo exportado é uma cópia
 pontual dos dados no momento da geração; alterações feitas nesse arquivo **nunca**
 retornam ao aplicativo. Não há, e não haverá, importação automática de planilha nem uso
 do Excel como fonte de dados.
+
+## Foto do equipamento
+
+Cadastro e edição de equipamento aceitam uma foto opcional, via um campo de arquivo
+padrão (`<input type="file" accept="image/jpeg,image/png,image/webp">`) — funciona sem
+nenhum tratamento especial tanto no celular (abre a opção de tirar foto ou escolher da
+galeria) quanto no computador (abre o seletor de arquivos do sistema).
+
+A foto é armazenada como bytes diretamente no PostgreSQL (coluna `Bytes`), sem depender
+de nenhum serviço de armazenamento externo. O servidor nunca confia no tipo declarado
+pelo navegador: o conteúdo do arquivo é inspecionado pela assinatura binária real (os
+primeiros bytes do arquivo, os *magic bytes*) e comparado ao tipo declarado — um arquivo
+renomeado ou de tipo não permitido (só JPEG, PNG e WEBP são aceitos, até 5 MB) é
+rejeitado, mesmo que a extensão do nome sugira o contrário. Essa mesma lógica de "o
+servidor é a autoridade final" já é usada na proteção contra formula injection da
+exportação.
+
+A foto **nunca** é carregada pelas consultas de listagem, detalhe (exceto a metadados) ou
+exportação — só uma rota dedicada e autenticada (`GET
+/api/equipamentos/[id]/foto`) busca os bytes, evitando que toda consulta à lista de
+equipamentos arraste o conteúdo binário de cada foto. Na edição, o comportamento é claro
+em três cenários: enviar um novo arquivo substitui a foto atual; marcar "Remover a foto
+atual" sem enviar um novo arquivo apaga a foto; não tocar no campo preserva a foto
+existente. A auditoria registra apenas se o equipamento passou a ter foto ou não
+(`temFoto: true/false`) — nunca o conteúdo binário.
 
 ## PostgreSQL é a fonte única e oficial dos dados
 
@@ -318,12 +397,12 @@ nenhuma circunstância.
 - Verificação de segurança automatizada em pipeline cobre tipos, lint, testes,
   dependências (`pnpm audit`, não bloqueante) e imagem Docker (Trivy, bloqueante); ainda
   falta scan de segredo versionado por engano (ex.: gitleaks/truffleHog).
-- A proteção de banco em duas camadas para a auditoria (ADR 0008: privilégio de
-  `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria` + trigger que
-  bloqueia `UPDATE`/`DELETE`) ainda não existe como migração real em
-  `prisma/migrations/` — hoje a imutabilidade depende apenas de a camada de serviço não
-  expor operação de edição/remoção de auditoria. Ver a linha da Etapa 2 na tabela de
-  estado abaixo.
+- A proteção de banco em duas camadas para a auditoria (ADR 0008) existe como migração
+  (`20261006140000_proteger_auditoria_append_only`): `estoque_app` perde
+  `UPDATE`/`DELETE`/`TRUNCATE` em `registros_auditoria` e um trigger rejeita essas
+  operações mesmo se o privilégio fosse concedido por engano. A exceção deliberada é a
+  conta dona do schema (`estoque_migrator`). Um banco já existente (como o da demo)
+  só passa a ter a proteção depois de `pnpm db:migrate:deploy`.
 
 ## Decisões pendentes
 
@@ -344,12 +423,13 @@ mais atual**, já que a implementação avança em paralelo a este documento.
 | Etapa | Escopo | Estado observado |
 | --- | --- | --- |
 | 1 — Fundação | Projeto, TypeScript estrito, Docker/Postgres/Codespaces, health check, documentação inicial | **Concluído e verificado**. `package.json` com scripts e dependências normativos (Biome, Vitest, Playwright, Prisma, Zod). `Dockerfile`, `Dockerfile.dev`, `docker-compose.yml`, `.devcontainer/`, `.env.example` e a rota de health check (`GET /api/saude`) existem e foram exercitados nesta rodada (`docker compose up`, `pnpm build`). |
-| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migrações, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 115 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test` (mais 17 testes ponta a ponta via `pnpm test:e2e`, ver Etapa 7). **Pendência conhecida**: os ADRs 0007/0008 descrevem uma migração adicional (privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria`, trigger que bloqueia `UPDATE`/`DELETE`) que ainda não existe em `prisma/migrations/` — a auditoria funciona, mas a proteção de banco em duas camadas descrita nos ADRs ainda não está implementada. |
+| 2 — Dados | Modelo Prisma, migração inicial, seed idempotente, repositórios, validações, testes de modelo/unicidade | Avançado e **verificado**. `prisma/schema.prisma`, migrações, `prisma/seed.ts` (idempotente, `upsert` por `nomeNormalizado`), repositórios (`src/infrastructure/repositorios/`) e os casos de uso de cadastro/consulta/edição (`src/services/`) existem. 255 testes (unitários + integração, banco isolado real) **executados e passando** — `pnpm test` (mais 60 testes ponta a ponta via `pnpm test:e2e`, ver Etapa 7). **Proteção da auditoria no banco (ADR 0008)**: migração `20261006140000_proteger_auditoria_append_only` — privilégio de `estoque_app` restrito a `INSERT`/`SELECT` em `registros_auditoria` + trigger que bloqueia `UPDATE`/`DELETE`/`TRUNCATE`, testada em `tests/integration/auditoria-append-only.test.ts` (8 testes, conectando como a conta real da aplicação). |
 | 3 — Autenticação e autorização | Microsoft Entra ID, proteção de rotas, perfis, proteção de ações no servidor, testes de autorização | **A autorização em si está implementada e testada** (matriz de permissões, `exigirPermissao` em todo serviço, testes de caso negativo por perfil em todas as etapas 4–7) — ver [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md), item 2. O que falta é só a fonte da identidade: hoje ela vem de uma **ponte mínima de desenvolvimento** (`src/infrastructure/auth/ator-atual.ts`, só ativa com `DEV_AUTH_ENABLED=true`, proibido em produção, com teste automatizado dedicado). A integração real com o Microsoft Entra ID (validação de token, resolução de grupo) continua **bloqueada pela pendência corporativa** de credenciais — ver [`docs/pendencias-corporativas.md`](docs/pendencias-corporativas.md). |
 | 4 — Cadastro e consulta | Cadastro responsivo, consulta paginada, pesquisa, filtros, detalhes | **Implementado e verificado** ponta a ponta contra um Postgres real: cadastro (`/equipamentos/novo`), consulta com busca/filtros/ordenação/paginação no servidor, responsiva (tabela no desktop, cartões no celular) (`/equipamentos`), e detalhes com histórico de auditoria (`/equipamentos/[id]`). Tamanho de página fixo (não controlável pelo cliente) contra paginação abusiva. Falta apenas o painel inicial com indicadores (fora do escopo estrito da Etapa 4). |
 | 5 — Edição e auditoria | Edição, concorrência otimista, histórico, arquivamento e restauração | **Implementado e verificado** ponta a ponta contra um Postgres real: edição (`/equipamentos/[id]/editar`) com concorrência otimista (ADR 0005 — duas edições concorrentes na mesma versão: só uma aplica, a outra recebe erro de conflito, testado), arquivamento e restauração (botões na tela de detalhes, restritos ao perfil Administração), histórico de auditoria completo (Cadastro/Edição/Arquivamento/Restauração). |
 | 6 — Exportação | Geração de `.xlsx`, filtros e permissões, proteção contra formula injection, testes | **Implementado e verificado** ponta a ponta contra um Postgres real: rota `GET /api/equipamentos/exportar`, respeitando os mesmos filtros/ordenação da consulta, protegida por `EXPORTAR_EQUIPAMENTOS`, com link "Exportar" na tela de consulta (oculto para quem não tem a permissão). Proteção contra formula injection testada com um caractere de risco real gravado e exportado (o arquivo gerado contém o valor neutralizado com apóstrofo). Limite de linhas (`EXPORT_MAX_ROWS`) testado e rejeita com erro claro em vez de gerar arquivo parcial. Auditoria da exportação (quem, quando, filtros, contagem — nunca o arquivo) testada. |
 | 7 — Administração e qualidade | Gestão de listas, testes ponta a ponta, acessibilidade, pipeline, revisão de segurança, documentação final | **Em andamento — só falta polimento de documentação (esta própria revisão) e itens fora do alcance sem infraestrutura real (scan de segredo, cobertura de rate limiting fora da exportação).** Concluído e verificado: **gestão de listas** (`/administracao/listas`, CRUD restrito a `GERENCIAR_LISTAS`, exclusão guardada em duas camadas, auditoria `LISTA_*`); **pipeline de CI completo** (tipos, lint, testes, build, scan de dependências e de imagem Docker, bloqueante) e Dependabot; **limpeza de todos os achados de lint pré-existentes**; **suíte ponta a ponta** (Playwright, 17 testes) cobrindo cadastro/consulta, edição/arquivamento/restauração, exportação, limite de taxa, gestão de listas, controle de acesso por perfil e acessibilidade — encontrou e corrigiu dois bugs reais (tabela da gestão de listas não atualizava sozinha após criar um valor com JavaScript ligado; contraste de cor insuficiente na paginação desabilitada); **imagem Docker endurecida** (Trivy no CI, bloqueante — encontrou e corrigiu 4 vulnerabilidades reais removendo `npm`/`corepack`, nunca usados em runtime); **limite de taxa** na exportação (20 por 5 minutos, testado); **teste automatizado** da regra "nunca `DEV_AUTH_ENABLED` em produção". |
+| Extensão — Materiais de TI | Segundo tipo de item (controle por quantidade), abas na consulta e no cadastro, planilha com duas abas, código Trillogo em destaque | **Implementado e verificado** contra um Postgres real: migração `20261008120000_adicionar_materiais_de_ti` (tabela `materiais`, listas `categorias_material` e `unidades_medida`, `material_id` na auditoria, restrições `CHECK` de quantidade e de "um item por registro de auditoria"); cadastro, consulta (busca, filtros, ordenação), detalhes com histórico, edição com concorrência otimista, arquivamento e restauração (`/materiais/*`); aviso de estoque mínimo; exportação com as abas "Inventário de Ativos de TI" e "Materiais de TI" (`/api/materiais/exportar` e `/api/equipamentos/exportar`). Testes unitários, de integração (inclusive privilégios da conta da aplicação nas tabelas novas) e ponta a ponta com auditoria de acessibilidade das telas novas. Ver [Ativos e materiais de TI](#ativos-e-materiais-de-ti). |
 
 Consulte também [`docs/revisao-de-seguranca.md`](docs/revisao-de-seguranca.md) para o
 estado honesto, item a item, de cada controle de segurança exigido antes da implantação —

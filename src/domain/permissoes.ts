@@ -16,18 +16,38 @@ export const ACOES = [
   "EDITAR_EQUIPAMENTO",
   "ARQUIVAR_EQUIPAMENTO",
   "RESTAURAR_EQUIPAMENTO",
+  "VISUALIZAR_MATERIAL",
+  "EXPORTAR_MATERIAIS",
+  "CADASTRAR_MATERIAL",
+  "EDITAR_MATERIAL",
+  "ARQUIVAR_MATERIAL",
+  "RESTAURAR_MATERIAL",
   "GERENCIAR_LISTAS",
 ] as const;
 
 export type Acao = (typeof ACOES)[number];
 
+/**
+ * Materiais (controle por quantidade) seguem, por enquanto, as mesmas regras
+ * dos equipamentos — mas com ações próprias, para que um perfil possa um dia
+ * mexer em um e não no outro sem tocar no que já existe.
+ */
 const MATRIZ: Readonly<Record<PerfilAcesso, readonly Acao[]>> = {
-  CONSULTA: ["VISUALIZAR_EQUIPAMENTO", "EXPORTAR_EQUIPAMENTOS"],
+  CONSULTA: [
+    "VISUALIZAR_EQUIPAMENTO",
+    "EXPORTAR_EQUIPAMENTOS",
+    "VISUALIZAR_MATERIAL",
+    "EXPORTAR_MATERIAIS",
+  ],
   OPERACAO: [
     "VISUALIZAR_EQUIPAMENTO",
     "EXPORTAR_EQUIPAMENTOS",
     "CADASTRAR_EQUIPAMENTO",
     "EDITAR_EQUIPAMENTO",
+    "VISUALIZAR_MATERIAL",
+    "EXPORTAR_MATERIAIS",
+    "CADASTRAR_MATERIAL",
+    "EDITAR_MATERIAL",
   ],
   ADMINISTRACAO: [
     "VISUALIZAR_EQUIPAMENTO",
@@ -36,6 +56,12 @@ const MATRIZ: Readonly<Record<PerfilAcesso, readonly Acao[]>> = {
     "EDITAR_EQUIPAMENTO",
     "ARQUIVAR_EQUIPAMENTO",
     "RESTAURAR_EQUIPAMENTO",
+    "VISUALIZAR_MATERIAL",
+    "EXPORTAR_MATERIAIS",
+    "CADASTRAR_MATERIAL",
+    "EDITAR_MATERIAL",
+    "ARQUIVAR_MATERIAL",
+    "RESTAURAR_MATERIAL",
     "GERENCIAR_LISTAS",
   ],
 };

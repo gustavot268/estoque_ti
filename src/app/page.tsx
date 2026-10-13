@@ -1,65 +1,36 @@
 /**
- * Página inicial provisória.
+ * Página inicial: duas entradas, cadastrar e ver o estoque.
  *
- * As telas reais (painel, consulta, cadastro, detalhes, administração) são das
- * Etapas 4 a 7. Esta página existe apenas para que a aplicação suba com um
- * conteúdo honesto em português, em vez do boilerplate do `create-next-app`.
+ * Estática de propósito (sem consulta ao banco): abre mesmo se o banco estiver
+ * fora do ar. A autorização continua sendo verificada no servidor em cada tela
+ * de destino, nunca aqui.
+ *
+ * São links (navegação) estilizados como botões, para funcionarem com teclado e
+ * leitor de tela.
  */
 import Link from "next/link";
 
+const CLASSE_DO_BOTAO =
+  "flex min-h-24 items-center justify-center rounded border border-zinc-400 px-4 py-6 " +
+  "text-center text-xl font-medium transition-colors hover:bg-zinc-100 " +
+  "dark:border-zinc-600 dark:hover:bg-zinc-800";
+
 export default function PaginaInicial() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-6 px-4 py-16">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Estoque de TI</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Sistema interno de controle do estoque de equipamentos de TI.
-        </p>
-      </header>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-10 px-4 py-12">
+      <h1 className="text-center text-5xl font-semibold tracking-tight">Estoque de TI</h1>
 
-      <section aria-labelledby="situacao" className="flex flex-col gap-2">
-        <h2 id="situacao" className="text-lg font-medium">
-          Situação atual
-        </h2>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          A autenticação corporativa (Microsoft Entra ID) ainda não está ativa — enquanto isso, o
-          acesso depende do modo de desenvolvimento isolado (
-          <code className="rounded bg-zinc-100 px-1 font-mono text-[0.9em] dark:bg-zinc-800">
-            DEV_AUTH_ENABLED
-          </code>
-          ), desligado por padrão e impossível de ativar em produção.
-        </p>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          <Link
-            href="/equipamentos"
-            className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
-          >
-            Consultar equipamentos
-          </Link>{" "}
-          e{" "}
-          <Link
-            href="/equipamentos/novo"
-            className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
-          >
-            cadastrar equipamento
-          </Link>{" "}
-          já estão disponíveis para os perfis com permissão; a{" "}
-          <Link
-            href="/administracao/listas"
-            className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
-          >
-            gestão de listas controladas
-          </Link>{" "}
-          é restrita ao perfil Administração.
-        </p>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          A verificação de saúde da aplicação e do banco de dados está disponível em{" "}
-          <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-zinc-800">
-            /api/saude
-          </code>
-          .
-        </p>
-      </section>
+      <nav
+        aria-label="Ações principais"
+        className="flex w-full max-w-xs flex-col gap-8 rounded border-2 border-zinc-900 px-6 pt-10 pb-24 dark:border-zinc-100"
+      >
+        <Link href="/equipamentos/novo" className={CLASSE_DO_BOTAO}>
+          Cadastrar
+        </Link>
+        <Link href="/equipamentos" className={CLASSE_DO_BOTAO}>
+          Ver estoque
+        </Link>
+      </nav>
     </main>
   );
 }

@@ -28,13 +28,24 @@ autenticado sem perfil resolvido não executa nenhuma ação protegida.
 | Exportar para Excel | ✅ | ✅ | ✅ |
 | Cadastrar equipamento | ❌ | ✅ | ✅ |
 | Editar equipamento | ❌ | ✅ | ✅ |
-| Alterar status e localização | ❌ | ✅ | ✅ |
+| Alterar status e andar | ❌ | ✅ | ✅ |
 | Arquivar equipamento | ❌ | ❌ | ✅ |
 | Restaurar equipamento | ❌ | ❌ | ✅ |
-| Gerenciar listas controladas (Categoria, Fabricante, Status, Localização) | ❌ | ❌ | ✅ |
+| Ver a lista de equipamentos arquivados (`/equipamentos/arquivados`) | ❌ | ❌ | ✅ |
+| Visualizar / pesquisar / filtrar materiais (`/materiais`) | ✅ | ✅ | ✅ |
+| Cadastrar material | ❌ | ✅ | ✅ |
+| Editar material (inclusive a quantidade, numa recontagem) | ❌ | ✅ | ✅ |
+| Arquivar material | ❌ | ❌ | ✅ |
+| Restaurar material e ver os arquivados (`/materiais/arquivados`) | ❌ | ❌ | ✅ |
+| Gerenciar listas controladas (Categoria, Fabricante, Status, Andar, Local de armazenamento, Orientação, Categoria de material, Unidade de medida) | ❌ | ❌ | ✅ |
 
 Fonte normativa: contrato técnico das Etapas 1–2, seção 7.5, que reflete a seção 6 dos
-requisitos do cliente.
+requisitos do cliente. As linhas de materiais estendem a matriz para o segundo tipo de
+item do estoque com as mesmas regras dos equipamentos, mas com ações próprias
+(`VISUALIZAR_MATERIAL`, `EXPORTAR_MATERIAIS`, `CADASTRAR_MATERIAL`, `EDITAR_MATERIAL`,
+`ARQUIVAR_MATERIAL`, `RESTAURAR_MATERIAL` em `src/domain/permissoes.ts`), para que um dia
+um perfil possa mexer em um tipo e não no outro. A planilha exportada traz os dois tipos,
+então exportar exige as duas permissões de exportação.
 
 ## Princípios de aplicação
 

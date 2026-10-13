@@ -10,7 +10,14 @@ import {
 import { normalizarIdentificador, normalizarParDeNomeDeLista } from "../../src/domain/normalizacao";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
+import {
+  idDaCategoria,
+  idDaOrientacao,
+  idDoAndar,
+  idDoFabricante,
+  idDoLocalDeArmazenamento,
+  idDoStatus,
+} from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -19,7 +26,7 @@ describe("cadastrarEquipamento (caso de uso)", () => {
   let ator: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let localizacaoId: string;
+  let andarId: string;
   let fabricanteDellId: string;
   let fabricanteOutroId: string;
   let categoriaInativaId: string;
@@ -38,7 +45,7 @@ describe("cadastrarEquipamento (caso de uso)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    andarId = await idDoAndar(prisma, "15º andar");
     fabricanteDellId = await idDoFabricante(prisma, "Dell");
     fabricanteOutroId = await idDoFabricante(prisma, "Outro");
 
@@ -72,13 +79,12 @@ describe("cadastrarEquipamento (caso de uso)", () => {
   function entradaBase(sobrescritas: Record<string, unknown> = {}): Record<string, unknown> {
     return {
       categoriaId,
-      nome: "Notebook de teste",
       fabricanteId: fabricanteDellId,
       modelo: "Modelo X",
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -102,6 +108,45 @@ describe("cadastrarEquipamento (caso de uso)", () => {
     expect(auditoria[0]?.usuarioId).toBe(usuarioId);
     expect(auditoria[0]?.resultado).toBe("SUCESSO");
     expect(auditoria[0]?.correlacaoId).toBe(ator.correlacaoId);
+  });
+
+  it("guarda onde o equipamento fica: andar, local de armazenamento e orientação", async () => {
+    const localArmazenamentoId = await idDoLocalDeArmazenamento(prisma, "1º armário");
+    const orientacaoId = await idDaOrientacao(prisma, "Prateleira de baixo");
+    const equipamento = await cadastrarEquipamento(
+      prisma,
+      ator,
+      entradaBase({ numeroSerie: `sn-${randomUUID()}`, localArmazenamentoId, orientacaoId }),
+    );
+    equipamentosCriados.push(equipamento.id);
+
+    expect(equipamento.andar.nome).toBe("15º andar");
+    expect(equipamento.localArmazenamento?.nome).toBe("1º armário");
+    expect(equipamento.orientacao?.nome).toBe("Prateleira de baixo");
+  });
+
+  it("recusa local de armazenamento inativo ou inexistente", async () => {
+    const nomeLocal = `Local inativo ${randomUUID()}`;
+    const localInativo = await prisma.localArmazenamento.create({
+      data: {
+        nome: nomeLocal,
+        nomeNormalizado: normalizarParDeNomeDeLista(nomeLocal).normalizado,
+        ativo: false,
+      },
+    });
+    try {
+      for (const localArmazenamentoId of [localInativo.id, randomUUID()]) {
+        await expect(
+          cadastrarEquipamento(
+            prisma,
+            ator,
+            entradaBase({ numeroSerie: `sn-${randomUUID()}`, localArmazenamentoId }),
+          ),
+        ).rejects.toBeInstanceOf(ValorDeListaInvalidoError);
+      }
+    } finally {
+      await prisma.localArmazenamento.delete({ where: { id: localInativo.id } });
+    }
   });
 
   it("rejeita número de série duplicado (variação de caixa/espaço) e não altera o banco", async () => {
