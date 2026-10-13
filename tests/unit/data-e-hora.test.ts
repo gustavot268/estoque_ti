@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   carimboParaNomeDeArquivo,
+  dataDeHojeEmBrasilia,
   formatarData,
+  formatarDataDoCalendario,
   formatarDataEHora,
+  paraDataIso,
 } from "../../src/domain/data-e-hora";
 
 // Brasília é UTC−3 o ano todo (sem horário de verão desde 2019).
@@ -34,6 +37,30 @@ describe("data e hora no horário de Brasília", () => {
     it("a virada de ano acompanha Brasília", () => {
       // 01/01/2027 01:00 UTC ainda é 31/12/2026 22:00 em Brasília.
       expect(carimboParaNomeDeArquivo(new Date("2027-01-01T01:00:00Z"))).toBe("20261231-220000");
+    });
+  });
+
+  describe("datas sem hora (ex.: data da última contagem de um material)", () => {
+    // O banco devolve um `date` como meia-noite UTC daquele dia.
+    const diaDaContagem = new Date("2026-10-08T00:00:00.000Z");
+
+    it("mostram o próprio dia — não o anterior, como aconteceria convertendo para Brasília", () => {
+      expect(formatarDataDoCalendario(diaDaContagem)).toBe("08/10/2026");
+      expect(formatarData(diaDaContagem)).toBe("07/10/2026");
+    });
+
+    it("viram o texto do campo de data do formulário", () => {
+      expect(paraDataIso(diaDaContagem)).toBe("2026-10-08");
+    });
+  });
+
+  describe("dataDeHojeEmBrasilia", () => {
+    it("às 23h de Brasília ainda é o mesmo dia, mesmo com o UTC já no dia seguinte", () => {
+      expect(dataDeHojeEmBrasilia(new Date("2026-10-09T02:00:00Z"))).toBe("2026-10-08");
+    });
+
+    it("à meia-noite de Brasília já é o dia novo", () => {
+      expect(dataDeHojeEmBrasilia(new Date("2026-10-09T03:00:00Z"))).toBe("2026-10-09");
     });
   });
 

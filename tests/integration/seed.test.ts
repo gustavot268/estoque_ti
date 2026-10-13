@@ -1,10 +1,14 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  ANDARES_SEMENTE,
+  CATEGORIAS_DE_MATERIAL_SEMENTE,
   CATEGORIAS_SEMENTE,
   executarSeed,
   FABRICANTES_SEMENTE,
-  LOCALIZACOES_SEMENTE,
+  LOCAIS_DE_ARMAZENAMENTO_SEMENTE,
+  ORIENTACOES_SEMENTE,
   STATUS_FUNCIONAMENTO_SEMENTE,
+  UNIDADES_DE_MEDIDA_SEMENTE,
 } from "../../prisma/seed";
 import { normalizarParDeNomeDeLista } from "../../src/domain/normalizacao";
 import { obterClienteDeTeste } from "./suporte/ambiente";
@@ -31,9 +35,29 @@ describe("seed das listas controladas (regra 4.3)", () => {
         await prisma.statusFuncionamento.count({ where: { nomeNormalizado: normalizado } }),
       ).toBe(1);
     }
-    for (const nome of LOCALIZACOES_SEMENTE) {
+    for (const nome of ANDARES_SEMENTE) {
       const { normalizado } = normalizarParDeNomeDeLista(nome);
-      expect(await prisma.localizacao.count({ where: { nomeNormalizado: normalizado } })).toBe(1);
+      expect(await prisma.andar.count({ where: { nomeNormalizado: normalizado } })).toBe(1);
+    }
+    for (const nome of LOCAIS_DE_ARMAZENAMENTO_SEMENTE) {
+      const { normalizado } = normalizarParDeNomeDeLista(nome);
+      expect(
+        await prisma.localArmazenamento.count({ where: { nomeNormalizado: normalizado } }),
+      ).toBe(1);
+    }
+    for (const nome of ORIENTACOES_SEMENTE) {
+      const { normalizado } = normalizarParDeNomeDeLista(nome);
+      expect(await prisma.orientacao.count({ where: { nomeNormalizado: normalizado } })).toBe(1);
+    }
+    for (const nome of CATEGORIAS_DE_MATERIAL_SEMENTE) {
+      const { normalizado } = normalizarParDeNomeDeLista(nome);
+      expect(
+        await prisma.categoriaMaterial.count({ where: { nomeNormalizado: normalizado } }),
+      ).toBe(1);
+    }
+    for (const nome of UNIDADES_DE_MEDIDA_SEMENTE) {
+      const { normalizado } = normalizarParDeNomeDeLista(nome);
+      expect(await prisma.unidadeMedida.count({ where: { nomeNormalizado: normalizado } })).toBe(1);
     }
   });
 
@@ -43,7 +67,11 @@ describe("seed das listas controladas (regra 4.3)", () => {
         prisma.categoria.count(),
         prisma.fabricante.count(),
         prisma.statusFuncionamento.count(),
-        prisma.localizacao.count(),
+        prisma.andar.count(),
+        prisma.localArmazenamento.count(),
+        prisma.orientacao.count(),
+        prisma.categoriaMaterial.count(),
+        prisma.unidadeMedida.count(),
       ]);
 
     const antes = await contar();

@@ -12,8 +12,12 @@ export {
 } from "../integration/suporte/ambiente";
 export {
   idDaCategoria,
-  idDaLocalizacao,
+  idDaCategoriaDeMaterial,
+  idDaOrientacao,
+  idDaUnidadeDeMedida,
+  idDoAndar,
   idDoFabricante,
+  idDoLocalDeArmazenamento,
   idDoStatus,
 } from "../integration/suporte/listas";
 

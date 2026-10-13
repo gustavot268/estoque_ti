@@ -8,7 +8,7 @@ import {
   obterFotoDoEquipamento,
 } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -27,7 +27,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
   let ator: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let localizacaoId: string;
+  let andarId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -37,13 +37,12 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
   function entrada(sobrescritas: Record<string, unknown>): Record<string, unknown> {
     return {
       categoriaId,
-      nome: "sem nome",
       fabricanteId,
       modelo: "Modelo",
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -58,7 +57,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    andarId = await idDoAndar(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -78,7 +77,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
     const equipamento = await cadastrarEquipamento(
       prisma,
       ator,
-      entrada({ nome: `${prefixo} Com foto`, numeroSerie: `${prefixo}-sn-1` }),
+      entrada({ modelo: `${prefixo} Com foto`, numeroSerie: `${prefixo}-sn-1` }),
       arquivo(JPEG_VALIDO, "notebook.jpg", "image/jpeg"),
     );
     equipamentosCriados.push(equipamento.id);
@@ -100,7 +99,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
     const equipamento = await cadastrarEquipamento(
       prisma,
       ator,
-      entrada({ nome: `${prefixo} Sem foto`, numeroSerie: `${prefixo}-sn-2` }),
+      entrada({ modelo: `${prefixo} Sem foto`, numeroSerie: `${prefixo}-sn-2` }),
     );
     equipamentosCriados.push(equipamento.id);
 
@@ -115,7 +114,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
       cadastrarEquipamento(
         prisma,
         ator,
-        entrada({ nome: `${prefixo} SVG`, numeroSerie: `${prefixo}-sn-3` }),
+        entrada({ modelo: `${prefixo} SVG`, numeroSerie: `${prefixo}-sn-3` }),
         arquivo(
           new TextEncoder().encode("<svg onload=alert(1)>"),
           "malicioso.svg",
@@ -130,7 +129,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
       cadastrarEquipamento(
         prisma,
         ator,
-        entrada({ nome: `${prefixo} Renomeado`, numeroSerie: `${prefixo}-sn-4` }),
+        entrada({ modelo: `${prefixo} Renomeado`, numeroSerie: `${prefixo}-sn-4` }),
         // Bytes de PNG de verdade, mas declarado (e "renomeado") como JPEG.
         arquivo(PNG_VALIDO, "falso.jpg", "image/jpeg"),
       ),
@@ -141,20 +140,19 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
     const original = await cadastrarEquipamento(
       prisma,
       ator,
-      entrada({ nome: `${prefixo} Preservar`, numeroSerie: `${prefixo}-sn-5` }),
+      entrada({ modelo: `${prefixo} Preservar`, numeroSerie: `${prefixo}-sn-5` }),
       arquivo(JPEG_VALIDO, "original.jpg", "image/jpeg"),
     );
     equipamentosCriados.push(original.id);
 
     const editado = await editarEquipamento(prisma, ator, original.id, {
       categoriaId,
-      nome: `${prefixo} Preservar Editado`,
       fabricanteId,
       modelo: "Modelo editado",
       numeroSerie: `${prefixo}-sn-5`,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
       observacoes: null,
       versao: original.versao,
     });
@@ -168,7 +166,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
     const original = await cadastrarEquipamento(
       prisma,
       ator,
-      entrada({ nome: `${prefixo} Substituir`, numeroSerie: `${prefixo}-sn-6` }),
+      entrada({ modelo: `${prefixo} Substituir`, numeroSerie: `${prefixo}-sn-6` }),
       arquivo(JPEG_VALIDO, "original.jpg", "image/jpeg"),
     );
     equipamentosCriados.push(original.id);
@@ -179,13 +177,12 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
       original.id,
       {
         categoriaId,
-        nome: original.nome,
         fabricanteId,
         modelo: original.modelo,
         numeroSerie: `${prefixo}-sn-6`,
         codigoTrillogo: null,
         statusId,
-        localizacaoId,
+        andarId,
         observacoes: null,
         versao: original.versao,
       },
@@ -202,7 +199,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
     const original = await cadastrarEquipamento(
       prisma,
       ator,
-      entrada({ nome: `${prefixo} Remover`, numeroSerie: `${prefixo}-sn-7` }),
+      entrada({ modelo: `${prefixo} Remover`, numeroSerie: `${prefixo}-sn-7` }),
       arquivo(JPEG_VALIDO, "original.jpg", "image/jpeg"),
     );
     equipamentosCriados.push(original.id);
@@ -213,13 +210,12 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
       original.id,
       {
         categoriaId,
-        nome: original.nome,
         fabricanteId,
         modelo: original.modelo,
         numeroSerie: `${prefixo}-sn-7`,
         codigoTrillogo: null,
         statusId,
-        localizacaoId,
+        andarId,
         observacoes: null,
         versao: original.versao,
       },

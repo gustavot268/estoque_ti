@@ -1,7 +1,9 @@
 /**
  * Casos de uso de administração das listas controladas (Categoria,
- * Fabricante, Status de funcionamento, Localização) — Etapa 7, restrito ao
- * perfil Administração (`GERENCIAR_LISTAS`).
+ * Fabricante, Status de funcionamento, Andar, Local de armazenamento, Orientação e as
+ * listas dos materiais:
+ * Categoria de material e Unidade de medida) — Etapa 7, restrito ao perfil
+ * Administração (`GERENCIAR_LISTAS`).
  *
  * Reaproveita o mesmo esquema de validação (`esquemaValorDeListaControlada`)
  * e a mesma normalização de nome (ADR 0004) já usados pelo fluxo "Outro" de
@@ -21,7 +23,7 @@ import { exigirPermissao } from "../domain/permissoes";
 import type { PrismaClient } from "../infrastructure/prisma/criar-cliente";
 import {
   atualizar,
-  contarEquipamentosVinculados,
+  contarItensVinculados,
   criar,
   excluir,
   existeNomeNormalizado,
@@ -210,10 +212,11 @@ export async function atualizarValorDeLista(
 
 /**
  * Exclusão física (não há exclusão lógica para lista controlada — só para
- * equipamento, regra 4.1). Guardada em duas camadas: contagem prévia de
- * equipamentos vinculados (mensagem amigável) e a própria restrição de
- * chave estrangeira do banco (`onDelete: Restrict`) como rede de segurança
- * caso a contagem fique desatualizada entre a checagem e a exclusão.
+ * equipamento e material, regra 4.1). Guardada em duas camadas: contagem
+ * prévia de equipamentos e materiais vinculados (mensagem amigável) e a
+ * própria restrição de chave estrangeira do banco (`onDelete: Restrict`) como
+ * rede de segurança caso a contagem fique desatualizada entre a checagem e a
+ * exclusão.
  */
 export async function excluirValorDeLista(
   prisma: PrismaClient,
@@ -229,7 +232,7 @@ export async function excluirValorDeLista(
     throw new RegistroNaoEncontradoError();
   }
 
-  const vinculados = await contarEquipamentosVinculados(prisma, tipo, id);
+  const vinculados = await contarItensVinculados(prisma, tipo, id);
   if (vinculados > 0) {
     throw new ValorDeListaEmUsoError();
   }

@@ -21,6 +21,7 @@ import {
   cadastrarEquipamentoAction,
   type ResultadoCadastro,
 } from "../../app/equipamentos/novo/acoes";
+import { CamposOndeFica, type OpcoesDeOndeFica } from "../../components/campos-onde-fica";
 
 type OpcaoDeLista = { readonly id: string; readonly nome: string };
 
@@ -28,7 +29,7 @@ type Props = {
   readonly categorias: readonly OpcaoDeLista[];
   readonly fabricantes: readonly OpcaoDeLista[];
   readonly statusFuncionamento: readonly OpcaoDeLista[];
-  readonly localizacoes: readonly OpcaoDeLista[];
+  readonly ondeFica: OpcoesDeOndeFica;
   readonly fabricanteOutroId: string | null;
 };
 
@@ -42,7 +43,7 @@ export function FormularioCadastroDeEquipamento({
   categorias,
   fabricantes,
   statusFuncionamento,
-  localizacoes,
+  ondeFica,
   fabricanteOutroId,
 }: Props) {
   const [resultado, submeter, pendente] = useActionState(
@@ -86,7 +87,7 @@ export function FormularioCadastroDeEquipamento({
       action={submeter}
       onChange={() => setModificado(true)}
       noValidate
-      className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8"
+      className="flex w-full flex-col gap-6"
     >
       <h1 className="text-xl font-semibold tracking-tight">Cadastrar equipamento</h1>
 
@@ -252,29 +253,11 @@ export function FormularioCadastroDeEquipamento({
           <ListaDeErros id="statusId-erro" erros={errosDoCampo("statusId")} />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="localizacaoId" className={CLASSE_RASTRO}>
-            Localização <span aria-hidden="true">*</span>
-          </label>
-          <select
-            id="localizacaoId"
-            name="localizacaoId"
-            required
-            defaultValue=""
-            className={CLASSE_CAMPO}
-            aria-describedby="localizacaoId-erro"
-          >
-            <option value="" disabled>
-              Selecione
-            </option>
-            {localizacoes.map((localizacao) => (
-              <option key={localizacao.id} value={localizacao.id}>
-                {localizacao.nome}
-              </option>
-            ))}
-          </select>
-          <ListaDeErros id="localizacaoId-erro" erros={errosDoCampo("localizacaoId")} />
-        </div>
+        <CamposOndeFica
+          opcoes={ondeFica}
+          valores={{ andarId: "", localArmazenamentoId: "", orientacaoId: "" }}
+          errosDoCampo={errosDoCampo}
+        />
 
         <div className="flex flex-col gap-1 md:col-span-2">
           <label htmlFor="observacoes" className={CLASSE_RASTRO}>

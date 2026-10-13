@@ -12,7 +12,7 @@ import { redirect } from "next/navigation";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { obterPrisma } from "../../../infrastructure/prisma/cliente";
 import { restaurarEquipamento } from "../../../services/equipamentos";
-import { codigoDoErroDeOperacao, montarDestinoDeRetorno } from "../destino-de-retorno";
+import { codigoDoErroDeOperacao, montarDestinoDeRetorno } from "../../destino-de-retorno";
 
 const ROTA_DE_ARQUIVADOS = "/equipamentos/arquivados";
 

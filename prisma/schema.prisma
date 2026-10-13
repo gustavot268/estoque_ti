@@ -33,9 +33,10 @@ enum TipoAcaoAuditoria {
   EXPORTACAO
   ACESSO_NEGADO
   /// Criação/edição/exclusão de um valor de lista controlada (Categoria,
-  /// Fabricante, Status de funcionamento, Localização) — Etapa 7. O
-  /// registro não referencia `equipamentoId` (fica `null`): o valor
-  /// afetado vai em `dadosAnteriores`/`dadosPosteriores`.
+  /// Fabricante, Status de funcionamento, Localização e as listas dos
+  /// materiais) — Etapa 7. O registro não referencia `equipamentoId` nem
+  /// `materialId` (ficam `null`): o valor afetado vai em
+  /// `dadosAnteriores`/`dadosPosteriores`.
   LISTA_CRIACAO
   LISTA_EDICAO
   LISTA_EXCLUSAO
@@ -82,6 +83,7 @@ model Fabricante {
   atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
   equipamentos Equipamento[]
+  materiais    Material[]
 
   @@index([ativo, ordemExibicao, nome], map: "fabricantes_ativo_ordem_idx")
   @@index([pendenteRevisao], map: "fabricantes_pendente_revisao_idx")
@@ -103,19 +105,96 @@ model StatusFuncionamento {
   @@map("status_funcionamento")
 }
 
-model Localizacao {
+// A localização de um item é dividida em três listas, da mais geral para a
+// mais específica: Andar (obrigatório), Local de armazenamento e Orientação
+// (opcionais). As três valem para equipamentos e materiais.
+
+/// Andar do item (15º andar, 16º andar…). Era a antiga lista "Localização".
+model Andar {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome            String   @db.VarChar(80)
-  nomeNormalizado String   @unique(map: "localizacoes_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "andares_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
   ativo           Boolean  @default(true)
   ordemExibicao   Int      @default(0) @map("ordem_exibicao")
   criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
   equipamentos Equipamento[]
+  materiais    Material[]
 
-  @@index([ativo, ordemExibicao, nome], map: "localizacoes_ativo_ordem_idx")
-  @@map("localizacoes")
+  @@index([ativo, ordemExibicao, nome], map: "andares_ativo_ordem_idx")
+  @@map("andares")
+}
+
+/// Onde o item fica guardado no andar (1º armário, rack…).
+model LocalArmazenamento {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "locais_armazenamento_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  equipamentos Equipamento[]
+  materiais    Material[]
+
+  @@index([ativo, ordemExibicao, nome], map: "locais_armazenamento_ativo_ordem_idx")
+  @@map("locais_armazenamento")
+}
+
+/// Posição dentro do local de armazenamento (prateleira de cima, de baixo…).
+model Orientacao {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "orientacoes_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  equipamentos Equipamento[]
+  materiais    Material[]
+
+  @@index([ativo, ordemExibicao, nome], map: "orientacoes_ativo_ordem_idx")
+  @@map("orientacoes")
+}
+
+// ---------------------------------------------------------------------------
+// Listas controladas exclusivas dos materiais (Materiais de TI)
+// ---------------------------------------------------------------------------
+
+/// Categoria de material (Cabo, Adaptador…). Separada de `Categoria`, que
+/// classifica os equipamentos do inventário de ativos.
+model CategoriaMaterial {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "categorias_material_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  materiais Material[]
+
+  @@index([ativo, ordemExibicao, nome], map: "categorias_material_ativo_ordem_idx")
+  @@map("categorias_material")
+}
+
+/// Unidade em que a quantidade de um material é contada (Unidade, Metro, Caixa…).
+model UnidadeMedida {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String   @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "unidades_medida_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  ativo           Boolean  @default(true)
+  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  materiais Material[]
+
+  @@index([ativo, ordemExibicao, nome], map: "unidades_medida_ativo_ordem_idx")
+  @@map("unidades_medida")
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +202,7 @@ model Localizacao {
 // ---------------------------------------------------------------------------
 
 model Usuario {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// `oid` do Microsoft Entra ID. Não guardamos tokens nem perfil completo.
   entraObjectId String   @unique(map: "usuarios_entra_object_id_key") @map("entra_object_id") @db.VarChar(64)
   nome          String   @db.VarChar(160)
@@ -134,6 +213,9 @@ model Usuario {
   equipamentosCriados     Equipamento[] @relation("EquipamentoCriadoPor")
   equipamentosAtualizados Equipamento[] @relation("EquipamentoAtualizadoPor")
   equipamentosArquivados  Equipamento[] @relation("EquipamentoArquivadoPor")
+  materiaisCriados        Material[]    @relation("MaterialCriadoPor")
+  materiaisAtualizados    Material[]    @relation("MaterialAtualizadoPor")
+  materiaisArquivados     Material[]    @relation("MaterialArquivadoPor")
 
   @@index([email], map: "usuarios_email_idx")
   @@map("usuarios")
@@ -143,16 +225,17 @@ model Usuario {
 // Equipamento
 // ---------------------------------------------------------------------------
 
+/// Não tem campo de nome: o equipamento é identificado na tela por
+/// "Categoria Fabricante Modelo" (`descricaoDoEquipamento`, src/domain).
 model Equipamento {
   id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   categoriaId String @map("categoria_id") @db.Uuid
-  nome        String @db.VarChar(120)
 
   fabricanteId String @map("fabricante_id") @db.Uuid
   modelo       String @db.VarChar(120)
 
   /// Valor como digitado, preservado para exibição.
-  numeroSerie String? @map("numero_serie") @db.VarChar(100)
+  numeroSerie            String? @map("numero_serie") @db.VarChar(100)
   /// Derivado: trim, remoção de espaços internos e maiúsculas invariantes.
   /// Índice único: em PostgreSQL vários NULL convivem, então equipamentos sem
   /// série não conflitam entre si.
@@ -161,8 +244,10 @@ model Equipamento {
   codigoTrillogo            String? @map("codigo_trillogo") @db.VarChar(60)
   codigoTrillogoNormalizado String? @map("codigo_trillogo_normalizado") @db.VarChar(60)
 
-  statusId      String @map("status_id") @db.Uuid
-  localizacaoId String @map("localizacao_id") @db.Uuid
+  statusId             String  @map("status_id") @db.Uuid
+  andarId              String  @map("andar_id") @db.Uuid
+  localArmazenamentoId String? @map("local_armazenamento_id") @db.Uuid
+  orientacaoId         String? @map("orientacao_id") @db.Uuid
 
   observacoes String? @db.VarChar(1000)
 
@@ -186,28 +271,103 @@ model Equipamento {
   /// token, nunca como valor a gravar.
   versao Int @default(1)
 
-  categoria     Categoria           @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  fabricante    Fabricante          @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  status        StatusFuncionamento @relation(fields: [statusId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  localizacao   Localizacao         @relation(fields: [localizacaoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  criadoPor     Usuario             @relation("EquipamentoCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  atualizadoPor Usuario             @relation("EquipamentoAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  arquivadoPor  Usuario?            @relation("EquipamentoArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  categoria          Categoria           @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fabricante         Fabricante          @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  status             StatusFuncionamento @relation(fields: [statusId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  andar              Andar               @relation(fields: [andarId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  localArmazenamento LocalArmazenamento? @relation(fields: [localArmazenamentoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orientacao         Orientacao?         @relation(fields: [orientacaoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criadoPor          Usuario             @relation("EquipamentoCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  atualizadoPor      Usuario             @relation("EquipamentoAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arquivadoPor       Usuario?            @relation("EquipamentoArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   registrosAuditoria RegistroAuditoria[]
 
   @@unique([numeroSerieNormalizado], map: "equipamentos_numero_serie_normalizado_key")
   @@unique([codigoTrillogoNormalizado], map: "equipamentos_codigo_trillogo_normalizado_key")
-  @@index([arquivadoEm, nome], map: "equipamentos_arquivado_nome_idx")
   @@index([arquivadoEm, criadoEm], map: "equipamentos_arquivado_criado_idx")
   @@index([categoriaId], map: "equipamentos_categoria_idx")
   @@index([fabricanteId], map: "equipamentos_fabricante_idx")
   @@index([statusId], map: "equipamentos_status_idx")
-  @@index([localizacaoId], map: "equipamentos_localizacao_idx")
+  @@index([andarId], map: "equipamentos_andar_idx")
+  @@index([localArmazenamentoId], map: "equipamentos_local_armazenamento_idx")
+  @@index([orientacaoId], map: "equipamentos_orientacao_idx")
   @@index([criadoPorId], map: "equipamentos_criado_por_idx")
   @@index([atualizadoPorId], map: "equipamentos_atualizado_por_idx")
   @@index([arquivadoPorId], map: "equipamentos_arquivado_por_idx")
   @@map("equipamentos")
+}
+
+// ---------------------------------------------------------------------------
+// Material (Materiais de TI — controle por quantidade)
+// ---------------------------------------------------------------------------
+
+/// Item sem etiqueta individual (cabo, conector, adaptador…), controlado pela
+/// quantidade em estoque. Cada registro é um item num lugar: a mesma peça
+/// guardada em dois lugares vira dois registros. Não tem campo de nome: é
+/// identificado por "Categoria Tipo Especificação" (`descricaoDoMaterial`).
+model Material {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  /// Código do item no Trillogo, como digitado. Ao contrário do equipamento,
+  /// NÃO é único: identifica o tipo de peça, e a mesma peça pode ter um
+  /// registro por localização.
+  codigoTrillogo String? @map("codigo_trillogo") @db.VarChar(60)
+
+  categoriaId     String  @map("categoria_id") @db.Uuid
+  /// Obrigatório: sem nome, é o tipo (HDMI, RJ45…) que diferencia materiais da mesma categoria.
+  tipo            String  @db.VarChar(80)
+  especificacao   String? @db.VarChar(200)
+  /// Opcional: boa parte dos materiais não tem marca.
+  fabricanteId    String? @map("fabricante_id") @db.Uuid
+  unidadeMedidaId String  @map("unidade_medida_id") @db.Uuid
+
+  /// Quantidade contada. Nunca negativa (restrição `CHECK` na migração).
+  quantidade    Int
+  /// `null` = sem estoque mínimo definido. Nunca negativo (restrição `CHECK`).
+  estoqueMinimo Int? @map("estoque_minimo")
+
+  andarId              String  @map("andar_id") @db.Uuid
+  localArmazenamentoId String? @map("local_armazenamento_id") @db.Uuid
+  orientacaoId         String? @map("orientacao_id") @db.Uuid
+
+  /// Só a data, sem hora nem fuso: o dia em que a quantidade foi contada.
+  dataUltimaContagem DateTime? @map("data_ultima_contagem") @db.Date
+
+  observacoes String? @db.VarChar(1000)
+
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  criadoPorId     String    @map("criado_por_id") @db.Uuid
+  atualizadoPorId String    @map("atualizado_por_id") @db.Uuid
+  arquivadoEm     DateTime? @map("arquivado_em") @db.Timestamptz(3)
+  arquivadoPorId  String?   @map("arquivado_por_id") @db.Uuid
+
+  /// Token de concorrência otimista (ADR 0005), como no equipamento.
+  versao Int @default(1)
+
+  categoria          CategoriaMaterial   @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fabricante         Fabricante?         @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  unidadeMedida      UnidadeMedida       @relation(fields: [unidadeMedidaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  andar              Andar               @relation(fields: [andarId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  localArmazenamento LocalArmazenamento? @relation(fields: [localArmazenamentoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orientacao         Orientacao?         @relation(fields: [orientacaoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criadoPor          Usuario             @relation("MaterialCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  atualizadoPor      Usuario             @relation("MaterialAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arquivadoPor       Usuario?            @relation("MaterialArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  registrosAuditoria RegistroAuditoria[]
+
+  @@index([categoriaId], map: "materiais_categoria_idx")
+  @@index([fabricanteId], map: "materiais_fabricante_idx")
+  @@index([unidadeMedidaId], map: "materiais_unidade_medida_idx")
+  @@index([andarId], map: "materiais_andar_idx")
+  @@index([localArmazenamentoId], map: "materiais_local_armazenamento_idx")
+  @@index([orientacaoId], map: "materiais_orientacao_idx")
+  @@index([criadoPorId], map: "materiais_criado_por_idx")
+  @@index([atualizadoPorId], map: "materiais_atualizado_por_idx")
+  @@index([arquivadoPorId], map: "materiais_arquivado_por_idx")
+  @@map("materiais")
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +377,9 @@ model Equipamento {
 model RegistroAuditoria {
   id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   equipamentoId String? @map("equipamento_id") @db.Uuid
+  /// Preenchido nas ações sobre um material. Nunca junto com `equipamentoId`
+  /// (restrição `CHECK` na migração).
+  materialId    String? @map("material_id") @db.Uuid
 
   tipoAcao TipoAcaoAuditoria @map("tipo_acao")
 
@@ -235,8 +398,10 @@ model RegistroAuditoria {
   ocorridoEm   DateTime           @default(now()) @map("ocorrido_em") @db.Timestamptz(3)
 
   equipamento Equipamento? @relation(fields: [equipamentoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  material    Material?    @relation(fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([equipamentoId, ocorridoEm], map: "registros_auditoria_equipamento_ocorrido_idx")
+  @@index([materialId, ocorridoEm], map: "registros_auditoria_material_ocorrido_idx")
   @@index([ocorridoEm], map: "registros_auditoria_ocorrido_idx")
   @@index([usuarioId, ocorridoEm], map: "registros_auditoria_usuario_ocorrido_idx")
   @@index([correlacaoId], map: "registros_auditoria_correlacao_idx")

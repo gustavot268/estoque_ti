@@ -11,6 +11,7 @@ import {
 } from "../../../../../../components/mensagem-simples";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../../../../domain/erros";
 import { FormularioValorDeLista } from "../../../../../../features/administracao/formulario-valor-de-lista";
+import { rotuloDoTipoDeLista } from "../../../../../../features/administracao/rotulos-de-lista";
 import { obterAtorAtual } from "../../../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../../../infrastructure/prisma/cliente";
@@ -21,13 +22,6 @@ export const metadata: Metadata = { title: "Editar valor de lista" };
 
 // Depende de sessão e de dado vivo do banco — nunca cacheado (ADR 0006).
 export const dynamic = "force-dynamic";
-
-const ROTULOS_DE_TIPO: Record<string, string> = {
-  categoria: "Categoria",
-  fabricante: "Fabricante",
-  status: "Status de funcionamento",
-  localizacao: "Localização",
-};
 
 export default async function PaginaDeEdicaoDeValorDeLista({
   params,
@@ -66,7 +60,7 @@ export default async function PaginaDeEdicaoDeValorDeLista({
     return <MensagemDeIndisponibilidade />;
   }
 
-  const rotuloDoTipo = ROTULOS_DE_TIPO[tipo] ?? tipo;
+  const rotuloDoTipo = rotuloDoTipoDeLista(tipo);
   const acaoDeAtualizar = atualizarValorDeListaAction.bind(null, tipo, id);
 
   return (

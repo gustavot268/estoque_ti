@@ -5,7 +5,7 @@ import { EntradaInvalidaError } from "../../src/domain/erros";
 import { listarPaginado } from "../../src/infrastructure/repositorios/equipamentos";
 import { cadastrarEquipamento, listarEquipamentos } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -15,7 +15,7 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
   let categoriaNotebookId: string;
   let categoriaMonitorId: string;
   let statusId: string;
-  let localizacaoId: string;
+  let andarId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -25,13 +25,12 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
   function entrada(sobrescritas: Record<string, unknown>): Record<string, unknown> {
     return {
       categoriaId: categoriaNotebookId,
-      nome: "sem nome",
       fabricanteId,
       modelo: "Modelo",
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -48,22 +47,23 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
     categoriaNotebookId = await idDaCategoria(prisma, "Notebook");
     categoriaMonitorId = await idDaCategoria(prisma, "Monitor");
     statusId = await idDoStatus(prisma, "Operacional");
-    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    andarId = await idDoAndar(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
 
-    const nomes = [
+    // O modelo carrega o prefixo: é por ele que os testes encontram os seus equipamentos.
+    const modelos = [
       `${prefixo} Notebook A`,
       `${prefixo} Notebook B`,
       `${prefixo} Notebook C`,
       `${prefixo} Monitor A`,
       `${prefixo} Monitor B`,
     ];
-    for (const [indice, nome] of nomes.entries()) {
-      const categoriaId = nome.includes("Monitor") ? categoriaMonitorId : categoriaNotebookId;
+    for (const [indice, modelo] of modelos.entries()) {
+      const categoriaId = modelo.includes("Monitor") ? categoriaMonitorId : categoriaNotebookId;
       const equipamento = await cadastrarEquipamento(
         prisma,
         ator,
-        entrada({ categoriaId, nome, numeroSerie: `${prefixo}-sn-${indice}` }),
+        entrada({ categoriaId, modelo, numeroSerie: `${prefixo}-sn-${indice}` }),
       );
       equipamentosCriados.push(equipamento.id);
     }
@@ -81,10 +81,21 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
     }
   });
 
-  it("busca por nome retorna somente os itens correspondentes", async () => {
+  it("busca pelo modelo retorna somente os itens correspondentes", async () => {
     const resultado = await listarEquipamentos(prisma, ator, { busca: `${prefixo} Monitor` });
     expect(resultado.total).toBe(2);
-    expect(resultado.itens.every((item) => item.nome.includes("Monitor"))).toBe(true);
+    expect(resultado.itens.every((item) => item.modelo.includes("Monitor"))).toBe(true);
+  });
+
+  it("sem campo de nome, a busca também encontra pelo nome da categoria", async () => {
+    const monitores = equipamentosCriados.slice(3, 5);
+    const resultado = await listarEquipamentos(prisma, ator, {
+      busca: "Monitor",
+      categoriaId: categoriaMonitorId,
+    });
+    const ids = resultado.itens.map((item) => item.id);
+    expect(monitores.every((id) => ids.includes(id))).toBe(true);
+    expect(resultado.itens.every((item) => item.categoria.nome === "Monitor")).toBe(true);
   });
 
   it("filtra por categoria", async () => {
@@ -95,21 +106,27 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
     expect(resultado.total).toBe(3);
   });
 
-  it("ordena por nome, ascendente e descendente", async () => {
+  it("ordena por modelo, ascendente e descendente", async () => {
     const ascendente = await listarEquipamentos(prisma, ator, {
       busca: prefixo,
-      ordenarPor: "nome",
+      ordenarPor: "modelo",
       direcao: "asc",
     });
-    const nomes = ascendente.itens.map((item) => item.nome);
-    expect(nomes).toEqual([...nomes].sort());
+    const modelos = ascendente.itens.map((item) => item.modelo);
+    expect(modelos).toEqual([...modelos].sort());
 
     const descendente = await listarEquipamentos(prisma, ator, {
       busca: prefixo,
-      ordenarPor: "nome",
+      ordenarPor: "modelo",
       direcao: "desc",
     });
-    expect(descendente.itens.map((item) => item.nome)).toEqual([...nomes].reverse());
+    expect(descendente.itens.map((item) => item.modelo)).toEqual([...modelos].reverse());
+  });
+
+  it("não aceita mais ordenar pelo nome, que deixou de existir", async () => {
+    await expect(listarEquipamentos(prisma, ator, { ordenarPor: "nome" })).rejects.toBeInstanceOf(
+      EntradaInvalidaError,
+    );
   });
 
   it("o tamanho de página é fixo em 20, mesmo os 5 itens de teste cabem numa página só", async () => {
@@ -142,7 +159,7 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
     const equipamentoArquivado = await cadastrarEquipamento(
       prisma,
       ator,
-      entrada({ nome: `${prefixo} Notebook Arquivado`, numeroSerie: `${prefixo}-sn-arquivado` }),
+      entrada({ modelo: `${prefixo} Notebook Arquivado`, numeroSerie: `${prefixo}-sn-arquivado` }),
     );
     equipamentosCriados.push(equipamentoArquivado.id);
 
@@ -160,13 +177,13 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
   it("repositório: pagina corretamente com um tamanho de página pequeno", async () => {
     const primeiraPagina = await listarPaginado(prisma, {
       filtros: { busca: prefixo },
-      ordenacao: { campo: "nome", direcao: "asc" },
+      ordenacao: { campo: "modelo", direcao: "asc" },
       pagina: 1,
       tamanhoPagina: 2,
     });
     const segundaPagina = await listarPaginado(prisma, {
       filtros: { busca: prefixo },
-      ordenacao: { campo: "nome", direcao: "asc" },
+      ordenacao: { campo: "modelo", direcao: "asc" },
       pagina: 2,
       tamanhoPagina: 2,
     });

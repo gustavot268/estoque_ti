@@ -22,7 +22,6 @@ import {
   ValorDeListaInvalidoError,
 } from "../domain/erros";
 import { validarImagem } from "../domain/imagem";
-import { gerarNomeDoEquipamento } from "../domain/nome-do-equipamento";
 import { normalizarParDeIdentificador } from "../domain/normalizacao";
 import { exigirPermissao } from "../domain/permissoes";
 import type { ClientePrisma, PrismaClient } from "../infrastructure/prisma/criar-cliente";
@@ -42,10 +41,9 @@ import {
 import {
   obterCategoriaPorId,
   obterFabricantePorId,
-  obterLocalizacaoPorId,
   obterStatusFuncionamentoPorId,
 } from "../infrastructure/repositorios/listas-controladas";
-import { errosPorCampo, TAMANHOS, uuidObrigatorio } from "../validation/comum";
+import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
 import {
   esquemaArquivarEquipamento,
   esquemaAtualizarEquipamento,
@@ -55,17 +53,19 @@ import {
   esquemaRestaurarEquipamento,
 } from "../validation/equipamento";
 import { resolverFabricanteOutro } from "./fabricantes";
+import { type OndeFica, validarOndeFica } from "./onde-fica";
 
 type DadosDeAuditoriaDoEquipamento = {
   readonly id: string;
   readonly categoriaId: string;
-  readonly nome: string;
   readonly fabricanteId: string;
   readonly modelo: string;
   readonly numeroSerie: string | null;
   readonly codigoTrillogo: string | null;
   readonly statusId: string;
-  readonly localizacaoId: string;
+  readonly andarId: string;
+  readonly localArmazenamentoId: string | null;
+  readonly orientacaoId: string | null;
   readonly observacoes: string | null;
   readonly fotoTipoMime: string | null;
 };
@@ -74,13 +74,14 @@ function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento) {
   return {
     id: equipamento.id,
     categoriaId: equipamento.categoriaId,
-    nome: equipamento.nome,
     fabricanteId: equipamento.fabricanteId,
     modelo: equipamento.modelo,
     numeroSerie: equipamento.numeroSerie,
     codigoTrillogo: equipamento.codigoTrillogo,
     statusId: equipamento.statusId,
-    localizacaoId: equipamento.localizacaoId,
+    andarId: equipamento.andarId,
+    localArmazenamentoId: equipamento.localArmazenamentoId,
+    orientacaoId: equipamento.orientacaoId,
     observacoes: equipamento.observacoes,
     // Nunca o binário em si na auditoria (mesma regra da exportação) — só se
     // há ou não uma foto anexada.
@@ -146,23 +147,21 @@ function mapearConflitoDeUnicidade(
   return new ConflitoDeUnicidadeError("equipamento", "Este equipamento já existe.");
 }
 
-type EntradaComReferencias = {
+type EntradaComReferencias = OndeFica & {
   readonly categoriaId: string;
   readonly statusId: string;
-  readonly localizacaoId: string;
   readonly fabricanteId: string;
   readonly fabricanteOutroNome: string | null;
 };
 
-type ReferenciasAtuais = {
+type ReferenciasAtuais = OndeFica & {
   readonly categoriaId: string;
   readonly statusId: string;
-  readonly localizacaoId: string;
   readonly fabricanteId: string;
 };
 
 /**
- * Valida categoria/status/localização/fabricante: precisam existir e estar
+ * Valida categoria/status/fabricante e onde o item fica: precisam existir e estar
  * ativos. Exceção deliberada (só relevante em edição, por isso `atual` é
  * opcional): um valor que o equipamento **já tinha** pode continuar inativo
  * — regra 4.2 ("registros inativos... precisam continuar associados aos
@@ -177,13 +176,12 @@ async function validarReferencias(
 ): Promise<{
   ehFabricanteOutro: boolean;
   fabricanteSelecionado: Fabricante;
-  categoria: { readonly nome: string };
 }> {
-  const [categoria, statusFuncionamento, localizacao, fabricanteSelecionado] = await Promise.all([
+  const [categoria, statusFuncionamento, fabricanteSelecionado] = await Promise.all([
     obterCategoriaPorId(prisma, entrada.categoriaId),
     obterStatusFuncionamentoPorId(prisma, entrada.statusId),
-    obterLocalizacaoPorId(prisma, entrada.localizacaoId),
     obterFabricantePorId(prisma, entrada.fabricanteId),
+    validarOndeFica(prisma, entrada, atual),
   ]);
 
   const categoriaInalterada = atual?.categoriaId === entrada.categoriaId;
@@ -194,10 +192,7 @@ async function validarReferencias(
   if (statusFuncionamento === null || (!statusFuncionamento.ativo && !statusInalterado)) {
     throw new ValorDeListaInvalidoError("statusId");
   }
-  const localizacaoInalterada = atual?.localizacaoId === entrada.localizacaoId;
-  if (localizacao === null || (!localizacao.ativo && !localizacaoInalterada)) {
-    throw new ValorDeListaInvalidoError("localizacaoId");
-  }
+
   if (fabricanteSelecionado === null) {
     throw new ValorDeListaInvalidoError("fabricanteId");
   }
@@ -216,7 +211,7 @@ async function validarReferencias(
     }
   }
 
-  return { ehFabricanteOutro, fabricanteSelecionado, categoria };
+  return { ehFabricanteOutro, fabricanteSelecionado };
 }
 
 /**
@@ -277,10 +272,7 @@ export async function cadastrarEquipamento(
 
   const foto = await processarArquivoDeFoto(arquivoDaFoto);
 
-  const { ehFabricanteOutro, fabricanteSelecionado, categoria } = await validarReferencias(
-    prisma,
-    entrada,
-  );
+  const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada);
 
   const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
   const codigoTrillogo = normalizarParDeIdentificador(entrada.codigoTrillogo);
@@ -314,22 +306,8 @@ export async function cadastrarEquipamento(
         ? await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)
         : fabricanteSelecionado;
 
-      // Sem nome informado (o formulário de cadastro não pede mais), o nome é
-      // montado de categoria + fabricante + modelo.
-      const nome =
-        entrada.nome ??
-        gerarNomeDoEquipamento(
-          {
-            categoria: categoria.nome,
-            fabricante: fabricanteResolvido.nome,
-            modelo: entrada.modelo,
-          },
-          TAMANHOS.nomeEquipamento,
-        );
-
       const equipamento = await criar(tx, {
         categoriaId: entrada.categoriaId,
-        nome,
         fabricanteId: fabricanteResolvido.id,
         modelo: entrada.modelo,
         numeroSerie: numeroSerie.exibicao,
@@ -337,7 +315,9 @@ export async function cadastrarEquipamento(
         codigoTrillogo: codigoTrillogo.exibicao,
         codigoTrillogoNormalizado: codigoTrillogo.normalizado,
         statusId: entrada.statusId,
-        localizacaoId: entrada.localizacaoId,
+        andarId: entrada.andarId,
+        localArmazenamentoId: entrada.localArmazenamentoId,
+        orientacaoId: entrada.orientacaoId,
         observacoes: entrada.observacoes,
         foto: foto?.foto ?? null,
         fotoTipoMime: foto?.fotoTipoMime ?? null,
@@ -446,7 +426,7 @@ export async function obterHistoricoDoEquipamento(
 const TAMANHO_PAGINA = 20;
 
 /**
- * Consulta paginada (Etapa 4): busca por nome/modelo/número de série/código
+ * Consulta paginada (Etapa 4): busca por categoria/fabricante/modelo/número de série/código
  * Trillogo, filtros por lista controlada, ordenação e paginação — tudo
  * processado no banco, nunca carregando o estoque inteiro no servidor nem no
  * navegador (requisito 7).
@@ -470,7 +450,7 @@ export async function listarEquipamentos(
       categoriaId: parametros.categoriaId,
       fabricanteId: parametros.fabricanteId,
       statusId: parametros.statusId,
-      localizacaoId: parametros.localizacaoId,
+      andarId: parametros.andarId,
     },
     ordenacao: { campo: parametros.ordenarPor, direcao: parametros.direcao },
     pagina: parametros.pagina,
@@ -566,8 +546,10 @@ export async function editarEquipamento(
   const { ehFabricanteOutro, fabricanteSelecionado } = await validarReferencias(prisma, entrada, {
     categoriaId: atual.categoriaId,
     statusId: atual.statusId,
-    localizacaoId: atual.localizacaoId,
     fabricanteId: atual.fabricanteId,
+    andarId: atual.andarId,
+    localArmazenamentoId: atual.localArmazenamentoId,
+    orientacaoId: atual.orientacaoId,
   });
 
   const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
@@ -606,7 +588,6 @@ export async function editarEquipamento(
 
       const resultadoUpdate = await atualizar(tx, idValido.data, entrada.versao, {
         categoriaId: entrada.categoriaId,
-        nome: entrada.nome,
         fabricanteId: fabricanteResolvidoId,
         modelo: entrada.modelo,
         numeroSerie: numeroSerie.exibicao,
@@ -614,7 +595,9 @@ export async function editarEquipamento(
         codigoTrillogo: codigoTrillogo.exibicao,
         codigoTrillogoNormalizado: codigoTrillogo.normalizado,
         statusId: entrada.statusId,
-        localizacaoId: entrada.localizacaoId,
+        andarId: entrada.andarId,
+        localArmazenamentoId: entrada.localArmazenamentoId,
+        orientacaoId: entrada.orientacaoId,
         observacoes: entrada.observacoes,
         atualizadoPorId: ator.usuarioId,
         // Três casos: uma foto nova substitui; `remover` sem foto nova

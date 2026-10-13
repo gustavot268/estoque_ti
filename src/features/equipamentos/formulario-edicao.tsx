@@ -19,19 +19,23 @@ import {
   editarEquipamentoAction,
   type ResultadoEdicao,
 } from "../../app/equipamentos/[id]/editar/acoes";
+import { CamposOndeFica, type OpcoesDeOndeFica } from "../../components/campos-onde-fica";
 
 type OpcaoDeLista = { readonly id: string; readonly nome: string };
 
 type DadosDoEquipamento = {
   readonly id: string;
   readonly categoriaId: string;
-  readonly nome: string;
+  /** "Categoria Fabricante Modelo", para o texto alternativo da foto. */
+  readonly descricao: string;
   readonly fabricanteId: string;
   readonly modelo: string;
   readonly numeroSerie: string | null;
   readonly codigoTrillogo: string | null;
   readonly statusId: string;
-  readonly localizacaoId: string;
+  readonly andarId: string;
+  readonly localArmazenamentoId: string | null;
+  readonly orientacaoId: string | null;
   readonly observacoes: string | null;
   readonly temFoto: boolean;
   readonly versao: number;
@@ -42,7 +46,7 @@ type Props = {
   readonly categorias: readonly OpcaoDeLista[];
   readonly fabricantes: readonly OpcaoDeLista[];
   readonly statusFuncionamento: readonly OpcaoDeLista[];
-  readonly localizacoes: readonly OpcaoDeLista[];
+  readonly ondeFica: OpcoesDeOndeFica;
   readonly fabricanteOutroId: string | null;
 };
 
@@ -57,7 +61,7 @@ export function FormularioEdicaoDeEquipamento({
   categorias,
   fabricantes,
   statusFuncionamento,
-  localizacoes,
+  ondeFica,
   fabricanteOutroId,
 }: Props) {
   const submeterComId = editarEquipamentoAction.bind(null, equipamento.id);
@@ -129,22 +133,6 @@ export function FormularioEdicaoDeEquipamento({
             ))}
           </select>
           <ListaDeErros id="categoriaId-erro" erros={errosDoCampo("categoriaId")} />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="nome" className={CLASSE_RASTRO}>
-            Nome <span aria-hidden="true">*</span>
-          </label>
-          <input
-            id="nome"
-            name="nome"
-            required
-            maxLength={120}
-            defaultValue={equipamento.nome}
-            className={CLASSE_CAMPO}
-            aria-describedby="nome-erro"
-          />
-          <ListaDeErros id="nome-erro" erros={errosDoCampo("nome")} />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -255,26 +243,15 @@ export function FormularioEdicaoDeEquipamento({
           <ListaDeErros id="statusId-erro" erros={errosDoCampo("statusId")} />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="localizacaoId" className={CLASSE_RASTRO}>
-            Localização <span aria-hidden="true">*</span>
-          </label>
-          <select
-            id="localizacaoId"
-            name="localizacaoId"
-            required
-            defaultValue={equipamento.localizacaoId}
-            className={CLASSE_CAMPO}
-            aria-describedby="localizacaoId-erro"
-          >
-            {localizacoes.map((localizacao) => (
-              <option key={localizacao.id} value={localizacao.id}>
-                {localizacao.nome}
-              </option>
-            ))}
-          </select>
-          <ListaDeErros id="localizacaoId-erro" erros={errosDoCampo("localizacaoId")} />
-        </div>
+        <CamposOndeFica
+          opcoes={ondeFica}
+          valores={{
+            andarId: equipamento.andarId,
+            localArmazenamentoId: equipamento.localArmazenamentoId ?? "",
+            orientacaoId: equipamento.orientacaoId ?? "",
+          }}
+          errosDoCampo={errosDoCampo}
+        />
 
         <div className="flex flex-col gap-1 md:col-span-2">
           <label htmlFor="observacoes" className={CLASSE_RASTRO}>
@@ -304,7 +281,7 @@ export function FormularioEdicaoDeEquipamento({
               {/* biome-ignore lint/performance/noImgElement: imagem enviada pelo usuário, servida por uma rota própria autenticada. */}
               <img
                 src={`/api/equipamentos/${equipamento.id}/foto`}
-                alt={`Foto atual de ${equipamento.nome}`}
+                alt={`Foto atual de ${equipamento.descricao}`}
                 className="h-20 w-20 rounded border border-zinc-300 object-cover dark:border-zinc-700"
               />
               <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">

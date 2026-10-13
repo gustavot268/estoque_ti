@@ -1,5 +1,6 @@
 /**
- * `GET /equipamentos` — consulta de equipamentos (Etapa 4).
+ * `GET /equipamentos` — consulta de equipamentos (Etapa 4), na aba
+ * "Inventário de Ativos de TI" da moldura do estoque.
  *
  * Pesquisa, filtros, ordenação e paginação são processados inteiramente no
  * servidor (requisito 7): a página nunca carrega o estoque inteiro, só a
@@ -9,20 +10,23 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BotaoArquivarDaLista } from "../../components/botao-arquivar-da-lista";
 import { MensagemDeAcesso } from "../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../components/mensagem-simples";
+import { MolduraDeAbas } from "../../components/moldura-de-abas";
 import { SeloDeStatus } from "../../components/selo-de-status";
+import { SeloTrillogo } from "../../components/selo-trillogo";
 import { formatarData } from "../../domain/data-e-hora";
+import { descricaoDoEquipamento } from "../../domain/descricao-do-item";
 import { AcessoNegadoError, EntradaInvalidaError } from "../../domain/erros";
 import { acoesPermitidas, exigirPermissao } from "../../domain/permissoes";
-import { BotaoArquivarEquipamento } from "../../features/equipamentos/botao-arquivar-equipamento";
 import { obterAtorAtual } from "../../infrastructure/auth/ator-atual";
 import { logger } from "../../infrastructure/observability/logger";
 import { obterPrisma } from "../../infrastructure/prisma/cliente";
 import {
+  listarAndaresAtivos,
   listarCategoriasAtivas,
   listarFabricantesAtivos,
-  listarLocalizacoesAtivas,
   listarStatusFuncionamentoAtivos,
 } from "../../infrastructure/repositorios/listas-controladas";
 import { listarEquipamentos } from "../../services/equipamentos";
@@ -30,7 +34,6 @@ import type {
   CampoOrdenavelDeEquipamento,
   EntradaConsultaEquipamentos,
 } from "../../validation/equipamento";
-import { CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO } from "../../validation/equipamento";
 import { arquivarEquipamentoDaListaAction } from "./acoes";
 
 export const metadata: Metadata = { title: "Consultar equipamentos" };
@@ -43,7 +46,6 @@ function primeiroValor(valor: string | string[] | undefined): string | undefined
 }
 
 const ROTULOS_DE_ORDENACAO: Record<CampoOrdenavelDeEquipamento, string> = {
-  nome: "Nome",
   modelo: "Modelo",
   criadoEm: "Cadastrado em",
   atualizadoEm: "Atualizado em",
@@ -55,7 +57,7 @@ type Sobrescritas = Partial<
     | "categoriaId"
     | "fabricanteId"
     | "statusId"
-    | "localizacaoId"
+    | "andarId"
     | "ordenarPor"
     | "direcao"
     | "pagina",
@@ -72,7 +74,7 @@ function construirHref(
     categoriaId: parametros.categoriaId,
     fabricanteId: parametros.fabricanteId,
     statusId: parametros.statusId,
-    localizacaoId: parametros.localizacaoId,
+    andarId: parametros.andarId,
     ordenarPor: parametros.ordenarPor,
     direcao: parametros.direcao,
     pagina: parametros.pagina,
@@ -99,7 +101,7 @@ function construirHrefDeExportacao(parametros: EntradaConsultaEquipamentos): str
     categoriaId: parametros.categoriaId,
     fabricanteId: parametros.fabricanteId,
     statusId: parametros.statusId,
-    localizacaoId: parametros.localizacaoId,
+    andarId: parametros.andarId,
     ordenarPor: parametros.ordenarPor,
     direcao: parametros.direcao,
   };
@@ -120,6 +122,23 @@ function hrefDeOrdenacao(
   const mesmoCampo = parametros.ordenarPor === campo;
   const direcao = mesmoCampo && parametros.direcao === "asc" ? "desc" : "asc";
   return construirHref(parametros, { ordenarPor: campo, direcao, pagina: undefined });
+}
+
+function CabecalhoOrdenavel({
+  parametros,
+  campo,
+}: {
+  parametros: EntradaConsultaEquipamentos;
+  campo: CampoOrdenavelDeEquipamento;
+}) {
+  return (
+    <th scope="col" className="py-2 pr-4 font-medium">
+      <Link href={hrefDeOrdenacao(parametros, campo)} className="hover:underline">
+        {ROTULOS_DE_ORDENACAO[campo]}
+        {parametros.ordenarPor === campo && (parametros.direcao === "asc" ? " ▲" : " ▼")}
+      </Link>
+    </th>
+  );
 }
 
 /**
@@ -168,14 +187,14 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
-  let localizacoes: Awaited<ReturnType<typeof listarLocalizacoesAtivas>>;
+  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
   const prisma = obterPrisma();
   try {
-    [categorias, fabricantes, statusFuncionamento, localizacoes] = await Promise.all([
+    [categorias, fabricantes, statusFuncionamento, andares] = await Promise.all([
       listarCategoriasAtivas(prisma),
       listarFabricantesAtivos(prisma),
       listarStatusFuncionamentoAtivos(prisma),
-      listarLocalizacoesAtivas(prisma),
+      listarAndaresAtivos(prisma),
     ]);
   } catch (erro) {
     logger.error("Falha ao carregar as listas controladas na consulta de equipamentos.", { erro });
@@ -189,7 +208,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
       categoriaId: primeiroValor(brutos.categoriaId),
       fabricanteId: primeiroValor(brutos.fabricanteId),
       statusId: primeiroValor(brutos.statusId),
-      localizacaoId: primeiroValor(brutos.localizacaoId),
+      andarId: primeiroValor(brutos.andarId),
       pagina: primeiroValor(brutos.pagina),
       ordenarPor: primeiroValor(brutos.ordenarPor),
       direcao: primeiroValor(brutos.direcao),
@@ -209,7 +228,10 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
   }
 
   const { itens, total, totalPaginas, pagina, parametros } = resultado;
-  const podeExportar = acoesPermitidas(ator.perfil).includes("EXPORTAR_EQUIPAMENTOS");
+  // A planilha traz equipamentos e materiais: exportar exige as duas permissões.
+  const podeExportar =
+    acoesPermitidas(ator.perfil).includes("EXPORTAR_EQUIPAMENTOS") &&
+    acoesPermitidas(ator.perfil).includes("EXPORTAR_MATERIAIS");
   const podeCadastrar = acoesPermitidas(ator.perfil).includes("CADASTRAR_EQUIPAMENTO");
   const podeGerenciarListas = acoesPermitidas(ator.perfil).includes("GERENCIAR_LISTAS");
   const podeArquivar = acoesPermitidas(ator.perfil).includes("ARQUIVAR_EQUIPAMENTO");
@@ -227,318 +249,356 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
     erroBruto !== undefined ? (MENSAGENS_DE_ERRO_DO_ARQUIVAMENTO[erroBruto] ?? null) : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">Equipamentos</h1>
-        <div className="flex items-center gap-2">
-          {podeVerArquivados && (
-            <Link
-              href="/equipamentos/arquivados"
-              className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
+      <MolduraDeAbas
+        abaAtiva="ativos"
+        destinos={{ ativos: "/equipamentos", materiais: "/materiais" }}
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-xl font-semibold tracking-tight">Equipamentos</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              {podeVerArquivados && (
+                <Link
+                  href="/equipamentos/arquivados"
+                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                >
+                  Ver arquivados
+                </Link>
+              )}
+              {podeGerenciarListas && (
+                <Link
+                  href="/administracao/listas"
+                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                >
+                  Gerenciar listas
+                </Link>
+              )}
+              {podeExportar && (
+                <a
+                  href={construirHrefDeExportacao(parametros)}
+                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                >
+                  Exportar
+                </a>
+              )}
+              {podeCadastrar && (
+                <Link
+                  href="/equipamentos/novo"
+                  className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                >
+                  Cadastrar equipamento
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {idArquivado !== null && (
+            <p
+              role="status"
+              className="rounded border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
             >
-              Ver arquivados
-            </Link>
+              Equipamento arquivado. O histórico foi mantido.{" "}
+              <Link href={`/equipamentos/${idArquivado}`} className="font-medium underline">
+                Ver equipamento ou restaurar
+              </Link>
+              {" · "}
+              <Link href="/equipamentos/arquivados" className="font-medium underline">
+                Ver arquivados
+              </Link>
+            </p>
           )}
-          {podeGerenciarListas && (
-            <Link
-              href="/administracao/listas"
-              className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+          {mensagemDeErro !== null && (
+            <p
+              role="alert"
+              className="rounded border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
             >
-              Gerenciar listas
-            </Link>
+              {mensagemDeErro}
+            </p>
           )}
-          {podeExportar && (
-            <a
-              href={construirHrefDeExportacao(parametros)}
-              className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
-            >
-              Exportar
-            </a>
-          )}
-          {podeCadastrar && (
-            <Link
-              href="/equipamentos/novo"
-              className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-            >
-              Cadastrar equipamento
-            </Link>
-          )}
-        </div>
-      </div>
 
-      {idArquivado !== null && (
-        <p
-          role="status"
-          className="rounded border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
-        >
-          Equipamento arquivado. O histórico foi mantido.{" "}
-          <Link href={`/equipamentos/${idArquivado}`} className="font-medium underline">
-            Ver equipamento ou restaurar
-          </Link>
-          {" · "}
-          <Link href="/equipamentos/arquivados" className="font-medium underline">
-            Ver arquivados
-          </Link>
-        </p>
-      )}
-      {mensagemDeErro !== null && (
-        <p
-          role="alert"
-          className="rounded border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
-        >
-          {mensagemDeErro}
-        </p>
-      )}
+          <form method="get" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <input type="hidden" name="ordenarPor" value={parametros.ordenarPor} />
+            <input type="hidden" name="direcao" value={parametros.direcao} />
 
-      <form method="get" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <input type="hidden" name="ordenarPor" value={parametros.ordenarPor} />
-        <input type="hidden" name="direcao" value={parametros.direcao} />
+            <div className="flex flex-col gap-1 lg:col-span-2">
+              <label htmlFor="busca" className="text-sm font-medium">
+                Buscar
+              </label>
+              <input
+                id="busca"
+                name="busca"
+                defaultValue={parametros.busca ?? ""}
+                placeholder="Categoria, fabricante, modelo, número de série ou Trillogo"
+                maxLength={120}
+                className={CLASSE_CAMPO}
+              />
+            </div>
 
-        <div className="flex flex-col gap-1 lg:col-span-2">
-          <label htmlFor="busca" className="text-sm font-medium">
-            Buscar
-          </label>
-          <input
-            id="busca"
-            name="busca"
-            defaultValue={parametros.busca ?? ""}
-            placeholder="Nome, modelo, número de série ou código Trillogo"
-            maxLength={120}
-            className={CLASSE_CAMPO}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="categoriaId" className="text-sm font-medium">
-            Categoria
-          </label>
-          <select
-            id="categoriaId"
-            name="categoriaId"
-            defaultValue={parametros.categoriaId ?? ""}
-            className={CLASSE_CAMPO}
-          >
-            <option value="">Todas</option>
-            {categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="fabricanteId" className="text-sm font-medium">
-            Fabricante
-          </label>
-          <select
-            id="fabricanteId"
-            name="fabricanteId"
-            defaultValue={parametros.fabricanteId ?? ""}
-            className={CLASSE_CAMPO}
-          >
-            <option value="">Todos</option>
-            {fabricantes.map((fabricante) => (
-              <option key={fabricante.id} value={fabricante.id}>
-                {fabricante.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="statusId" className="text-sm font-medium">
-            Status
-          </label>
-          <select
-            id="statusId"
-            name="statusId"
-            defaultValue={parametros.statusId ?? ""}
-            className={CLASSE_CAMPO}
-          >
-            <option value="">Todos</option>
-            {statusFuncionamento.map((status) => (
-              <option key={status.id} value={status.id}>
-                {status.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="localizacaoId" className="text-sm font-medium">
-            Localização
-          </label>
-          <select
-            id="localizacaoId"
-            name="localizacaoId"
-            defaultValue={parametros.localizacaoId ?? ""}
-            className={CLASSE_CAMPO}
-          >
-            <option value="">Todas</option>
-            {localizacoes.map((localizacao) => (
-              <option key={localizacao.id} value={localizacao.id}>
-                {localizacao.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            Filtrar
-          </button>
-          <Link
-            href="/equipamentos"
-            className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
-          >
-            Limpar filtros
-          </Link>
-        </div>
-      </form>
-
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        {total === 0
-          ? "Nenhum equipamento encontrado com os filtros atuais."
-          : `${total} equipamento${total === 1 ? "" : "s"} encontrado${total === 1 ? "" : "s"}.`}
-      </p>
-
-      {itens.length > 0 && (
-        <>
-          {/* Desktop: tabela. */}
-          <table className="hidden w-full text-left text-sm md:table">
-            <caption className="sr-only">Lista de equipamentos</caption>
-            <thead>
-              <tr className="border-b border-zinc-300 dark:border-zinc-700">
-                {CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO.map((campo) => (
-                  <th key={campo} scope="col" className="py-2 pr-4 font-medium">
-                    <Link href={hrefDeOrdenacao(parametros, campo)} className="hover:underline">
-                      {ROTULOS_DE_ORDENACAO[campo]}
-                      {parametros.ordenarPor === campo &&
-                        (parametros.direcao === "asc" ? " ▲" : " ▼")}
-                    </Link>
-                  </th>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="categoriaId" className="text-sm font-medium">
+                Categoria
+              </label>
+              <select
+                id="categoriaId"
+                name="categoriaId"
+                defaultValue={parametros.categoriaId ?? ""}
+                className={CLASSE_CAMPO}
+              >
+                <option value="">Todas</option>
+                {categorias.map((categoria) => (
+                  <option key={categoria.id} value={categoria.id}>
+                    {categoria.nome}
+                  </option>
                 ))}
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Categoria
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Fabricante
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Status
-                </th>
-                <th scope="col" className="py-2 font-medium">
-                  <span className="sr-only">Ações</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {itens.map((equipamento) => (
-                <tr key={equipamento.id} className="border-b border-zinc-200 dark:border-zinc-800">
-                  <td className="py-2 pr-4">{equipamento.nome}</td>
-                  <td className="py-2 pr-4">{equipamento.modelo}</td>
-                  <td className="py-2 pr-4">{formatarData(equipamento.criadoEm)}</td>
-                  <td className="py-2 pr-4">{formatarData(equipamento.atualizadoEm)}</td>
-                  <td className="py-2 pr-4">{equipamento.categoria.nome}</td>
-                  <td className="py-2 pr-4">{equipamento.fabricante.nome}</td>
-                  <td className="py-2 pr-4">
-                    <SeloDeStatus
-                      nome={equipamento.status.nome}
-                      nomeNormalizado={equipamento.status.nomeNormalizado}
-                    />
-                  </td>
-                  <td className="py-2">
-                    <div className="flex items-center justify-end gap-3">
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="fabricanteId" className="text-sm font-medium">
+                Fabricante
+              </label>
+              <select
+                id="fabricanteId"
+                name="fabricanteId"
+                defaultValue={parametros.fabricanteId ?? ""}
+                className={CLASSE_CAMPO}
+              >
+                <option value="">Todos</option>
+                {fabricantes.map((fabricante) => (
+                  <option key={fabricante.id} value={fabricante.id}>
+                    {fabricante.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="statusId" className="text-sm font-medium">
+                Status
+              </label>
+              <select
+                id="statusId"
+                name="statusId"
+                defaultValue={parametros.statusId ?? ""}
+                className={CLASSE_CAMPO}
+              >
+                <option value="">Todos</option>
+                {statusFuncionamento.map((status) => (
+                  <option key={status.id} value={status.id}>
+                    {status.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="andarId" className="text-sm font-medium">
+                Andar
+              </label>
+              <select
+                id="andarId"
+                name="andarId"
+                defaultValue={parametros.andarId ?? ""}
+                className={CLASSE_CAMPO}
+              >
+                <option value="">Todos</option>
+                {andares.map((andar) => (
+                  <option key={andar.id} value={andar.id}>
+                    {andar.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <button
+                type="submit"
+                className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+              >
+                Filtrar
+              </button>
+              <Link
+                href="/equipamentos"
+                className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+              >
+                Limpar filtros
+              </Link>
+            </div>
+          </form>
+
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {total === 0
+              ? "Nenhum equipamento encontrado com os filtros atuais."
+              : `${total} equipamento${total === 1 ? "" : "s"} encontrado${total === 1 ? "" : "s"}.`}
+          </p>
+
+          {itens.length > 0 && (
+            <>
+              {/* Desktop: tabela. */}
+              <table className="hidden w-full text-left text-sm md:table">
+                <caption className="sr-only">Lista de equipamentos</caption>
+                <thead>
+                  <tr className="border-b border-zinc-300 dark:border-zinc-700">
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Categoria
+                    </th>
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Fabricante
+                    </th>
+                    <CabecalhoOrdenavel parametros={parametros} campo="modelo" />
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Código Trillogo
+                    </th>
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Andar
+                    </th>
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Status
+                    </th>
+                    <CabecalhoOrdenavel parametros={parametros} campo="criadoEm" />
+                    <CabecalhoOrdenavel parametros={parametros} campo="atualizadoEm" />
+                    <th scope="col" className="py-2 font-medium">
+                      <span className="sr-only">Ações</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itens.map((equipamento) => (
+                    <tr
+                      key={equipamento.id}
+                      className="border-b border-zinc-200 dark:border-zinc-800"
+                    >
+                      <td className="py-2 pr-4">{equipamento.categoria.nome}</td>
+                      <td className="py-2 pr-4">{equipamento.fabricante.nome}</td>
+                      <td className="py-2 pr-4">{equipamento.modelo}</td>
+                      <td className="py-2 pr-4">
+                        <SeloTrillogo codigo={equipamento.codigoTrillogo} />
+                      </td>
+                      <td className="py-2 pr-4">{equipamento.andar.nome}</td>
+                      <td className="py-2 pr-4">
+                        <SeloDeStatus
+                          nome={equipamento.status.nome}
+                          nomeNormalizado={equipamento.status.nomeNormalizado}
+                        />
+                      </td>
+                      <td className="py-2 pr-4">{formatarData(equipamento.criadoEm)}</td>
+                      <td className="py-2 pr-4">{formatarData(equipamento.atualizadoEm)}</td>
+                      <td className="py-2">
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/equipamentos/${equipamento.id}`}
+                            className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                          >
+                            Detalhes
+                          </Link>
+                          {podeArquivar && (
+                            <BotaoArquivarDaLista
+                              acao={arquivarEquipamentoDaListaAction.bind(null, equipamento.id)}
+                              descricaoDoItem="o equipamento"
+                              nomeDoItem={descricaoDoEquipamento({
+                                categoria: equipamento.categoria.nome,
+                                fabricante: equipamento.fabricante.nome,
+                                modelo: equipamento.modelo,
+                              })}
+                              versao={equipamento.versao}
+                              retorno={retornoDaLista}
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Celular: cartões. */}
+              <ul className="flex flex-col gap-3 md:hidden">
+                {itens.map((equipamento) => (
+                  <li
+                    key={equipamento.id}
+                    className="flex flex-col gap-1 rounded border border-zinc-300 p-3 dark:border-zinc-700"
+                  >
+                    <span className="font-medium">
+                      {descricaoDoEquipamento({
+                        categoria: equipamento.categoria.nome,
+                        fabricante: equipamento.fabricante.nome,
+                        modelo: equipamento.modelo,
+                      })}
+                    </span>
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                      {equipamento.andar.nome}
+                    </span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <SeloDeStatus
+                        nome={equipamento.status.nome}
+                        nomeNormalizado={equipamento.status.nomeNormalizado}
+                      />
+                      {equipamento.codigoTrillogo !== null && (
+                        <SeloTrillogo codigo={equipamento.codigoTrillogo} />
+                      )}
+                    </span>
+                    <div className="mt-1 flex items-center justify-between gap-3">
                       <Link
                         href={`/equipamentos/${equipamento.id}`}
                         className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
                       >
-                        Detalhes
+                        Ver detalhes
                       </Link>
                       {podeArquivar && (
-                        <BotaoArquivarEquipamento
+                        <BotaoArquivarDaLista
                           acao={arquivarEquipamentoDaListaAction.bind(null, equipamento.id)}
-                          nomeDoEquipamento={equipamento.nome}
+                          descricaoDoItem="o equipamento"
+                          nomeDoItem={descricaoDoEquipamento({
+                            categoria: equipamento.categoria.nome,
+                            fabricante: equipamento.fabricante.nome,
+                            modelo: equipamento.modelo,
+                          })}
                           versao={equipamento.versao}
                           retorno={retornoDaLista}
                         />
                       )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </li>
+                ))}
+              </ul>
 
-          {/* Celular: cartões. */}
-          <ul className="flex flex-col gap-3 md:hidden">
-            {itens.map((equipamento) => (
-              <li
-                key={equipamento.id}
-                className="flex flex-col gap-1 rounded border border-zinc-300 p-3 dark:border-zinc-700"
+              <nav
+                aria-label="Paginação"
+                className="flex items-center justify-center gap-4 text-sm"
               >
-                <span className="font-medium">{equipamento.nome}</span>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {equipamento.modelo}
-                </span>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {equipamento.categoria.nome} · {equipamento.fabricante.nome}
-                </span>
-                <span>
-                  <SeloDeStatus
-                    nome={equipamento.status.nome}
-                    nomeNormalizado={equipamento.status.nomeNormalizado}
-                  />
-                </span>
-                <div className="mt-1 flex items-center justify-between gap-3">
+                {pagina > 1 ? (
                   <Link
-                    href={`/equipamentos/${equipamento.id}`}
-                    className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                    href={construirHref(parametros, { pagina: pagina - 1 })}
+                    className="underline"
                   >
-                    Ver detalhes
+                    Anterior
                   </Link>
-                  {podeArquivar && (
-                    <BotaoArquivarEquipamento
-                      acao={arquivarEquipamentoDaListaAction.bind(null, equipamento.id)}
-                      nomeDoEquipamento={equipamento.nome}
-                      versao={equipamento.versao}
-                      retorno={retornoDaLista}
-                    />
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <nav aria-label="Paginação" className="flex items-center justify-center gap-4 text-sm">
-            {pagina > 1 ? (
-              <Link href={construirHref(parametros, { pagina: pagina - 1 })} className="underline">
-                Anterior
-              </Link>
-            ) : (
-              <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
-                Anterior
-              </span>
-            )}
-            <span>
-              Página {pagina} de {totalPaginas}
-            </span>
-            {pagina < totalPaginas ? (
-              <Link href={construirHref(parametros, { pagina: pagina + 1 })} className="underline">
-                Próxima
-              </Link>
-            ) : (
-              <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
-                Próxima
-              </span>
-            )}
-          </nav>
-        </>
-      )}
+                ) : (
+                  <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
+                    Anterior
+                  </span>
+                )}
+                <span>
+                  Página {pagina} de {totalPaginas}
+                </span>
+                {pagina < totalPaginas ? (
+                  <Link
+                    href={construirHref(parametros, { pagina: pagina + 1 })}
+                    className="underline"
+                  >
+                    Próxima
+                  </Link>
+                ) : (
+                  <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
+                    Próxima
+                  </span>
+                )}
+              </nav>
+            </>
+          )}
+        </div>
+      </MolduraDeAbas>
     </main>
   );
 }

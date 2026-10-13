@@ -5,8 +5,8 @@ import { obterClienteDeTeste } from "./suporte";
 const prefixo = `e2e-cat-${randomUUID().slice(0, 8)}`;
 
 test.describe("categorias DVR e Câmera no cadastro (perfil Operação — o padrão do ambiente)", () => {
-  // O formulário não pede mais o nome (o servidor o gera). O que identifica o
-  // equipamento criado pelo teste é o modelo, que começa com o prefixo.
+  // O equipamento não tem nome. O que identifica o equipamento criado pelo teste
+  // é o modelo, que começa com o prefixo.
   test.afterAll(async () => {
     const prisma = obterClienteDeTeste();
     const equipamentos = await prisma.equipamento.findMany({
@@ -41,7 +41,7 @@ test.describe("categorias DVR e Câmera no cadastro (perfil Operação — o pad
       await page.getByLabel("Modelo").fill(modelo);
       await page.getByLabel("Número de série").fill(`${prefixo}-${categoria}`);
       await page.getByLabel("Status de funcionamento").selectOption({ label: "Operacional" });
-      await page.getByLabel("Localização").selectOption({ label: "15º andar" });
+      await page.getByLabel("Andar").selectOption({ label: "15º andar" });
       await page.getByRole("button", { name: "Cadastrar" }).click();
 
       await expect(page.getByText("Equipamento cadastrado com sucesso.")).toBeVisible();
@@ -50,10 +50,7 @@ test.describe("categorias DVR e Câmera no cadastro (perfil Operação — o pad
       const linha = page.getByRole("row", { name: new RegExp(modelo) });
       await expect(linha).toBeVisible();
       await expect(linha.getByRole("cell", { name: categoria, exact: true })).toBeVisible();
-      // O nome foi gerado pelo servidor: categoria + fabricante + modelo.
-      await expect(
-        linha.getByRole("cell", { name: `${categoria} Hikvision ${modelo}`, exact: true }),
-      ).toBeVisible();
+      await expect(linha.getByRole("cell", { name: "Hikvision", exact: true })).toBeVisible();
     });
   }
 });

@@ -7,7 +7,7 @@ import {
   criarAtorDeTeste,
   criarUsuarioDeTeste,
   idDaCategoria,
-  idDaLocalizacao,
+  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -25,31 +25,30 @@ let usuarioId: string;
 async function criarEquipamento(
   sufixo: string,
   { arquivado }: { arquivado: boolean },
-): Promise<{ id: string; nome: string }> {
+): Promise<{ id: string; modelo: string }> {
   const prisma = obterClienteDeTeste();
   const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id: usuarioId } });
   const ator = criarAtorDeTeste(usuario, "ADMINISTRACAO");
-  const nome = `${prefixo} ${sufixo}`;
+  const modelo = `${prefixo} ${sufixo}`;
   const equipamento = await cadastrarEquipamento(prisma, ator, {
     categoriaId: await idDaCategoria(prisma, "Notebook"),
-    nome,
     fabricanteId: await idDoFabricante(prisma, "Dell"),
-    modelo: "Modelo",
+    modelo,
     numeroSerie: `${prefixo}-${sufixo}`,
     codigoTrillogo: null,
     statusId: await idDoStatus(prisma, "Em manutenção"),
-    localizacaoId: await idDaLocalizacao(prisma, "15º andar"),
+    andarId: await idDoAndar(prisma, "15º andar"),
     observacoes: null,
   });
   equipamentosCriados.push(equipamento.id);
   if (arquivado) {
     await arquivarEquipamento(prisma, ator, equipamento.id, { versao: equipamento.versao });
   }
-  return { id: equipamento.id, nome };
+  return { id: equipamento.id, modelo };
 }
 
-const linhaDe = (page: import("@playwright/test").Page, nome: string) =>
-  page.getByRole("row", { name: new RegExp(nome) });
+const linhaDe = (page: import("@playwright/test").Page, modelo: string) =>
+  page.getByRole("row", { name: new RegExp(modelo) });
 
 test.beforeAll(async () => {
   const prisma = obterClienteDeTeste();
@@ -69,11 +68,11 @@ test.describe("tela de arquivados (perfil Administração)", () => {
   test.use({ extraHTTPHeaders: { [CABECALHO_DE_PERFIL_DE_TESTE]: "ADMINISTRACAO" } });
 
   test("mostra o arquivado com status, data e quem arquivou, e restaura", async ({ page }) => {
-    const { id, nome } = await criarEquipamento("restaurar", { arquivado: true });
+    const { id, modelo } = await criarEquipamento("restaurar", { arquivado: true });
     const prisma = obterClienteDeTeste();
 
-    await page.goto(`/equipamentos/arquivados?busca=${encodeURIComponent(nome)}`);
-    const linha = linhaDe(page, nome);
+    await page.goto(`/equipamentos/arquivados?busca=${encodeURIComponent(modelo)}`);
+    const linha = linhaDe(page, modelo);
     await expect(linha).toBeVisible();
     await expect(linha.locator('[data-cor="amarelo"]')).toHaveText("Em manutenção");
     await expect(linha).toContainText(/\d{2}\/\d{2}\/\d{4}/);
@@ -86,7 +85,7 @@ test.describe("tela de arquivados (perfil Administração)", () => {
     );
     await expect(page).toHaveURL(new RegExp(`restaurado=${id}`));
     await expect(page).toHaveURL(/busca=/);
-    await expect(linhaDe(page, nome)).toHaveCount(0);
+    await expect(linhaDe(page, modelo)).toHaveCount(0);
 
     expect((await prisma.equipamento.findUniqueOrThrow({ where: { id } })).arquivadoEm).toBeNull();
     const historico = await prisma.registroAuditoria.findMany({
@@ -95,20 +94,22 @@ test.describe("tela de arquivados (perfil Administração)", () => {
     expect(historico).toHaveLength(1);
 
     // Voltou para a lista principal.
-    await page.goto(`/equipamentos?busca=${encodeURIComponent(nome)}`);
-    await expect(linhaDe(page, nome)).toBeVisible();
+    await page.goto(`/equipamentos?busca=${encodeURIComponent(modelo)}`);
+    await expect(linhaDe(page, modelo)).toBeVisible();
   });
 
   test("fluxo completo: arquiva pela lixeira, vê em arquivados e restaura", async ({ page }) => {
-    const { nome } = await criarEquipamento("fluxo", { arquivado: false });
+    const { modelo } = await criarEquipamento("fluxo", { arquivado: false });
 
-    await page.goto(`/equipamentos?busca=${encodeURIComponent(nome)}`);
-    await page.getByRole("button", { name: `Arquivar o equipamento ${nome}` }).click();
+    await page.goto(`/equipamentos?busca=${encodeURIComponent(modelo)}`);
+    await page
+      .getByRole("button", { name: `Arquivar o equipamento Notebook Dell ${modelo}` })
+      .click();
     await page
       .getByRole("dialog", { name: "Tem certeza?" })
       .getByRole("button", { name: "Sim" })
       .click();
-    await expect(linhaDe(page, nome)).toHaveCount(0);
+    await expect(linhaDe(page, modelo)).toHaveCount(0);
 
     await page
       .getByRole("main")
@@ -116,17 +117,17 @@ test.describe("tela de arquivados (perfil Administração)", () => {
       .getByRole("link", { name: "Ver arquivados" })
       .click();
     await expect(page).toHaveURL(/\/equipamentos\/arquivados/);
-    await page.getByLabel("Buscar").fill(nome);
+    await page.getByLabel("Buscar").fill(modelo);
     await page.getByRole("button", { name: "Buscar" }).click();
-    await expect(linhaDe(page, nome)).toBeVisible();
+    await expect(linhaDe(page, modelo)).toBeVisible();
 
-    await linhaDe(page, nome)
+    await linhaDe(page, modelo)
       .getByRole("button", { name: /^Restaurar/ })
       .click();
     await expect(page.getByRole("main").getByRole("status")).toContainText(
       "Equipamento restaurado",
     );
-    await expect(linhaDe(page, nome)).toHaveCount(0);
+    await expect(linhaDe(page, modelo)).toHaveCount(0);
   });
 
   test("a lista principal tem o atalho para os arquivados", async ({ page }) => {
@@ -143,19 +144,19 @@ test.describe("tela de arquivados (perfil Administração)", () => {
   });
 
   test("se outra pessoa alterou o equipamento antes, recusa e explica", async ({ page }) => {
-    const { id, nome } = await criarEquipamento("conflito", { arquivado: true });
+    const { id, modelo } = await criarEquipamento("conflito", { arquivado: true });
     const prisma = obterClienteDeTeste();
 
-    await page.goto(`/equipamentos/arquivados?busca=${encodeURIComponent(nome)}`);
+    await page.goto(`/equipamentos/arquivados?busca=${encodeURIComponent(modelo)}`);
     await prisma.equipamento.update({ where: { id }, data: { versao: { increment: 1 } } });
-    await linhaDe(page, nome)
+    await linhaDe(page, modelo)
       .getByRole("button", { name: /^Restaurar/ })
       .click();
 
     await expect(page.getByRole("main").getByRole("alert")).toContainText(
       "alterado por outra pessoa",
     );
-    await expect(linhaDe(page, nome)).toBeVisible();
+    await expect(linhaDe(page, modelo)).toBeVisible();
     expect(
       (await prisma.equipamento.findUniqueOrThrow({ where: { id } })).arquivadoEm,
     ).not.toBeNull();
@@ -169,9 +170,9 @@ test.describe("tela de arquivados (perfil Administração)", () => {
   });
 
   test("a tela não tem violação WCAG A/AA", async ({ page }) => {
-    const { nome } = await criarEquipamento("a11y", { arquivado: true });
-    await page.goto(`/equipamentos/arquivados?busca=${encodeURIComponent(nome)}`);
-    await expect(linhaDe(page, nome)).toBeVisible();
+    const { modelo } = await criarEquipamento("a11y", { arquivado: true });
+    await page.goto(`/equipamentos/arquivados?busca=${encodeURIComponent(modelo)}`);
+    await expect(linhaDe(page, modelo)).toBeVisible();
 
     const resultado = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

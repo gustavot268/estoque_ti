@@ -1,6 +1,7 @@
 /**
  * Repositório das listas controladas (Categoria, Fabricante, StatusFuncionamento,
- * Localizacao) — acesso a dado puro, sem regra de negócio.
+ * Andar, LocalArmazenamento, Orientacao e, dos materiais, CategoriaMaterial e
+ * UnidadeMedida) — acesso a dado puro, sem regra de negócio.
  *
  * Recebe o cliente Prisma como parâmetro em vez de usar um singleton interno,
  * para que tanto o singleton da aplicação (`obterPrisma()`) quanto o cliente
@@ -8,7 +9,16 @@
  * mesmas funções.
  */
 
-import type { Categoria, Fabricante, Localizacao, StatusFuncionamento } from "@prisma/client";
+import type {
+  Andar,
+  Categoria,
+  CategoriaMaterial,
+  Fabricante,
+  LocalArmazenamento,
+  Orientacao,
+  StatusFuncionamento,
+  UnidadeMedida,
+} from "@prisma/client";
 import type { ClientePrisma } from "../prisma/criar-cliente";
 
 const ORDEM_DE_EXIBICAO = [{ ordemExibicao: "asc" as const }, { nome: "asc" as const }];
@@ -77,13 +87,63 @@ export async function obterStatusFuncionamentoPorId(
   return prisma.statusFuncionamento.findUnique({ where: { id } });
 }
 
-export async function listarLocalizacoesAtivas(prisma: ClientePrisma): Promise<Localizacao[]> {
-  return prisma.localizacao.findMany({ where: { ativo: true }, orderBy: ORDEM_DE_EXIBICAO });
+export async function listarAndaresAtivos(prisma: ClientePrisma): Promise<Andar[]> {
+  return prisma.andar.findMany({ where: { ativo: true }, orderBy: ORDEM_DE_EXIBICAO });
 }
 
-export async function obterLocalizacaoPorId(
+export async function obterAndarPorId(prisma: ClientePrisma, id: string): Promise<Andar | null> {
+  return prisma.andar.findUnique({ where: { id } });
+}
+
+export async function listarLocaisDeArmazenamentoAtivos(
+  prisma: ClientePrisma,
+): Promise<LocalArmazenamento[]> {
+  return prisma.localArmazenamento.findMany({
+    where: { ativo: true },
+    orderBy: ORDEM_DE_EXIBICAO,
+  });
+}
+
+export async function obterLocalDeArmazenamentoPorId(
   prisma: ClientePrisma,
   id: string,
-): Promise<Localizacao | null> {
-  return prisma.localizacao.findUnique({ where: { id } });
+): Promise<LocalArmazenamento | null> {
+  return prisma.localArmazenamento.findUnique({ where: { id } });
+}
+
+export async function listarOrientacoesAtivas(prisma: ClientePrisma): Promise<Orientacao[]> {
+  return prisma.orientacao.findMany({ where: { ativo: true }, orderBy: ORDEM_DE_EXIBICAO });
+}
+
+export async function obterOrientacaoPorId(
+  prisma: ClientePrisma,
+  id: string,
+): Promise<Orientacao | null> {
+  return prisma.orientacao.findUnique({ where: { id } });
+}
+
+export async function listarCategoriasDeMaterialAtivas(
+  prisma: ClientePrisma,
+): Promise<CategoriaMaterial[]> {
+  return prisma.categoriaMaterial.findMany({ where: { ativo: true }, orderBy: ORDEM_DE_EXIBICAO });
+}
+
+export async function obterCategoriaDeMaterialPorId(
+  prisma: ClientePrisma,
+  id: string,
+): Promise<CategoriaMaterial | null> {
+  return prisma.categoriaMaterial.findUnique({ where: { id } });
+}
+
+export async function listarUnidadesDeMedidaAtivas(
+  prisma: ClientePrisma,
+): Promise<UnidadeMedida[]> {
+  return prisma.unidadeMedida.findMany({ where: { ativo: true }, orderBy: ORDEM_DE_EXIBICAO });
+}
+
+export async function obterUnidadeDeMedidaPorId(
+  prisma: ClientePrisma,
+  id: string,
+): Promise<UnidadeMedida | null> {
+  return prisma.unidadeMedida.findUnique({ where: { id } });
 }

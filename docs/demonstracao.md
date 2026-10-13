@@ -7,8 +7,9 @@ produção.
 ## O que a demonstração mostra
 
 - Página inicial com dois botões: **Cadastrar** e **Ver estoque**.
-- Cadastro de equipamento pelo formulário (sem campo Nome: o nome é gerado como
-  "Categoria Fabricante Modelo"; com foto opcional e botão **Home** para voltar à página
+- Cadastro de equipamento pelo formulário (sem campo Nome: o título exibido é
+  "Categoria Fabricante Modelo"; localização em Andar, Local de armazenamento e
+  Orientação, com só o Andar na lista; com foto opcional e botão **Home** para voltar à página
   inicial, que avisa antes de sair se houver dados digitados), consulta, pesquisa,
   filtros, detalhes e histórico de alterações.
 - Edição de equipamento.
@@ -16,7 +17,12 @@ produção.
   (amarelo) e Não testado (cinza). Um status criado depois na gestão de listas aparece
   com visual neutro.
 - **Lixeira** em cada linha da lista, com a confirmação "Tem certeza?" (Sim / Não).
-- Exportação para Excel (`.xlsx`), respeitando a pesquisa e os filtros da tela.
+- Duas abas na moldura verde, na lista e no cadastro: **Inventário de Ativos de TI**
+  (equipamentos) e **Materiais de TI** (cabos, conectores e outros itens sem etiqueta,
+  controlados por quantidade, com aviso de estoque mínimo). O código Trillogo aparece num
+  selo lilás.
+- Exportação para Excel (`.xlsx`) com as duas abas na mesma planilha; a aba de onde se
+  exportou respeita a pesquisa e os filtros da tela.
 
 ### A lixeira arquiva, não apaga
 

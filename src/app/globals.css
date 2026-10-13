@@ -17,6 +17,26 @@
     monospace;
 }
 
+/*
+ * Cores próprias do estoque, iguais nos temas claro e escuro.
+ *
+ * - Moldura verde das abas "Inventário de Ativos de TI" / "Materiais de TI".
+ * - Selo lilás do código Trillogo. O texto é um roxo bem escuro, e não o roxo
+ *   médio do desenho original: sobre o lilás, este dá contraste 5,4:1 (o mínimo
+ *   WCAG AA para texto pequeno é 4,5:1; o roxo médio dava 2,5:1).
+ */
+:root {
+  --moldura: #86b499;
+  --trillogo: #ba71c9;
+  --trillogo-texto: #2a0633;
+}
+
+@theme inline {
+  --color-moldura: var(--moldura);
+  --color-trillogo: var(--trillogo);
+  --color-trillogo-texto: var(--trillogo-texto);
+}
+
 /* Foco sempre visível (acessibilidade: navegação por teclado). */
 :focus-visible {
   outline: 2px solid currentColor;
@@ -25,4 +45,37 @@
 
 body {
   font-family: var(--font-sans);
+}
+
+/*
+ * Aba ativa da moldura (src/components/moldura-de-abas.tsx): uma curva côncava
+ * no pé, do lado de dentro, faz a aba "escorrer" para a moldura, como uma pasta
+ * de arquivo. O quadradinho é verde fora de um círculo de raio `--raio`.
+ */
+.aba-da-moldura-ativa::after {
+  --raio: 1.5rem;
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: var(--raio);
+  height: var(--raio);
+  pointer-events: none;
+}
+
+.aba-da-moldura-ativa[data-lado="esquerda"]::after {
+  left: 100%;
+  background: radial-gradient(
+    circle at 100% 0,
+    transparent var(--raio),
+    var(--moldura) calc(var(--raio) + 0.5px)
+  );
+}
+
+.aba-da-moldura-ativa[data-lado="direita"]::after {
+  right: 100%;
+  background: radial-gradient(
+    circle at 0 0,
+    transparent var(--raio),
+    var(--moldura) calc(var(--raio) + 0.5px)
+  );
 }

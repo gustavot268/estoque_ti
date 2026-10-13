@@ -1,6 +1,7 @@
 /**
  * Apoio das Server Actions que voltam para uma lista com o resultado da
- * operação (lixeira da lista e restauração na tela de arquivados).
+ * operação (lixeira da lista e restauração na tela de arquivados), usado por
+ * equipamentos e por materiais.
  *
  * Fica fora dos arquivos `"use server"` porque estes só podem exportar ações.
  * O resultado viaja na URL sempre como um código curto de uma lista fixa (ou
@@ -12,8 +13,8 @@ import {
   ConflitoDeVersaoError,
   OperacaoNaoPermitidaError,
   RegistroNaoEncontradoError,
-} from "../../domain/erros";
-import { logger } from "../../infrastructure/observability/logger";
+} from "../domain/erros";
+import { logger } from "../infrastructure/observability/logger";
 
 /**
  * Monta o endereço de volta. Só aceita um retorno que seja a própria rota

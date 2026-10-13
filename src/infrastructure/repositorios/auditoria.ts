@@ -14,6 +14,8 @@ import type { ClientePrisma } from "../prisma/criar-cliente";
 
 export type DadosParaRegistrarAuditoria = {
   readonly equipamentoId?: string | null;
+  /** Ações sobre um material. Nunca junto com `equipamentoId` (restrição no banco). */
+  readonly materialId?: string | null;
   readonly tipoAcao: TipoAcaoAuditoria;
   /** Apenas campos de negócio relevantes — nunca token, cookie ou segredo. */
   readonly dadosAnteriores?: Prisma.InputJsonValue | null;
@@ -30,6 +32,7 @@ export async function registrar(prisma: ClientePrisma, dados: DadosParaRegistrar
   return prisma.registroAuditoria.create({
     data: {
       equipamentoId: dados.equipamentoId ?? null,
+      materialId: dados.materialId ?? null,
       tipoAcao: dados.tipoAcao,
       dadosAnteriores: dados.dadosAnteriores ?? undefined,
       dadosPosteriores: dados.dadosPosteriores ?? undefined,
@@ -46,6 +49,14 @@ export async function registrar(prisma: ClientePrisma, dados: DadosParaRegistrar
 export async function listarPorEquipamento(prisma: ClientePrisma, equipamentoId: string) {
   return prisma.registroAuditoria.findMany({
     where: { equipamentoId },
+    orderBy: { ocorridoEm: "desc" },
+  });
+}
+
+/** Histórico de um material, mais recente primeiro — usado na tela de detalhes. */
+export async function listarPorMaterial(prisma: ClientePrisma, materialId: string) {
+  return prisma.registroAuditoria.findMany({
+    where: { materialId },
     orderBy: { ocorridoEm: "desc" },
   });
 }

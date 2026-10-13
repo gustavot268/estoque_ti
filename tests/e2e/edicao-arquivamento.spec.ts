@@ -6,7 +6,7 @@ import {
   criarAtorDeTeste,
   criarUsuarioDeTeste,
   idDaCategoria,
-  idDaLocalizacao,
+  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -29,13 +29,12 @@ test.describe("edição, arquivamento e restauração de equipamento (perfil Adm
 
     const equipamento = await cadastrarEquipamento(prisma, ator, {
       categoriaId: await idDaCategoria(prisma, "Notebook"),
-      nome: `${prefixo} Original`,
       fabricanteId: await idDoFabricante(prisma, "Dell"),
       modelo: "Modelo original",
       numeroSerie: `${prefixo}-sn`,
       codigoTrillogo: null,
       statusId: await idDoStatus(prisma, "Operacional"),
-      localizacaoId: await idDaLocalizacao(prisma, "15º andar"),
+      andarId: await idDoAndar(prisma, "15º andar"),
       observacoes: null,
     });
     equipamentoId = equipamento.id;
@@ -57,7 +56,7 @@ test.describe("edição, arquivamento e restauração de equipamento (perfil Adm
 
     await expect(page).toHaveURL(`/equipamentos/${equipamentoId}?atualizado=1`);
     await expect(page.getByText("Alterações salvas com sucesso.")).toBeVisible();
-    await expect(page.getByText("Modelo editado pelo teste e2e")).toBeVisible();
+    await expect(page.getByText("Modelo editado pelo teste e2e", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Arquivar" }).click();
     await expect(page).toHaveURL(`/equipamentos/${equipamentoId}?arquivado=1`);

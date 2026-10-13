@@ -1,6 +1,8 @@
 /**
  * Seed idempotente das listas controladas (regra 4.3 dos requisitos do
- * cliente): Categoria, Fabricante, StatusFuncionamento, Localizacao.
+ * cliente): Categoria, Fabricante, StatusFuncionamento, Andar, LocalArmazenamento,
+ * Orientacao e, dos
+ * materiais, CategoriaMaterial e UnidadeMedida.
  *
  * Idempotência: `upsert` por `nomeNormalizado`, com `update: {}` — executar de
  * novo NÃO duplica registros e NÃO sobrescreve edições que um Administrador já
@@ -44,13 +46,42 @@ export const STATUS_FUNCIONAMENTO_SEMENTE = [
   "Não testado",
 ] as const;
 
-export const LOCALIZACOES_SEMENTE = ["15º andar", "16º andar"] as const;
+export const ANDARES_SEMENTE = ["15º andar", "16º andar"] as const;
+
+/** Tirados das observações já cadastradas ("no primeiro armário… na prateleira de cima"). */
+export const LOCAIS_DE_ARMAZENAMENTO_SEMENTE = ["1º armário"] as const;
+
+export const ORIENTACOES_SEMENTE = ["Prateleira de cima", "Prateleira de baixo"] as const;
+
+/** Ponto de partida para os materiais; a Administração ajusta em "Gerenciar listas". */
+export const CATEGORIAS_DE_MATERIAL_SEMENTE = [
+  "Cabo",
+  "Conector",
+  "Adaptador",
+  "Periférico",
+  "Peça de reposição",
+  "Suprimento",
+] as const;
+
+export const UNIDADES_DE_MEDIDA_SEMENTE = [
+  "Unidade",
+  "Metro",
+  "Caixa",
+  "Pacote",
+  "Rolo",
+  "Par",
+  "Kit",
+] as const;
 
 export type ResumoDoSeed = {
   readonly categorias: number;
   readonly fabricantes: number;
   readonly statusFuncionamento: number;
-  readonly localizacoes: number;
+  readonly andares: number;
+  readonly locaisDeArmazenamento: number;
+  readonly orientacoes: number;
+  readonly categoriasDeMaterial: number;
+  readonly unidadesDeMedida: number;
 };
 
 async function semearCategorias(prisma: ClientePrisma): Promise<number> {
@@ -89,16 +120,64 @@ async function semearStatusFuncionamento(prisma: ClientePrisma): Promise<number>
   return STATUS_FUNCIONAMENTO_SEMENTE.length;
 }
 
-async function semearLocalizacoes(prisma: ClientePrisma): Promise<number> {
-  for (const [indice, nomeSemente] of LOCALIZACOES_SEMENTE.entries()) {
+async function semearAndares(prisma: ClientePrisma): Promise<number> {
+  for (const [indice, nomeSemente] of ANDARES_SEMENTE.entries()) {
     const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
-    await prisma.localizacao.upsert({
+    await prisma.andar.upsert({
       where: { nomeNormalizado: normalizado },
       update: {},
       create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
     });
   }
-  return LOCALIZACOES_SEMENTE.length;
+  return ANDARES_SEMENTE.length;
+}
+
+async function semearLocaisDeArmazenamento(prisma: ClientePrisma): Promise<number> {
+  for (const [indice, nomeSemente] of LOCAIS_DE_ARMAZENAMENTO_SEMENTE.entries()) {
+    const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
+    await prisma.localArmazenamento.upsert({
+      where: { nomeNormalizado: normalizado },
+      update: {},
+      create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
+    });
+  }
+  return LOCAIS_DE_ARMAZENAMENTO_SEMENTE.length;
+}
+
+async function semearOrientacoes(prisma: ClientePrisma): Promise<number> {
+  for (const [indice, nomeSemente] of ORIENTACOES_SEMENTE.entries()) {
+    const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
+    await prisma.orientacao.upsert({
+      where: { nomeNormalizado: normalizado },
+      update: {},
+      create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
+    });
+  }
+  return ORIENTACOES_SEMENTE.length;
+}
+
+async function semearCategoriasDeMaterial(prisma: ClientePrisma): Promise<number> {
+  for (const [indice, nomeSemente] of CATEGORIAS_DE_MATERIAL_SEMENTE.entries()) {
+    const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
+    await prisma.categoriaMaterial.upsert({
+      where: { nomeNormalizado: normalizado },
+      update: {},
+      create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
+    });
+  }
+  return CATEGORIAS_DE_MATERIAL_SEMENTE.length;
+}
+
+async function semearUnidadesDeMedida(prisma: ClientePrisma): Promise<number> {
+  for (const [indice, nomeSemente] of UNIDADES_DE_MEDIDA_SEMENTE.entries()) {
+    const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
+    await prisma.unidadeMedida.upsert({
+      where: { nomeNormalizado: normalizado },
+      update: {},
+      create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
+    });
+  }
+  return UNIDADES_DE_MEDIDA_SEMENTE.length;
 }
 
 export async function executarSeed(prisma: ClientePrisma): Promise<ResumoDoSeed> {
@@ -106,7 +185,11 @@ export async function executarSeed(prisma: ClientePrisma): Promise<ResumoDoSeed>
     categorias: await semearCategorias(prisma),
     fabricantes: await semearFabricantes(prisma),
     statusFuncionamento: await semearStatusFuncionamento(prisma),
-    localizacoes: await semearLocalizacoes(prisma),
+    andares: await semearAndares(prisma),
+    locaisDeArmazenamento: await semearLocaisDeArmazenamento(prisma),
+    orientacoes: await semearOrientacoes(prisma),
+    categoriasDeMaterial: await semearCategoriasDeMaterial(prisma),
+    unidadesDeMedida: await semearUnidadesDeMedida(prisma),
   };
 }
 
@@ -153,7 +236,10 @@ async function main(): Promise<void> {
     const resumo = await executarSeed(prisma);
     console.log(
       `[seed] concluído — categorias: ${resumo.categorias}, fabricantes: ${resumo.fabricantes}, ` +
-        `status: ${resumo.statusFuncionamento}, localizações: ${resumo.localizacoes}`,
+        `status: ${resumo.statusFuncionamento}, andares: ${resumo.andares}, ` +
+        `locais de armazenamento: ${resumo.locaisDeArmazenamento}, orientações: ${resumo.orientacoes}, ` +
+        `categorias de material: ${resumo.categoriasDeMaterial}, ` +
+        `unidades de medida: ${resumo.unidadesDeMedida}`,
     );
   } finally {
     await prisma.$disconnect();

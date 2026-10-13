@@ -10,7 +10,7 @@ import {
   restaurarEquipamento,
 } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -24,30 +24,30 @@ describe("equipamentos arquivados (tela de arquivados)", () => {
   let atorConsulta: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let localizacaoId: string;
+  let andarId: string;
   let fabricanteId: string;
 
-  async function criar(sufixo: string): Promise<{ id: string; nome: string; versao: number }> {
-    const nome = `${prefixo} ${sufixo}`;
+  // O modelo carrega o prefixo: é por ele que os testes encontram os seus equipamentos.
+  async function criar(sufixo: string): Promise<{ id: string; modelo: string; versao: number }> {
+    const modelo = `${prefixo} ${sufixo}`;
     const equipamento = await cadastrarEquipamento(prisma, atorAdministracao, {
       categoriaId,
-      nome,
       fabricanteId,
-      modelo: "Modelo",
+      modelo,
       numeroSerie: `${prefixo}-${sufixo}`,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
       observacoes: null,
     });
     equipamentosCriados.push(equipamento.id);
-    return { id: equipamento.id, nome, versao: equipamento.versao };
+    return { id: equipamento.id, modelo, versao: equipamento.versao };
   }
 
   async function arquivar(sufixo: string) {
-    const { id, nome, versao } = await criar(sufixo);
+    const { id, modelo, versao } = await criar(sufixo);
     await arquivarEquipamento(prisma, atorAdministracao, id, { versao });
-    return { id, nome };
+    return { id, modelo };
   }
 
   beforeAll(async () => {
@@ -61,7 +61,7 @@ describe("equipamentos arquivados (tela de arquivados)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    andarId = await idDoAndar(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -93,14 +93,14 @@ describe("equipamentos arquivados (tela de arquivados)", () => {
     const arquivados = await listarEquipamentosArquivados(prisma, atorAdministracao, {
       busca: prefixo,
     });
-    const nomesArquivados = arquivados.itens.map((item) => item.nome);
-    expect(nomesArquivados).toContain(arquivado.nome);
-    expect(nomesArquivados).not.toContain(ativo.nome);
+    const modelosArquivados = arquivados.itens.map((item) => item.modelo);
+    expect(modelosArquivados).toContain(arquivado.modelo);
+    expect(modelosArquivados).not.toContain(ativo.modelo);
 
     const principal = await listarEquipamentos(prisma, atorAdministracao, { busca: prefixo });
-    const nomesPrincipais = principal.itens.map((item) => item.nome);
-    expect(nomesPrincipais).toContain(ativo.nome);
-    expect(nomesPrincipais).not.toContain(arquivado.nome);
+    const modelosPrincipais = principal.itens.map((item) => item.modelo);
+    expect(modelosPrincipais).toContain(ativo.modelo);
+    expect(modelosPrincipais).not.toContain(arquivado.modelo);
   });
 
   it("traz quando e por quem foi arquivado, e a versão necessária para restaurar", async () => {
@@ -126,23 +126,23 @@ describe("equipamentos arquivados (tela de arquivados)", () => {
     const { itens } = await listarEquipamentosArquivados(prisma, atorAdministracao, {
       busca: `${prefixo} ordem`,
     });
-    expect(itens.map((item) => item.nome)).toEqual([segundo.nome, primeiro.nome]);
+    expect(itens.map((item) => item.modelo)).toEqual([segundo.modelo, primeiro.modelo]);
   });
 
   it("restaurar tira o equipamento dos arquivados e o devolve à consulta principal", async () => {
-    const { id, nome } = await arquivar("restaurar");
+    const { id, modelo } = await arquivar("restaurar");
     const { itens } = await listarEquipamentosArquivados(prisma, atorAdministracao, {
-      busca: nome,
+      busca: modelo,
     });
     const versao = itens[0]?.versao ?? 0;
 
     await restaurarEquipamento(prisma, atorAdministracao, id, { versao });
 
     const depoisArquivados = await listarEquipamentosArquivados(prisma, atorAdministracao, {
-      busca: nome,
+      busca: modelo,
     });
     expect(depoisArquivados.itens).toHaveLength(0);
-    const principal = await listarEquipamentos(prisma, atorAdministracao, { busca: nome });
+    const principal = await listarEquipamentos(prisma, atorAdministracao, { busca: modelo });
     expect(principal.itens.map((item) => item.id)).toContain(id);
   });
 

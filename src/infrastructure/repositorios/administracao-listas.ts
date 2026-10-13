@@ -1,6 +1,7 @@
 /**
  * Repositório de administração das listas controladas (Categoria, Fabricante,
- * StatusFuncionamento, Localizacao) — Etapa 7, requisito de "gestão de
+ * StatusFuncionamento, Andar, LocalArmazenamento, Orientacao e, dos materiais,
+ * CategoriaMaterial e UnidadeMedida) — Etapa 7, requisito de "gestão de
  * listas" restrita ao perfil Administração.
  *
  * Distinto de `listas-controladas.ts` (que só lista os valores ATIVOS, para
@@ -14,7 +15,16 @@
 
 import type { ClientePrisma } from "../prisma/criar-cliente";
 
-export const TIPOS_DE_LISTA = ["categoria", "fabricante", "status", "localizacao"] as const;
+export const TIPOS_DE_LISTA = [
+  "categoria",
+  "fabricante",
+  "status",
+  "andar",
+  "local-armazenamento",
+  "orientacao",
+  "categoria-material",
+  "unidade-medida",
+] as const;
 export type TipoDeLista = (typeof TIPOS_DE_LISTA)[number];
 
 export type ValorDeLista = {
@@ -55,23 +65,46 @@ export async function listarTodos(
   prisma: ClientePrisma,
   tipo: TipoDeLista,
 ): Promise<ValorDeLista[]> {
+  const consulta = { orderBy: ORDEM_DE_EXIBICAO };
   switch (tipo) {
-    case "categoria": {
-      const itens = await prisma.categoria.findMany({ orderBy: ORDEM_DE_EXIBICAO });
-      return itens.map(normalizar);
-    }
-    case "fabricante": {
-      const itens = await prisma.fabricante.findMany({ orderBy: ORDEM_DE_EXIBICAO });
-      return itens.map(normalizar);
-    }
-    case "status": {
-      const itens = await prisma.statusFuncionamento.findMany({ orderBy: ORDEM_DE_EXIBICAO });
-      return itens.map(normalizar);
-    }
-    case "localizacao": {
-      const itens = await prisma.localizacao.findMany({ orderBy: ORDEM_DE_EXIBICAO });
-      return itens.map(normalizar);
-    }
+    case "categoria":
+      return (await prisma.categoria.findMany(consulta)).map(normalizar);
+    case "fabricante":
+      return (await prisma.fabricante.findMany(consulta)).map(normalizar);
+    case "status":
+      return (await prisma.statusFuncionamento.findMany(consulta)).map(normalizar);
+    case "andar":
+      return (await prisma.andar.findMany(consulta)).map(normalizar);
+    case "local-armazenamento":
+      return (await prisma.localArmazenamento.findMany(consulta)).map(normalizar);
+    case "orientacao":
+      return (await prisma.orientacao.findMany(consulta)).map(normalizar);
+    case "categoria-material":
+      return (await prisma.categoriaMaterial.findMany(consulta)).map(normalizar);
+    case "unidade-medida":
+      return (await prisma.unidadeMedida.findMany(consulta)).map(normalizar);
+  }
+}
+
+async function buscarPorId(prisma: ClientePrisma, tipo: TipoDeLista, id: string) {
+  const consulta = { where: { id } };
+  switch (tipo) {
+    case "categoria":
+      return prisma.categoria.findUnique(consulta);
+    case "fabricante":
+      return prisma.fabricante.findUnique(consulta);
+    case "status":
+      return prisma.statusFuncionamento.findUnique(consulta);
+    case "andar":
+      return prisma.andar.findUnique(consulta);
+    case "local-armazenamento":
+      return prisma.localArmazenamento.findUnique(consulta);
+    case "orientacao":
+      return prisma.orientacao.findUnique(consulta);
+    case "categoria-material":
+      return prisma.categoriaMaterial.findUnique(consulta);
+    case "unidade-medida":
+      return prisma.unidadeMedida.findUnique(consulta);
   }
 }
 
@@ -80,23 +113,33 @@ export async function obterPorId(
   tipo: TipoDeLista,
   id: string,
 ): Promise<ValorDeLista | null> {
+  const item = await buscarPorId(prisma, tipo, id);
+  return item === null ? null : normalizar(item);
+}
+
+async function buscarIdPorNomeNormalizado(
+  prisma: ClientePrisma,
+  tipo: TipoDeLista,
+  nomeNormalizado: string,
+): Promise<{ id: string } | null> {
+  const consulta = { where: { nomeNormalizado }, select: { id: true } };
   switch (tipo) {
-    case "categoria": {
-      const item = await prisma.categoria.findUnique({ where: { id } });
-      return item === null ? null : normalizar(item);
-    }
-    case "fabricante": {
-      const item = await prisma.fabricante.findUnique({ where: { id } });
-      return item === null ? null : normalizar(item);
-    }
-    case "status": {
-      const item = await prisma.statusFuncionamento.findUnique({ where: { id } });
-      return item === null ? null : normalizar(item);
-    }
-    case "localizacao": {
-      const item = await prisma.localizacao.findUnique({ where: { id } });
-      return item === null ? null : normalizar(item);
-    }
+    case "categoria":
+      return prisma.categoria.findUnique(consulta);
+    case "fabricante":
+      return prisma.fabricante.findUnique(consulta);
+    case "status":
+      return prisma.statusFuncionamento.findUnique(consulta);
+    case "andar":
+      return prisma.andar.findUnique(consulta);
+    case "local-armazenamento":
+      return prisma.localArmazenamento.findUnique(consulta);
+    case "orientacao":
+      return prisma.orientacao.findUnique(consulta);
+    case "categoria-material":
+      return prisma.categoriaMaterial.findUnique(consulta);
+    case "unidade-medida":
+      return prisma.unidadeMedida.findUnique(consulta);
   }
 }
 
@@ -106,40 +149,21 @@ export async function existeNomeNormalizado(
   nomeNormalizado: string,
   ignorarId?: string,
 ): Promise<boolean> {
-  switch (tipo) {
-    case "categoria": {
-      const item = await prisma.categoria.findUnique({
-        where: { nomeNormalizado },
-        select: { id: true },
-      });
-      return item !== null && item.id !== ignorarId;
-    }
-    case "fabricante": {
-      const item = await prisma.fabricante.findUnique({
-        where: { nomeNormalizado },
-        select: { id: true },
-      });
-      return item !== null && item.id !== ignorarId;
-    }
-    case "status": {
-      const item = await prisma.statusFuncionamento.findUnique({
-        where: { nomeNormalizado },
-        select: { id: true },
-      });
-      return item !== null && item.id !== ignorarId;
-    }
-    case "localizacao": {
-      const item = await prisma.localizacao.findUnique({
-        where: { nomeNormalizado },
-        select: { id: true },
-      });
-      return item !== null && item.id !== ignorarId;
-    }
-  }
+  const item = await buscarIdPorNomeNormalizado(prisma, tipo, nomeNormalizado);
+  return item !== null && item.id !== ignorarId;
 }
 
-/** Quantos equipamentos (ativos ou arquivados) referenciam este valor — guarda de exclusão. */
-export async function contarEquipamentosVinculados(
+/** Soma os equipamentos e materiais (ativos ou arquivados) que usam o valor. */
+async function somar(...contagens: Promise<number>[]): Promise<number> {
+  return (await Promise.all(contagens)).reduce((total, parcial) => total + parcial, 0);
+}
+
+/**
+ * Quantos equipamentos e materiais (ativos ou arquivados) referenciam este
+ * valor — guarda de exclusão. Fabricante, Andar, Local de armazenamento e
+ * Orientação são compartilhados pelos dois; as demais listas pertencem a um só.
+ */
+export async function contarItensVinculados(
   prisma: ClientePrisma,
   tipo: TipoDeLista,
   id: string,
@@ -147,12 +171,32 @@ export async function contarEquipamentosVinculados(
   switch (tipo) {
     case "categoria":
       return prisma.equipamento.count({ where: { categoriaId: id } });
-    case "fabricante":
-      return prisma.equipamento.count({ where: { fabricanteId: id } });
     case "status":
       return prisma.equipamento.count({ where: { statusId: id } });
-    case "localizacao":
-      return prisma.equipamento.count({ where: { localizacaoId: id } });
+    case "fabricante":
+      return somar(
+        prisma.equipamento.count({ where: { fabricanteId: id } }),
+        prisma.material.count({ where: { fabricanteId: id } }),
+      );
+    case "andar":
+      return somar(
+        prisma.equipamento.count({ where: { andarId: id } }),
+        prisma.material.count({ where: { andarId: id } }),
+      );
+    case "local-armazenamento":
+      return somar(
+        prisma.equipamento.count({ where: { localArmazenamentoId: id } }),
+        prisma.material.count({ where: { localArmazenamentoId: id } }),
+      );
+    case "orientacao":
+      return somar(
+        prisma.equipamento.count({ where: { orientacaoId: id } }),
+        prisma.material.count({ where: { orientacaoId: id } }),
+      );
+    case "categoria-material":
+      return prisma.material.count({ where: { categoriaId: id } });
+    case "unidade-medida":
+      return prisma.material.count({ where: { unidadeMedidaId: id } });
   }
 }
 
@@ -170,8 +214,16 @@ export async function criar(
       );
     case "status":
       return normalizar(await prisma.statusFuncionamento.create({ data: dados }));
-    case "localizacao":
-      return normalizar(await prisma.localizacao.create({ data: dados }));
+    case "andar":
+      return normalizar(await prisma.andar.create({ data: dados }));
+    case "local-armazenamento":
+      return normalizar(await prisma.localArmazenamento.create({ data: dados }));
+    case "orientacao":
+      return normalizar(await prisma.orientacao.create({ data: dados }));
+    case "categoria-material":
+      return normalizar(await prisma.categoriaMaterial.create({ data: dados }));
+    case "unidade-medida":
+      return normalizar(await prisma.unidadeMedida.create({ data: dados }));
   }
 }
 
@@ -181,36 +233,55 @@ export async function atualizar(
   id: string,
   dados: DadosDeValorDeLista,
 ): Promise<ValorDeLista> {
+  const where = { id };
   switch (tipo) {
     case "categoria":
-      return normalizar(await prisma.categoria.update({ where: { id }, data: dados }));
+      return normalizar(await prisma.categoria.update({ where, data: dados }));
     case "fabricante":
       return normalizar(
-        await prisma.fabricante.update({
-          where: { id },
-          data: { ...dados, pendenteRevisao: false },
-        }),
+        await prisma.fabricante.update({ where, data: { ...dados, pendenteRevisao: false } }),
       );
     case "status":
-      return normalizar(await prisma.statusFuncionamento.update({ where: { id }, data: dados }));
-    case "localizacao":
-      return normalizar(await prisma.localizacao.update({ where: { id }, data: dados }));
+      return normalizar(await prisma.statusFuncionamento.update({ where, data: dados }));
+    case "andar":
+      return normalizar(await prisma.andar.update({ where, data: dados }));
+    case "local-armazenamento":
+      return normalizar(await prisma.localArmazenamento.update({ where, data: dados }));
+    case "orientacao":
+      return normalizar(await prisma.orientacao.update({ where, data: dados }));
+    case "categoria-material":
+      return normalizar(await prisma.categoriaMaterial.update({ where, data: dados }));
+    case "unidade-medida":
+      return normalizar(await prisma.unidadeMedida.update({ where, data: dados }));
   }
 }
 
 export async function excluir(prisma: ClientePrisma, tipo: TipoDeLista, id: string): Promise<void> {
+  const where = { id };
   switch (tipo) {
     case "categoria":
-      await prisma.categoria.delete({ where: { id } });
+      await prisma.categoria.delete({ where });
       return;
     case "fabricante":
-      await prisma.fabricante.delete({ where: { id } });
+      await prisma.fabricante.delete({ where });
       return;
     case "status":
-      await prisma.statusFuncionamento.delete({ where: { id } });
+      await prisma.statusFuncionamento.delete({ where });
       return;
-    case "localizacao":
-      await prisma.localizacao.delete({ where: { id } });
+    case "andar":
+      await prisma.andar.delete({ where });
+      return;
+    case "local-armazenamento":
+      await prisma.localArmazenamento.delete({ where });
+      return;
+    case "orientacao":
+      await prisma.orientacao.delete({ where });
+      return;
+    case "categoria-material":
+      await prisma.categoriaMaterial.delete({ where });
+      return;
+    case "unidade-medida":
+      await prisma.unidadeMedida.delete({ where });
       return;
   }
 }

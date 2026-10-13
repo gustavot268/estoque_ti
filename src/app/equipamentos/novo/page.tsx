@@ -11,6 +11,7 @@
 import type { Metadata } from "next";
 import { MensagemDeAcesso } from "../../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade } from "../../../components/mensagem-simples";
+import { MolduraDeAbas } from "../../../components/moldura-de-abas";
 import { AcessoNegadoError } from "../../../domain/erros";
 import { exigirPermissao } from "../../../domain/permissoes";
 import { FormularioCadastroDeEquipamento } from "../../../features/equipamentos/formulario-cadastro";
@@ -18,9 +19,11 @@ import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../infrastructure/prisma/cliente";
 import {
+  listarAndaresAtivos,
   listarCategoriasAtivas,
   listarFabricantesAtivos,
-  listarLocalizacoesAtivas,
+  listarLocaisDeArmazenamentoAtivos,
+  listarOrientacoesAtivas,
   listarStatusFuncionamentoAtivos,
 } from "../../../infrastructure/repositorios/listas-controladas";
 
@@ -54,35 +57,52 @@ export default async function PaginaDeCadastro() {
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
-  let localizacoes: Awaited<ReturnType<typeof listarLocalizacoesAtivas>>;
+  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
+  let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
+  let orientacoes: Awaited<ReturnType<typeof listarOrientacoesAtivas>>;
   try {
     const prisma = obterPrisma();
-    [categorias, fabricantes, statusFuncionamento, localizacoes] = await Promise.all([
-      listarCategoriasAtivas(prisma),
-      listarFabricantesAtivos(prisma),
-      listarStatusFuncionamentoAtivos(prisma),
-      listarLocalizacoesAtivas(prisma),
-    ]);
+    [categorias, fabricantes, statusFuncionamento, andares, locaisDeArmazenamento, orientacoes] =
+      await Promise.all([
+        listarCategoriasAtivas(prisma),
+        listarFabricantesAtivos(prisma),
+        listarStatusFuncionamentoAtivos(prisma),
+        listarAndaresAtivos(prisma),
+        listarLocaisDeArmazenamentoAtivos(prisma),
+        listarOrientacoesAtivas(prisma),
+      ]);
   } catch (erro) {
     logger.error("Falha ao carregar as listas controladas na tela de cadastro.", { erro });
     return <MensagemDeIndisponibilidade />;
   }
 
+  const paraOpcao = (valor: { id: string; nome: string }) => ({ id: valor.id, nome: valor.nome });
   const fabricanteOutro = fabricantes.find((fabricante) => fabricante.nomeNormalizado === "outro");
 
   return (
-    <FormularioCadastroDeEquipamento
-      categorias={categorias.map((categoria) => ({ id: categoria.id, nome: categoria.nome }))}
-      fabricantes={fabricantes.map((fabricante) => ({ id: fabricante.id, nome: fabricante.nome }))}
-      statusFuncionamento={statusFuncionamento.map((status) => ({
-        id: status.id,
-        nome: status.nome,
-      }))}
-      localizacoes={localizacoes.map((localizacao) => ({
-        id: localizacao.id,
-        nome: localizacao.nome,
-      }))}
-      fabricanteOutroId={fabricanteOutro?.id ?? null}
-    />
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8">
+      <MolduraDeAbas
+        abaAtiva="ativos"
+        destinos={{ ativos: "/equipamentos/novo", materiais: "/materiais/novo" }}
+      >
+        <FormularioCadastroDeEquipamento
+          categorias={categorias.map((categoria) => ({ id: categoria.id, nome: categoria.nome }))}
+          fabricantes={fabricantes.map((fabricante) => ({
+            id: fabricante.id,
+            nome: fabricante.nome,
+          }))}
+          statusFuncionamento={statusFuncionamento.map((status) => ({
+            id: status.id,
+            nome: status.nome,
+          }))}
+          ondeFica={{
+            andares: andares.map(paraOpcao),
+            locaisDeArmazenamento: locaisDeArmazenamento.map(paraOpcao),
+            orientacoes: orientacoes.map(paraOpcao),
+          }}
+          fabricanteOutroId={fabricanteOutro?.id ?? null}
+        />
+      </MolduraDeAbas>
+    </main>
   );
 }

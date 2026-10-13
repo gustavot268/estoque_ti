@@ -5,7 +5,7 @@ import {
   CABECALHO_DE_PERFIL_DE_TESTE,
   criarAtorDeTeste,
   criarUsuarioDeTeste,
-  idDaLocalizacao,
+  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -71,13 +71,12 @@ test.describe("gestão de listas controladas (perfil Administração)", () => {
     });
     const equipamento = await cadastrarEquipamento(prisma, ator, {
       categoriaId: categoria.id,
-      nome: `${prefixo} Equipamento vinculado`,
       fabricanteId: await idDoFabricante(prisma, "Dell"),
       modelo: "Modelo",
       numeroSerie: `${prefixo}-em-uso-sn`,
       codigoTrillogo: null,
       statusId: await idDoStatus(prisma, "Operacional"),
-      localizacaoId: await idDaLocalizacao(prisma, "15º andar"),
+      andarId: await idDoAndar(prisma, "15º andar"),
       observacoes: null,
     });
 
@@ -89,7 +88,9 @@ test.describe("gestão de listas controladas (perfil Administração)", () => {
     await linha.getByRole("button", { name: "Excluir" }).click();
 
     await expect(
-      page.getByText("Esta opção já está em uso por equipamentos e não pode ser excluída."),
+      page.getByText(
+        "Esta opção já está em uso por equipamentos ou materiais e não pode ser excluída.",
+      ),
     ).toBeVisible();
     await expect(linha).toBeVisible();
 

@@ -6,7 +6,7 @@ import {
   criarAtorDeTeste,
   criarUsuarioDeTeste,
   idDaCategoria,
-  idDaLocalizacao,
+  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -35,13 +35,12 @@ test.beforeAll(async () => {
 
   const equipamento = await cadastrarEquipamento(prisma, criarAtorDeTeste(usuario, "OPERACAO"), {
     categoriaId,
-    nome: `${prefixo} Notebook`,
     fabricanteId: await idDoFabricante(prisma, "Dell"),
     modelo: `${prefixo}-modelo`,
     numeroSerie: `${prefixo}-sn`,
     codigoTrillogo: null,
     statusId: await idDoStatus(prisma, "Operacional"),
-    localizacaoId: await idDaLocalizacao(prisma, "15º andar"),
+    andarId: await idDoAndar(prisma, "15º andar"),
     observacoes: null,
   });
   equipamentoId = equipamento.id;

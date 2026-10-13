@@ -8,7 +8,8 @@
 
 import { type CorDoStatus, corDoStatus } from "./cor-do-status";
 
-const CLASSES_POR_COR: Readonly<Record<CorDoStatus, string>> = {
+/** Também usadas pelo selo de estoque mínimo dos materiais (`./selo-de-estoque.tsx`). */
+export const CLASSES_POR_COR: Readonly<Record<CorDoStatus, string>> = {
   verde:
     "border-green-300 bg-green-100 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200",
   vermelho:

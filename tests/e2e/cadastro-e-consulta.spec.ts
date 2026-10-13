@@ -5,8 +5,8 @@ import { obterClienteDeTeste } from "./suporte";
 const prefixo = `e2e-cad-${randomUUID().slice(0, 8)}`;
 
 test.describe("cadastro e consulta de equipamento (perfil Operação — o padrão do ambiente)", () => {
-  // O formulário não pede mais o nome (o servidor o gera). O que identifica o
-  // equipamento criado pelo teste é o modelo, que começa com o prefixo.
+  // O equipamento não tem nome. O que identifica o equipamento criado pelo teste
+  // é o modelo, que começa com o prefixo.
   test.afterAll(async () => {
     const prisma = obterClienteDeTeste();
     const equipamentos = await prisma.equipamento.findMany({
@@ -20,7 +20,7 @@ test.describe("cadastro e consulta de equipamento (perfil Operação — o padr�
     }
   });
 
-  test("cadastra pelo formulário real, sem campo Nome, e o encontra na consulta com o nome gerado", async ({
+  test("cadastra pelo formulário real, sem campo Nome, e o encontra na consulta com o andar", async ({
     page,
   }) => {
     const modelo = `${prefixo}-latitude`;
@@ -34,16 +34,18 @@ test.describe("cadastro e consulta de equipamento (perfil Operação — o padr�
     await page.getByLabel("Modelo").fill(modelo);
     await page.getByLabel("Número de série").fill(`${prefixo}-sn`);
     await page.getByLabel("Status de funcionamento").selectOption({ label: "Operacional" });
-    await page.getByLabel("Localização").selectOption({ label: "15º andar" });
+    await page.getByLabel("Andar").selectOption({ label: "15º andar" });
 
     await page.getByRole("button", { name: "Cadastrar" }).click();
 
     await expect(page.getByText("Equipamento cadastrado com sucesso.")).toBeVisible();
 
     await page.goto(`/equipamentos?busca=${encodeURIComponent(prefixo)}`);
-    await expect(
-      page.getByRole("cell", { name: `Notebook Dell ${modelo}`, exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Nome" })).toHaveCount(0);
+    const linha = page.getByRole("row", { name: new RegExp(modelo) });
+    for (const celula of ["Notebook", "Dell", modelo, "15º andar"]) {
+      await expect(linha.getByRole("cell", { name: celula, exact: true })).toBeVisible();
+    }
   });
 
   test("busca por um termo sem correspondência mostra a mensagem de vazio, não uma tela quebrada", async ({

@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Lixeira de uma linha da lista de equipamentos, com janela de confirmação.
+ * Lixeira de uma linha das listas de equipamentos e de materiais, com janela
+ * de confirmação.
  *
- * "Excluir" aqui é ARQUIVAR: o equipamento sai da lista, mas o histórico de
- * auditoria é mantido e ele pode ser restaurado (o banco não permite apagar um
- * equipamento que tem histórico — ver ADR 0008). A confirmação usa o `<dialog>`
- * nativo, que já prende o foco, fecha com Esc e é lido corretamente por leitor
- * de tela. O foco inicial fica em "Não", a opção segura.
+ * "Excluir" aqui é ARQUIVAR: o item sai da lista, mas o histórico de auditoria
+ * é mantido e ele pode ser restaurado (o banco não permite apagar um item que
+ * tem histórico — ver ADR 0008). A confirmação usa o `<dialog>` nativo, que já
+ * prende o foco, fecha com Esc e é lido corretamente por leitor de tela. O
+ * foco inicial fica em "Não", a opção segura.
  */
 
 import { useId, useRef } from "react";
@@ -15,7 +16,9 @@ import { useFormStatus } from "react-dom";
 
 type Props = {
   readonly acao: (dados: FormData) => Promise<void>;
-  readonly nomeDoEquipamento: string;
+  /** Com artigo, para o rótulo do botão: "o equipamento", "o material". */
+  readonly descricaoDoItem: string;
+  readonly nomeDoItem: string;
   /** Token de concorrência otimista (ADR 0005). */
   readonly versao: number;
   /** Endereço da lista com os filtros atuais, para voltar a ela depois. */
@@ -38,7 +41,13 @@ function BotaoSim() {
   );
 }
 
-export function BotaoArquivarEquipamento({ acao, nomeDoEquipamento, versao, retorno }: Props) {
+export function BotaoArquivarDaLista({
+  acao,
+  descricaoDoItem,
+  nomeDoItem,
+  versao,
+  retorno,
+}: Props) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const botaoNao = useRef<HTMLButtonElement>(null);
   const idDoTitulo = useId();
@@ -58,7 +67,7 @@ export function BotaoArquivarEquipamento({ acao, nomeDoEquipamento, versao, reto
       <button
         type="button"
         onClick={abrir}
-        aria-label={`Arquivar o equipamento ${nomeDoEquipamento}`}
+        aria-label={`Arquivar ${descricaoDoItem} ${nomeDoItem}`}
         title="Arquivar"
         className="rounded p-2 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
       >
@@ -94,8 +103,8 @@ export function BotaoArquivarEquipamento({ acao, nomeDoEquipamento, versao, reto
             Tem certeza?
           </h2>
           <p id={idDaDescricao} className="text-sm text-zinc-700 dark:text-zinc-300">
-            Arquivar "{nomeDoEquipamento}"? Ele sai da lista, mas o histórico é mantido e ele pode
-            ser restaurado.
+            Arquivar "{nomeDoItem}"? Ele sai da lista, mas o histórico é mantido e ele pode ser
+            restaurado.
           </p>
           <div className="flex justify-end gap-2">
             <button

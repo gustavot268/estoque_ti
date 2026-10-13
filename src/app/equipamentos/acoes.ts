@@ -7,14 +7,14 @@
  * (`arquivarEquipamento`), que reverifica a permissão no servidor e aplica a
  * concorrência otimista — nada de autorização é decidido aqui. Depois da
  * operação, volta para a lista com os filtros que a pessoa estava usando e um
- * indicador de resultado na URL (ver `./destino-de-retorno.ts`).
+ * indicador de resultado na URL (ver `../destino-de-retorno.ts`).
  */
 
 import { redirect } from "next/navigation";
 import { obterAtorAtual } from "../../infrastructure/auth/ator-atual";
 import { obterPrisma } from "../../infrastructure/prisma/cliente";
 import { arquivarEquipamento } from "../../services/equipamentos";
-import { codigoDoErroDeOperacao, montarDestinoDeRetorno } from "./destino-de-retorno";
+import { codigoDoErroDeOperacao, montarDestinoDeRetorno } from "../destino-de-retorno";
 
 const ROTA_DA_LISTA = "/equipamentos";
 
@@ -24,7 +24,7 @@ const PARAMETROS_PRESERVADOS = [
   "categoriaId",
   "fabricanteId",
   "statusId",
-  "localizacaoId",
+  "andarId",
   "ordenarPor",
   "direcao",
 ] as const;

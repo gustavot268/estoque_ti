@@ -7,16 +7,16 @@ import { ExportacaoExcedeLimiteError } from "../../src/domain/erros";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { exportarEquipamentos } from "../../src/services/exportacao";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
 /** Linha 4 é o cabeçalho (título + aviso + linha em branco antes) — dados começam na linha 5. */
 const PRIMEIRA_LINHA_DE_DADOS = 5;
-const COLUNA_NOME = 4;
-const COLUNA_OBSERVACOES = 10;
-const COLUNA_CRIADO_EM = 11;
-const COLUNA_ATUALIZADO_EM = 13;
+const COLUNA_MODELO = 4;
+const COLUNA_OBSERVACOES = 11;
+const COLUNA_CRIADO_EM = 12;
+const COLUNA_ATUALIZADO_EM = 14;
 
 /**
  * O próprio `exceljs` declara uma interface `Buffer` global (`extends
@@ -27,7 +27,7 @@ const COLUNA_ATUALIZADO_EM = 13;
 async function carregarPlanilha(buffer: Buffer): Promise<ExcelJS.Worksheet | undefined> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
-  return workbook.getWorksheet("Equipamentos");
+  return workbook.getWorksheet("Inventário de Ativos de TI");
 }
 
 describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
@@ -35,7 +35,7 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
   let ator: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let localizacaoId: string;
+  let andarId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -45,13 +45,12 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
   function entrada(sobrescritas: Record<string, unknown>): Record<string, unknown> {
     return {
       categoriaId,
-      nome: "sem nome",
       fabricanteId,
       modelo: "Modelo",
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -67,7 +66,7 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    andarId = await idDoAndar(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -87,12 +86,12 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
   });
 
   it("gera uma planilha .xlsx válida com os equipamentos que casam com o filtro", async () => {
-    const nomes = [`${prefixo} A`, `${prefixo} B`, `${prefixo} C`];
-    for (const [indice, nome] of nomes.entries()) {
+    const modelos = [`${prefixo} A`, `${prefixo} B`, `${prefixo} C`];
+    for (const [indice, modelo] of modelos.entries()) {
       const equipamento = await cadastrarEquipamento(
         prisma,
         ator,
-        entrada({ nome, numeroSerie: `${prefixo}-sn-${indice}` }),
+        entrada({ modelo, numeroSerie: `${prefixo}-sn-${indice}` }),
       );
       equipamentosCriados.push(equipamento.id);
     }
@@ -107,18 +106,18 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
 
     const planilha = await carregarPlanilha(resultado.buffer);
     expect(planilha).toBeDefined();
-    const nomesLidos = new Set<string>();
+    const modelosLidos = new Set<string>();
     for (let linha = PRIMEIRA_LINHA_DE_DADOS; linha < PRIMEIRA_LINHA_DE_DADOS + 3; linha += 1) {
-      nomesLidos.add(String(planilha?.getRow(linha).getCell(COLUNA_NOME).value));
+      modelosLidos.add(String(planilha?.getRow(linha).getCell(COLUNA_MODELO).value));
     }
-    expect(nomesLidos).toEqual(new Set(nomes));
+    expect(modelosLidos).toEqual(new Set(modelos));
   });
 
   it("mostra as datas no horário de Brasília, não em UTC, e o nome do arquivo bate com a hora de geração", async () => {
     const equipamento = await cadastrarEquipamento(
       prisma,
       ator,
-      entrada({ nome: `${prefixo} data`, numeroSerie: `${prefixo}-sn-data` }),
+      entrada({ modelo: `${prefixo} data`, numeroSerie: `${prefixo}-sn-data` }),
     );
     equipamentosCriados.push(equipamento.id);
 
@@ -166,7 +165,7 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
         prisma,
         ator,
         entrada({
-          nome: `${prefixoLimite} ${indice}`,
+          modelo: `${prefixoLimite} ${indice}`,
           numeroSerie: `${prefixoLimite}-sn-${indice}`,
         }),
       );
@@ -179,13 +178,13 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
   });
 
   it("neutraliza fórmula de planilha nos campos de texto exportados (requisito 14.12)", async () => {
-    const nomePerigoso = "=SOMA(A1:A9)";
+    const modeloPerigoso = "=SOMA(A1:A9)";
     const observacoesPerigosas = "+CMD|'/c calc'!A1";
     const equipamento = await cadastrarEquipamento(
       prisma,
       ator,
       entrada({
-        nome: nomePerigoso,
+        modelo: modeloPerigoso,
         numeroSerie: `${prefixo}-formula-sn`,
         observacoes: observacoesPerigosas,
       }),
@@ -201,7 +200,7 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
 
     const planilha = await carregarPlanilha(resultado.buffer);
     const linhaDeDados = planilha?.getRow(PRIMEIRA_LINHA_DE_DADOS);
-    expect(linhaDeDados?.getCell(COLUNA_NOME).value).toBe(`'${nomePerigoso}`);
+    expect(linhaDeDados?.getCell(COLUNA_MODELO).value).toBe(`'${modeloPerigoso}`);
     expect(linhaDeDados?.getCell(COLUNA_OBSERVACOES).value).toBe(`'${observacoesPerigosas}`);
   });
 

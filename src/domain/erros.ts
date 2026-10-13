@@ -96,11 +96,13 @@ export class ValorDeListaInvalidoError extends ErroDeDominioError {
   }
 }
 
-/** Tentativa de excluir um valor de lista que já está vinculado a equipamentos. */
+/** Tentativa de excluir um valor de lista que já está vinculado a equipamentos ou materiais. */
 export class ValorDeListaEmUsoError extends ErroDeDominioError {
   override readonly codigo = "VALOR_DE_LISTA_EM_USO" as const;
 
-  constructor(mensagem = "Esta opção já está em uso por equipamentos e não pode ser excluída.") {
+  constructor(
+    mensagem = "Esta opção já está em uso por equipamentos ou materiais e não pode ser excluída.",
+  ) {
     super(mensagem);
   }
 }
@@ -125,17 +127,30 @@ export class OperacaoNaoPermitidaError extends ErroDeDominioError {
 
 /**
  * A exportação (requisito 14.12: "limitar volume máximo por exportação")
- * encontrou mais registros do que o permitido em uma única exportação.
+ * encontrou mais registros do que o permitido em uma única exportação. O
+ * limite vale para cada aba da planilha.
  */
 export class ExportacaoExcedeLimiteError extends ErroDeDominioError {
   override readonly codigo = "EXPORTACAO_EXCEDE_LIMITE" as const;
 
   readonly limite: number;
 
-  constructor(limite: number) {
+  /**
+   * `itens` diz o que passou do limite. A aba de onde a exportação foi pedida
+   * respeita os filtros da tela; a outra aba vai completa, e refinar a busca
+   * não a reduz — por isso a orientação muda.
+   */
+  constructor(
+    limite: number,
+    itens: "equipamentos" | "materiais" = "equipamentos",
+    filtrada = true,
+  ) {
     super(
-      `A exportação encontrou mais de ${limite} equipamentos com os filtros atuais. ` +
-        "Refine a busca ou os filtros para exportar um conjunto menor.",
+      filtrada
+        ? `A exportação encontrou mais de ${limite} ${itens} com os filtros atuais. ` +
+            "Refine a busca ou os filtros para exportar um conjunto menor."
+        : `A outra aba da planilha teria mais de ${limite} ${itens}, acima do limite de uma ` +
+            "exportação. Fale com o administrador do sistema para ajustar o limite.",
     );
     this.limite = limite;
   }

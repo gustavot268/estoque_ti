@@ -7,7 +7,7 @@ import {
   criarAtorDeTeste,
   criarUsuarioDeTeste,
   idDaCategoria,
-  idDaLocalizacao,
+  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -34,24 +34,23 @@ let usuarioId: string;
 async function criarEquipamento(
   sufixo: string,
   status: string,
-): Promise<{ id: string; nome: string }> {
+): Promise<{ id: string; modelo: string }> {
   const prisma = obterClienteDeTeste();
   const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id: usuarioId } });
   const ator = criarAtorDeTeste(usuario, "ADMINISTRACAO");
-  const nome = `${prefixo} ${sufixo}`;
+  const modelo = `${prefixo} ${sufixo}`;
   const equipamento = await cadastrarEquipamento(prisma, ator, {
     categoriaId: await idDaCategoria(prisma, "Notebook"),
-    nome,
     fabricanteId: await idDoFabricante(prisma, "Dell"),
-    modelo: "Modelo",
+    modelo,
     numeroSerie: `${prefixo}-${sufixo}`,
     codigoTrillogo: null,
     statusId: await idDoStatus(prisma, status),
-    localizacaoId: await idDaLocalizacao(prisma, "15º andar"),
+    andarId: await idDoAndar(prisma, "15º andar"),
     observacoes: null,
   });
   equipamentosCriados.push(equipamento.id);
-  return { id: equipamento.id, nome };
+  return { id: equipamento.id, modelo };
 }
 
 test.beforeAll(async () => {
@@ -84,11 +83,13 @@ test.describe("lixeira e selos de status (perfil Administração)", () => {
   });
 
   test("Não mantém o equipamento; Sim arquiva, avisa e preserva os filtros", async ({ page }) => {
-    const { id, nome } = await criarEquipamento("descartavel", "Não testado");
+    const { id, modelo } = await criarEquipamento("descartavel", "Não testado");
     const prisma = obterClienteDeTeste();
-    const lixeira = page.getByRole("button", { name: `Arquivar o equipamento ${nome}` });
+    const lixeira = page.getByRole("button", {
+      name: `Arquivar o equipamento Notebook Dell ${modelo}`,
+    });
 
-    await page.goto(`/equipamentos?busca=${encodeURIComponent(nome)}`);
+    await page.goto(`/equipamentos?busca=${encodeURIComponent(modelo)}`);
     await lixeira.click();
     const janela = page.getByRole("dialog", { name: "Tem certeza?" });
     await expect(janela).toBeVisible();
@@ -97,7 +98,7 @@ test.describe("lixeira e selos de status (perfil Administração)", () => {
     // "Não": a janela fecha e nada muda.
     await janela.getByRole("button", { name: "Não" }).click();
     await expect(janela).toBeHidden();
-    await expect(page.getByRole("row", { name: new RegExp(nome) })).toBeVisible();
+    await expect(page.getByRole("row", { name: new RegExp(modelo) })).toBeVisible();
     expect((await prisma.equipamento.findUniqueOrThrow({ where: { id } })).arquivadoEm).toBeNull();
 
     // Esc também cancela.
@@ -113,7 +114,7 @@ test.describe("lixeira e selos de status (perfil Administração)", () => {
     await expect(page.getByRole("main").getByRole("status")).toContainText("Equipamento arquivado");
     await expect(page).toHaveURL(new RegExp(`arquivado=${id}`));
     await expect(page).toHaveURL(/busca=/);
-    await expect(page.getByRole("row", { name: new RegExp(nome) })).toHaveCount(0);
+    await expect(page.getByRole("row", { name: new RegExp(modelo) })).toHaveCount(0);
 
     const gravado = await prisma.equipamento.findUniqueOrThrow({ where: { id } });
     expect(gravado.arquivadoEm).not.toBeNull();
@@ -128,14 +129,16 @@ test.describe("lixeira e selos de status (perfil Administração)", () => {
   });
 
   test("se outra pessoa alterou o equipamento antes, recusa e explica", async ({ page }) => {
-    const { id, nome } = await criarEquipamento("conflito", "Operacional");
+    const { id, modelo } = await criarEquipamento("conflito", "Operacional");
     const prisma = obterClienteDeTeste();
 
-    await page.goto(`/equipamentos?busca=${encodeURIComponent(nome)}`);
+    await page.goto(`/equipamentos?busca=${encodeURIComponent(modelo)}`);
     // Alteração concorrente depois que a lista foi aberta.
     await prisma.equipamento.update({ where: { id }, data: { versao: { increment: 1 } } });
 
-    await page.getByRole("button", { name: `Arquivar o equipamento ${nome}` }).click();
+    await page
+      .getByRole("button", { name: `Arquivar o equipamento Notebook Dell ${modelo}` })
+      .click();
     await page
       .getByRole("dialog", { name: "Tem certeza?" })
       .getByRole("button", { name: "Sim" })
@@ -144,7 +147,7 @@ test.describe("lixeira e selos de status (perfil Administração)", () => {
     await expect(page.getByRole("main").getByRole("alert")).toContainText(
       "alterado por outra pessoa",
     );
-    await expect(page.getByRole("row", { name: new RegExp(nome) })).toBeVisible();
+    await expect(page.getByRole("row", { name: new RegExp(modelo) })).toBeVisible();
     expect((await prisma.equipamento.findUniqueOrThrow({ where: { id } })).arquivadoEm).toBeNull();
   });
 
@@ -156,9 +159,11 @@ test.describe("lixeira e selos de status (perfil Administração)", () => {
   });
 
   test("lista e janela de confirmação abertas não têm violação WCAG A/AA", async ({ page }) => {
-    const { nome } = await criarEquipamento("a11y", "Em manutenção");
-    await page.goto(`/equipamentos?busca=${encodeURIComponent(nome)}`);
-    await page.getByRole("button", { name: `Arquivar o equipamento ${nome}` }).click();
+    const { modelo } = await criarEquipamento("a11y", "Em manutenção");
+    await page.goto(`/equipamentos?busca=${encodeURIComponent(modelo)}`);
+    await page
+      .getByRole("button", { name: `Arquivar o equipamento Notebook Dell ${modelo}` })
+      .click();
     await expect(page.getByRole("dialog", { name: "Tem certeza?" })).toBeVisible();
 
     const resultado = await new AxeBuilder({ page })
@@ -170,9 +175,9 @@ test.describe("lixeira e selos de status (perfil Administração)", () => {
 
 test.describe("perfil Operação (o padrão do ambiente)", () => {
   test("não vê a lixeira, mas vê os selos de status", async ({ page }) => {
-    const { nome } = await criarEquipamento("operacao", "Com defeito");
-    await page.goto(`/equipamentos?busca=${encodeURIComponent(nome)}`);
-    await expect(page.getByRole("row", { name: new RegExp(nome) })).toBeVisible();
+    const { modelo } = await criarEquipamento("operacao", "Com defeito");
+    await page.goto(`/equipamentos?busca=${encodeURIComponent(modelo)}`);
+    await expect(page.getByRole("row", { name: new RegExp(modelo) })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Arquivar o equipamento/ })).toHaveCount(0);
     await expect(page.locator('[data-cor="vermelho"]').first()).toBeVisible();
   });

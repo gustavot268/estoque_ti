@@ -2,12 +2,15 @@ import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
+import { cadastrarMaterial } from "../../src/services/materiais";
 import {
   CABECALHO_DE_PERFIL_DE_TESTE,
   criarAtorDeTeste,
   criarUsuarioDeTeste,
   idDaCategoria,
-  idDaLocalizacao,
+  idDaCategoriaDeMaterial,
+  idDaUnidadeDeMedida,
+  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -33,6 +36,7 @@ async function auditar(page: import("@playwright/test").Page) {
 
 test.describe("acessibilidade — telas públicas e de Operação", () => {
   let equipamentoId: string;
+  let materialId: string;
 
   test.beforeAll(async () => {
     const prisma = obterClienteDeTeste();
@@ -40,22 +44,42 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
     const ator = criarAtorDeTeste(usuario, "OPERACAO");
     const equipamento = await cadastrarEquipamento(prisma, ator, {
       categoriaId: await idDaCategoria(prisma, "Notebook"),
-      nome: `${prefixo} Notebook`,
       fabricanteId: await idDoFabricante(prisma, "Dell"),
       modelo: "Modelo",
       numeroSerie: `${prefixo}-sn`,
-      codigoTrillogo: null,
+      // Com código, para o selo lilás do Trillogo entrar na auditoria de contraste.
+      codigoTrillogo: `${prefixo}-tr`,
       statusId: await idDoStatus(prisma, "Operacional"),
-      localizacaoId: await idDaLocalizacao(prisma, "15º andar"),
+      andarId: await idDoAndar(prisma, "15º andar"),
       observacoes: null,
     });
     equipamentoId = equipamento.id;
+
+    // Abaixo do mínimo, para o selo de estoque também ser auditado.
+    const material = await cadastrarMaterial(prisma, ator, {
+      codigoTrillogo: `${prefixo}-mat`,
+      categoriaId: await idDaCategoriaDeMaterial(prisma, "Cabo"),
+      tipo: "HDMI",
+      especificacao: "2 metros",
+      fabricanteId: "",
+      fabricanteOutroNome: "",
+      unidadeMedidaId: await idDaUnidadeDeMedida(prisma, "Unidade"),
+      quantidade: "1",
+      estoqueMinimo: "5",
+      andarId: await idDoAndar(prisma, "15º andar"),
+      dataUltimaContagem: "",
+      observacoes: "",
+    });
+    materialId = material.id;
   });
 
   test.afterAll(async () => {
     const prisma = obterClienteDeTeste();
-    await prisma.registroAuditoria.deleteMany({ where: { equipamentoId } });
+    await prisma.registroAuditoria.deleteMany({
+      where: { OR: [{ equipamentoId }, { materialId }] },
+    });
     await prisma.equipamento.delete({ where: { id: equipamentoId } });
+    await prisma.material.delete({ where: { id: materialId } });
   });
 
   test("página inicial não tem violação WCAG A/AA", async ({ page }) => {
@@ -82,6 +106,28 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
     await page.goto(`/equipamentos/${equipamentoId}/editar`);
     expect(await auditar(page)).toEqual([]);
   });
+
+  test("consulta de materiais (abas, selos e tabela) não tem violação WCAG A/AA", async ({
+    page,
+  }) => {
+    await page.goto("/materiais");
+    expect(await auditar(page)).toEqual([]);
+  });
+
+  test("cadastro de material não tem violação WCAG A/AA", async ({ page }) => {
+    await page.goto("/materiais/novo");
+    expect(await auditar(page)).toEqual([]);
+  });
+
+  test("detalhes do material não têm violação WCAG A/AA", async ({ page }) => {
+    await page.goto(`/materiais/${materialId}`);
+    expect(await auditar(page)).toEqual([]);
+  });
+
+  test("edição de material não tem violação WCAG A/AA", async ({ page }) => {
+    await page.goto(`/materiais/${materialId}/editar`);
+    expect(await auditar(page)).toEqual([]);
+  });
 });
 
 test.describe("acessibilidade — telas de Administração", () => {
@@ -96,6 +142,11 @@ test.describe("acessibilidade — telas de Administração", () => {
     page,
   }) => {
     await page.goto("/administracao/listas/categoria");
+    expect(await auditar(page)).toEqual([]);
+  });
+
+  test("materiais arquivados não têm violação WCAG A/AA", async ({ page }) => {
+    await page.goto("/materiais/arquivados");
     expect(await auditar(page)).toEqual([]);
   });
 });

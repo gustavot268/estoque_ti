@@ -1,8 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import ExcelJS from "exceljs";
 
-// EXPORTAR_EQUIPAMENTOS já está disponível ao perfil padrão do ambiente (Operação).
-test.describe("exportação de equipamentos para Excel (perfil Operação)", () => {
+// A exportação já está disponível ao perfil padrão do ambiente (Operação).
+// O teste de limite de taxa fica por último: depois dele, toda exportação deste
+// usuário recebe 429 até a janela de 5 minutos passar.
+test.describe("exportação do estoque para Excel (perfil Operação)", () => {
   test("clicar em Exportar baixa um .xlsx válido", async ({ page }) => {
     await page.goto("/equipamentos");
 
@@ -19,6 +22,24 @@ test.describe("exportação de equipamentos para Excel (perfil Operação)", () 
     // navegador recebeu um arquivo de verdade, não uma página de erro.
     const bytes = await readFile(caminho as string);
     expect(bytes.subarray(0, 2).toString("latin1")).toBe("PK");
+  });
+
+  test("pela aba de materiais, baixa a mesma planilha, com as duas abas", async ({ page }) => {
+    await page.goto("/materiais");
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("link", { name: "Exportar" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^estoque-ti-materiais-\d{8}-\d{6}\.xlsx$/);
+
+    const workbook = new ExcelJS.Workbook();
+    const bytes = await readFile((await download.path()) as string);
+    await workbook.xlsx.load(bytes as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+    expect(workbook.worksheets.map((aba) => aba.name)).toEqual([
+      "Inventário de Ativos de TI",
+      "Materiais de TI",
+    ]);
   });
 
   test("limita a taxa de exportações repetidas do mesmo usuário (requisito 14.10)", async ({

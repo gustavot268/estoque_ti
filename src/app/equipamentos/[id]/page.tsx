@@ -7,12 +7,15 @@
  * repetida dentro do caso de uso, isto aqui é só o que a tela mostra.
  */
 
-import type { ResultadoAuditoria, TipoAcaoAuditoria } from "@prisma/client";
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { HistoricoDeAlteracoes } from "../../../components/historico-de-alteracoes";
 import { MensagemDeAcesso } from "../../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../../components/mensagem-simples";
+import { SeloTrillogo } from "../../../components/selo-trillogo";
 import { formatarDataEHora } from "../../../domain/data-e-hora";
+import { descricaoDoEquipamento } from "../../../domain/descricao-do-item";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../domain/erros";
 import { acoesPermitidas, exigirPermissao } from "../../../domain/permissoes";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
@@ -25,28 +28,6 @@ export const metadata: Metadata = { title: "Detalhes do equipamento" };
 
 // Depende de sessão e de dado vivo do banco — nunca cacheado (ADR 0006).
 export const dynamic = "force-dynamic";
-
-const ROTULOS_DE_ACAO: Record<TipoAcaoAuditoria, string> = {
-  CRIACAO: "Cadastro",
-  EDICAO: "Edição",
-  MUDANCA_STATUS: "Mudança de status",
-  MUDANCA_LOCALIZACAO: "Mudança de localização",
-  ARQUIVAMENTO: "Arquivamento",
-  RESTAURACAO: "Restauração",
-  EXPORTACAO: "Exportação",
-  ACESSO_NEGADO: "Tentativa de acesso negada",
-  // Ações de lista controlada nunca têm `equipamentoId`, então nunca aparecem
-  // no histórico de um equipamento — os rótulos existem só para satisfazer o
-  // `Record` exaustivo sobre `TipoAcaoAuditoria`.
-  LISTA_CRIACAO: "Criação de valor de lista",
-  LISTA_EDICAO: "Edição de valor de lista",
-  LISTA_EXCLUSAO: "Exclusão de valor de lista",
-};
-
-const ROTULOS_DE_RESULTADO: Record<ResultadoAuditoria, string> = {
-  SUCESSO: "sucesso",
-  FALHA: "falha",
-};
 
 function primeiroValor(valor: string | string[] | undefined): string | undefined {
   return Array.isArray(valor) ? valor[0] : valor;
@@ -100,6 +81,11 @@ export default async function PaginaDeDetalhes({
     return <MensagemDeIndisponibilidade />;
   }
 
+  const descricao = descricaoDoEquipamento({
+    categoria: equipamento.categoria.nome,
+    fabricante: equipamento.fabricante.nome,
+    modelo: equipamento.modelo,
+  });
   const permitidas = acoesPermitidas(ator.perfil);
   const podeEditar = permitidas.includes("EDITAR_EQUIPAMENTO");
   const podeArquivar = permitidas.includes("ARQUIVAR_EQUIPAMENTO");
@@ -115,7 +101,7 @@ export default async function PaginaDeDetalhes({
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">{equipamento.nome}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{descricao}</h1>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           {podeEditar && equipamento.arquivadoEm === null && (
             <Link
@@ -200,7 +186,7 @@ export default async function PaginaDeDetalhes({
         // biome-ignore lint/performance/noImgElement: imagem enviada pelo usuário, servida por uma rota própria autenticada — next/image exige um domínio remoto configurado, que não se aplica aqui.
         <img
           src={`/api/equipamentos/${equipamento.id}/foto`}
-          alt={`Foto de ${equipamento.nome}`}
+          alt={`Foto de ${descricao}`}
           className="h-auto max-h-80 w-auto max-w-full rounded border border-zinc-200 object-contain dark:border-zinc-800"
         />
       )}
@@ -210,9 +196,17 @@ export default async function PaginaDeDetalhes({
         <Campo rotulo="Fabricante" valor={equipamento.fabricante.nome} />
         <Campo rotulo="Modelo" valor={equipamento.modelo} />
         <Campo rotulo="Status de funcionamento" valor={equipamento.status.nome} />
-        <Campo rotulo="Localização" valor={equipamento.localizacao.nome} />
+        <Campo rotulo="Andar" valor={equipamento.andar.nome} />
+        <Campo
+          rotulo="Local de armazenamento"
+          valor={equipamento.localArmazenamento?.nome ?? "—"}
+        />
+        <Campo rotulo="Orientação" valor={equipamento.orientacao?.nome ?? "—"} />
         <Campo rotulo="Número de série" valor={equipamento.numeroSerie ?? "—"} />
-        <Campo rotulo="Código Trillogo" valor={equipamento.codigoTrillogo ?? "—"} />
+        <Campo
+          rotulo="Código Trillogo"
+          valor={<SeloTrillogo codigo={equipamento.codigoTrillogo} />}
+        />
         <Campo rotulo="Identificador interno" valor={equipamento.id} monoespacado />
       </dl>
 
@@ -236,30 +230,7 @@ export default async function PaginaDeDetalhes({
         />
       </dl>
 
-      <section aria-labelledby="historico" className="flex flex-col gap-2">
-        <h2 id="historico" className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-          Histórico de alterações
-        </h2>
-        {historico.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Nenhum registro de histórico.</p>
-        ) : (
-          <ol className="flex flex-col gap-2">
-            {historico.map((registro) => (
-              <li
-                key={registro.id}
-                className="flex flex-wrap items-baseline gap-2 rounded border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
-              >
-                <span className="font-medium">{ROTULOS_DE_ACAO[registro.tipoAcao]}</span>
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  {formatarDataEHora(registro.ocorridoEm)}
-                  {registro.usuarioNome !== null && ` · ${registro.usuarioNome}`} ·{" "}
-                  {ROTULOS_DE_RESULTADO[registro.resultado]}
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      <HistoricoDeAlteracoes registros={historico} />
     </main>
   );
 }
@@ -270,7 +241,7 @@ function Campo({
   monoespacado = false,
 }: {
   rotulo: string;
-  valor: string;
+  valor: ReactNode;
   monoespacado?: boolean;
 }) {
   return (

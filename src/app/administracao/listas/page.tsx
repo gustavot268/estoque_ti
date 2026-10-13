@@ -9,6 +9,7 @@ import { MensagemDeAcesso } from "../../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade } from "../../../components/mensagem-simples";
 import { AcessoNegadoError } from "../../../domain/erros";
 import { exigirPermissao } from "../../../domain/permissoes";
+import { ROTULOS_DE_TIPO_DE_LISTA } from "../../../features/administracao/rotulos-de-lista";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
 import {
@@ -21,18 +22,18 @@ export const metadata: Metadata = { title: "Gestão de listas" };
 // Depende de sessão — nunca cacheado (ADR 0006).
 export const dynamic = "force-dynamic";
 
-const ROTULOS_DE_TIPO: Record<TipoDeLista, string> = {
-  categoria: "Categoria",
-  fabricante: "Fabricante",
-  status: "Status de funcionamento",
-  localizacao: "Localização",
-};
-
 const DESCRICOES_DE_TIPO: Record<TipoDeLista, string> = {
   categoria: "Tipos de equipamento (Notebook, Monitor, Periférico…).",
-  fabricante: 'Fabricantes dos equipamentos, incluindo os pendentes de revisão do fluxo "Outro".',
-  status: "Status de funcionamento (Operacional, Com defeito…).",
-  localizacao: "Localizações físicas do estoque (andares, salas…).",
+  fabricante:
+    'Fabricantes de equipamentos e materiais, incluindo os pendentes de revisão do fluxo "Outro".',
+  status: "Status de funcionamento dos equipamentos (Operacional, Com defeito…).",
+  andar: "Andares onde ficam os itens (15º andar, 16º andar…). Obrigatório no cadastro.",
+  "local-armazenamento":
+    "Onde o item fica guardado no andar (1º armário, rack…). Opcional no cadastro.",
+  orientacao: "Posição dentro do local (prateleira de cima, de baixo…). Opcional no cadastro.",
+  "categoria-material": "Categorias dos materiais controlados por quantidade (Cabo, Conector…).",
+  "unidade-medida":
+    "Unidades em que a quantidade dos materiais é contada (Unidade, Metro, Caixa…).",
 };
 
 export default async function PaginaDeGestaoDeListas() {
@@ -62,8 +63,9 @@ export default async function PaginaDeGestaoDeListas() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Gestão de listas</h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Categoria, Fabricante, Status de funcionamento e Localização são compartilhados por todos
-          os equipamentos. Um valor só pode ser excluído se nenhum equipamento o usar.
+          As listas formam as opções dos cadastros. Fabricante, Andar, Local de armazenamento e
+          Orientação valem para equipamentos e materiais; as demais, só para um dos dois. Um valor
+          só pode ser excluído se nenhum equipamento ou material o usar.
         </p>
       </div>
 
@@ -74,7 +76,7 @@ export default async function PaginaDeGestaoDeListas() {
               href={`/administracao/listas/${tipo}`}
               className="block rounded border border-zinc-300 p-4 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
-              <span className="font-medium">{ROTULOS_DE_TIPO[tipo]}</span>
+              <span className="font-medium">{ROTULOS_DE_TIPO_DE_LISTA[tipo]}</span>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                 {DESCRICOES_DE_TIPO[tipo]}
               </p>

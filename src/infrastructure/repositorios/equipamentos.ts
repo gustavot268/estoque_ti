@@ -18,7 +18,6 @@ import type { ClientePrisma } from "../prisma/criar-cliente";
 /** Campos aceitos como entrada de escrita — já normalizados pelo serviço. */
 export type DadosParaCriarEquipamento = {
   readonly categoriaId: string;
-  readonly nome: string;
   readonly fabricanteId: string;
   readonly modelo: string;
   readonly numeroSerie: string | null;
@@ -26,7 +25,9 @@ export type DadosParaCriarEquipamento = {
   readonly codigoTrillogo: string | null;
   readonly codigoTrillogoNormalizado: string | null;
   readonly statusId: string;
-  readonly localizacaoId: string;
+  readonly andarId: string;
+  readonly localArmazenamentoId: string | null;
+  readonly orientacaoId: string | null;
   readonly observacoes: string | null;
   readonly foto: Buffer | null;
   readonly fotoTipoMime: string | null;
@@ -45,7 +46,6 @@ export type DadosParaCriarEquipamento = {
 const SELECAO_DETALHADA = {
   id: true,
   categoriaId: true,
-  nome: true,
   fabricanteId: true,
   modelo: true,
   numeroSerie: true,
@@ -53,7 +53,9 @@ const SELECAO_DETALHADA = {
   codigoTrillogo: true,
   codigoTrillogoNormalizado: true,
   statusId: true,
-  localizacaoId: true,
+  andarId: true,
+  localArmazenamentoId: true,
+  orientacaoId: true,
   observacoes: true,
   fotoTipoMime: true,
   fotoNomeArquivo: true,
@@ -68,7 +70,9 @@ const SELECAO_DETALHADA = {
   categoria: true,
   fabricante: true,
   status: true,
-  localizacao: true,
+  andar: true,
+  localArmazenamento: true,
+  orientacao: true,
   criadoPor: true,
   atualizadoPor: true,
   arquivadoPor: true,
@@ -133,8 +137,8 @@ export async function obterFotoPorId(prisma: ClientePrisma, id: string) {
 /** Campos e relações da listagem — mais leves que a leitura detalhada. */
 const SELECAO_DE_LISTAGEM = {
   id: true,
-  nome: true,
   modelo: true,
+  codigoTrillogo: true,
   // Token de concorrência otimista: a lixeira da lista arquiva com a versão que a pessoa viu.
   versao: true,
   criadoEm: true,
@@ -142,6 +146,7 @@ const SELECAO_DE_LISTAGEM = {
   categoria: true,
   fabricante: true,
   status: true,
+  andar: { select: { nome: true } },
 } as const;
 
 export type FiltrosDeEquipamento = {
@@ -149,11 +154,11 @@ export type FiltrosDeEquipamento = {
   readonly categoriaId?: string;
   readonly fabricanteId?: string;
   readonly statusId?: string;
-  readonly localizacaoId?: string;
+  readonly andarId?: string;
 };
 
 export type OrdenacaoDeEquipamento = {
-  readonly campo: "nome" | "modelo" | "criadoEm" | "atualizadoEm";
+  readonly campo: "modelo" | "criadoEm" | "atualizadoEm";
   readonly direcao: "asc" | "desc";
 };
 
@@ -183,12 +188,15 @@ function construirFiltro(
   if (filtros.statusId !== undefined) {
     filtro.statusId = filtros.statusId;
   }
-  if (filtros.localizacaoId !== undefined) {
-    filtro.localizacaoId = filtros.localizacaoId;
+  if (filtros.andarId !== undefined) {
+    filtro.andarId = filtros.andarId;
   }
   if (filtros.busca !== undefined) {
+    // Sem campo de nome, a busca também olha a categoria e o fabricante — as
+    // partes da descrição que a pessoa vê na tela ("Câmera Hikvision ...").
     filtro.OR = [
-      { nome: { contains: filtros.busca, mode: "insensitive" } },
+      { categoria: { nome: { contains: filtros.busca, mode: "insensitive" } } },
+      { fabricante: { nome: { contains: filtros.busca, mode: "insensitive" } } },
       { modelo: { contains: filtros.busca, mode: "insensitive" } },
       { numeroSerie: { contains: filtros.busca, mode: "insensitive" } },
       { codigoTrillogo: { contains: filtros.busca, mode: "insensitive" } },
@@ -219,7 +227,6 @@ export async function listarPaginado(prisma: ClientePrisma, opcoes: OpcoesDeList
 /** Campos da listagem de arquivados: quando e por quem foi arquivado, e a versão para restaurar. */
 const SELECAO_DE_ARQUIVADOS = {
   id: true,
-  nome: true,
   modelo: true,
   versao: true,
   arquivadoEm: true,
@@ -260,7 +267,6 @@ export async function listarArquivadosPaginado(
 /** Campos e relações da exportação — precisa do nome de quem criou/alterou, nunca da foto. */
 const SELECAO_DE_EXPORTACAO = {
   id: true,
-  nome: true,
   modelo: true,
   numeroSerie: true,
   codigoTrillogo: true,
@@ -270,7 +276,9 @@ const SELECAO_DE_EXPORTACAO = {
   categoria: true,
   fabricante: true,
   status: true,
-  localizacao: true,
+  andar: true,
+  localArmazenamento: true,
+  orientacao: true,
   criadoPor: true,
   atualizadoPor: true,
 } as const;
@@ -310,7 +318,6 @@ export async function listarParaExportacao(
  */
 export type DadosParaAtualizarEquipamento = {
   readonly categoriaId: string;
-  readonly nome: string;
   readonly fabricanteId: string;
   readonly modelo: string;
   readonly numeroSerie: string | null;
@@ -318,7 +325,9 @@ export type DadosParaAtualizarEquipamento = {
   readonly codigoTrillogo: string | null;
   readonly codigoTrillogoNormalizado: string | null;
   readonly statusId: string;
-  readonly localizacaoId: string;
+  readonly andarId: string;
+  readonly localArmazenamentoId: string | null;
+  readonly orientacaoId: string | null;
   readonly observacoes: string | null;
   readonly foto?: Buffer | null;
   readonly fotoTipoMime?: string | null;
@@ -366,17 +375,17 @@ export async function alterarStatus(
   });
 }
 
-/** Mudança isolada de localização — mesma técnica de concorrência otimista. */
-export async function alterarLocalizacao(
+/** Mudança isolada de andar — mesma técnica de concorrência otimista. */
+export async function alterarAndar(
   prisma: ClientePrisma,
   id: string,
   versaoEsperada: number,
-  localizacaoId: string,
+  andarId: string,
   atualizadoPorId: string,
 ) {
   return prisma.equipamento.updateMany({
     where: { id, versao: versaoEsperada, arquivadoEm: null },
-    data: { localizacaoId, atualizadoPorId, versao: { increment: 1 } },
+    data: { andarId, atualizadoPorId, versao: { increment: 1 } },
   });
 }
 

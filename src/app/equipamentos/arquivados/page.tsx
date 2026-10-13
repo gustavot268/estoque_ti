@@ -13,6 +13,7 @@ import { MensagemDeAcesso } from "../../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../../components/mensagem-simples";
 import { SeloDeStatus } from "../../../components/selo-de-status";
 import { formatarDataEHora } from "../../../domain/data-e-hora";
+import { descricaoDoEquipamento } from "../../../domain/descricao-do-item";
 import { AcessoNegadoError, EntradaInvalidaError } from "../../../domain/erros";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
@@ -54,6 +55,18 @@ function construirHref(busca: string | null | undefined, pagina?: number): strin
   }
   const texto = query.toString();
   return texto === "" ? "/equipamentos/arquivados" : `/equipamentos/arquivados?${texto}`;
+}
+
+function descricao(equipamento: {
+  categoria: { nome: string };
+  fabricante: { nome: string };
+  modelo: string;
+}): string {
+  return descricaoDoEquipamento({
+    categoria: equipamento.categoria.nome,
+    fabricante: equipamento.fabricante.nome,
+    modelo: equipamento.modelo,
+  });
 }
 
 function formatarArquivadoEm(data: Date | null): string {
@@ -154,7 +167,7 @@ export default async function PaginaDeArquivados({
             id="busca"
             name="busca"
             defaultValue={parametros.busca ?? ""}
-            placeholder="Nome, modelo, número de série ou código Trillogo"
+            placeholder="Categoria, fabricante, modelo, número de série ou Trillogo"
             maxLength={120}
             className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
@@ -186,13 +199,13 @@ export default async function PaginaDeArquivados({
             <thead>
               <tr className="border-b border-zinc-300 dark:border-zinc-700">
                 <th scope="col" className="py-2 pr-4 font-medium">
-                  Nome
+                  Categoria
+                </th>
+                <th scope="col" className="py-2 pr-4 font-medium">
+                  Fabricante
                 </th>
                 <th scope="col" className="py-2 pr-4 font-medium">
                   Modelo
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Categoria
                 </th>
                 <th scope="col" className="py-2 pr-4 font-medium">
                   Status
@@ -211,9 +224,9 @@ export default async function PaginaDeArquivados({
             <tbody>
               {itens.map((equipamento) => (
                 <tr key={equipamento.id} className="border-b border-zinc-200 dark:border-zinc-800">
-                  <td className="py-2 pr-4">{equipamento.nome}</td>
-                  <td className="py-2 pr-4">{equipamento.modelo}</td>
                   <td className="py-2 pr-4">{equipamento.categoria.nome}</td>
+                  <td className="py-2 pr-4">{equipamento.fabricante.nome}</td>
+                  <td className="py-2 pr-4">{equipamento.modelo}</td>
                   <td className="py-2 pr-4">
                     <SeloDeStatus
                       nome={equipamento.status.nome}
@@ -235,7 +248,7 @@ export default async function PaginaDeArquivados({
                         <input type="hidden" name="retorno" value={retornoDaLista} />
                         <button
                           type="submit"
-                          aria-label={`Restaurar o equipamento ${equipamento.nome}`}
+                          aria-label={`Restaurar o equipamento ${descricao(equipamento)}`}
                           className={CLASSE_BOTAO_SECUNDARIO}
                         >
                           Restaurar
@@ -255,10 +268,7 @@ export default async function PaginaDeArquivados({
                 key={equipamento.id}
                 className="flex flex-col gap-1 rounded border border-zinc-300 p-3 dark:border-zinc-700"
               >
-                <span className="font-medium">{equipamento.nome}</span>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {equipamento.modelo} · {equipamento.categoria.nome}
-                </span>
+                <span className="font-medium">{descricao(equipamento)}</span>
                 <span>
                   <SeloDeStatus
                     nome={equipamento.status.nome}
@@ -281,7 +291,7 @@ export default async function PaginaDeArquivados({
                     <input type="hidden" name="retorno" value={retornoDaLista} />
                     <button
                       type="submit"
-                      aria-label={`Restaurar o equipamento ${equipamento.nome}`}
+                      aria-label={`Restaurar o equipamento ${descricao(equipamento)}`}
                       className={CLASSE_BOTAO_SECUNDARIO}
                     >
                       Restaurar

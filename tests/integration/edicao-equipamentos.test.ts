@@ -16,7 +16,14 @@ import {
   restaurarEquipamento,
 } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDaLocalizacao, idDoFabricante, idDoStatus } from "./suporte/listas";
+import {
+  idDaCategoria,
+  idDaOrientacao,
+  idDoAndar,
+  idDoFabricante,
+  idDoLocalDeArmazenamento,
+  idDoStatus,
+} from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -26,7 +33,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   let atorAdministracao: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let localizacaoId: string;
+  let andarId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -37,14 +44,15 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   function entradaBase(sobrescritas: Record<string, unknown> = {}): Record<string, unknown> {
     return {
       categoriaId,
-      nome: `${prefixo} equipamento`,
       fabricanteId,
       fabricanteOutroNome: null,
       modelo: "Modelo",
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      localizacaoId,
+      andarId,
+      localArmazenamentoId: null,
+      orientacaoId: null,
       observacoes: null,
       ...sobrescritas,
     };
@@ -59,13 +67,14 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   function entradaEdicaoDe(
     equipamento: {
       categoriaId: string;
-      nome: string;
       fabricanteId: string;
       modelo: string;
       numeroSerie: string | null;
       codigoTrillogo: string | null;
       statusId: string;
-      localizacaoId: string;
+      andarId: string;
+      localArmazenamentoId: string | null;
+      orientacaoId: string | null;
       observacoes: string | null;
       versao: number;
     },
@@ -73,14 +82,15 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   ): Record<string, unknown> {
     return {
       categoriaId: equipamento.categoriaId,
-      nome: equipamento.nome,
       fabricanteId: equipamento.fabricanteId,
       fabricanteOutroNome: null,
       modelo: equipamento.modelo,
       numeroSerie: equipamento.numeroSerie,
       codigoTrillogo: equipamento.codigoTrillogo,
       statusId: equipamento.statusId,
-      localizacaoId: equipamento.localizacaoId,
+      andarId: equipamento.andarId,
+      localArmazenamentoId: equipamento.localArmazenamentoId,
+      orientacaoId: equipamento.orientacaoId,
       observacoes: equipamento.observacoes,
       versao: equipamento.versao,
       ...sobrescritas,
@@ -98,7 +108,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    localizacaoId = await idDaLocalizacao(prisma, "15º andar");
+    andarId = await idDoAndar(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -118,17 +128,27 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   });
 
   it("edita com sucesso: aplica as alterações, incrementa a versão e grava a auditoria", async () => {
-    const original = await criar({ nome: `${prefixo} original`, modelo: "Modelo A" });
+    const original = await criar({ modelo: `${prefixo} Modelo A` });
+    const outroAndarId = await idDoAndar(prisma, "16º andar");
+    const localId = await idDoLocalDeArmazenamento(prisma, "1º armário");
+    const orientacaoId = await idDaOrientacao(prisma, "Prateleira de cima");
 
     const editado = await editarEquipamento(
       prisma,
       atorOperacao,
       original.id,
-      entradaEdicaoDe(original, { nome: `${prefixo} editado`, modelo: "Modelo B" }),
+      entradaEdicaoDe(original, {
+        modelo: `${prefixo} Modelo B`,
+        andarId: outroAndarId,
+        localArmazenamentoId: localId,
+        orientacaoId,
+      }),
     );
 
-    expect(editado.nome).toBe(`${prefixo} editado`);
-    expect(editado.modelo).toBe("Modelo B");
+    expect(editado.modelo).toBe(`${prefixo} Modelo B`);
+    expect(editado.andar.nome).toBe("16º andar");
+    expect(editado.localArmazenamento?.nome).toBe("1º armário");
+    expect(editado.orientacao?.nome).toBe("Prateleira de cima");
     expect(editado.versao).toBe(original.versao + 1);
     expect(editado.atualizadoPorId).toBe(usuarioId);
 
@@ -136,16 +156,21 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
       where: { equipamentoId: original.id, tipoAcao: "EDICAO" },
     });
     expect(auditoria).toHaveLength(1);
-    expect((auditoria[0]?.dadosAnteriores as { nome?: string } | null)?.nome).toBe(
-      `${prefixo} original`,
-    );
-    expect((auditoria[0]?.dadosPosteriores as { nome?: string } | null)?.nome).toBe(
-      `${prefixo} editado`,
-    );
+    expect(auditoria[0]?.dadosAnteriores).toMatchObject({
+      modelo: `${prefixo} Modelo A`,
+      andarId,
+      localArmazenamentoId: null,
+    });
+    expect(auditoria[0]?.dadosPosteriores).toMatchObject({
+      modelo: `${prefixo} Modelo B`,
+      andarId: outroAndarId,
+      localArmazenamentoId: localId,
+      orientacaoId,
+    });
   });
 
   it("duas edições concorrentes com a mesma versão: só uma aplica", async () => {
-    const original = await criar({ nome: `${prefixo} corrida` });
+    const original = await criar({ modelo: `${prefixo} corrida` });
 
     const resultados = await Promise.allSettled([
       editarEquipamento(
@@ -175,7 +200,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   });
 
   it("edição com versão desatualizada é recusada, sem sobrescrever a alteração mais recente", async () => {
-    const original = await criar({ nome: `${prefixo} desatualizado` });
+    const original = await criar({ modelo: `${prefixo} desatualizado` });
     await editarEquipamento(
       prisma,
       atorOperacao,
@@ -208,7 +233,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   });
 
   it("não permite editar um equipamento arquivado", async () => {
-    const original = await criar({ nome: `${prefixo} para arquivar` });
+    const original = await criar({ modelo: `${prefixo} para arquivar` });
     await arquivarEquipamento(prisma, atorAdministracao, original.id, { versao: original.versao });
 
     await expect(
@@ -243,7 +268,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
     expect(editado.categoriaId).toBe(categoriaTemporaria.id);
 
     // Mas escolher essa mesma categoria inativa para OUTRO equipamento deve falhar.
-    const outro = await criar({ nome: `${prefixo} outro equipamento` });
+    const outro = await criar({ modelo: `${prefixo} outro equipamento` });
     await expect(
       editarEquipamento(
         prisma,
@@ -256,10 +281,10 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
 
   it("rejeita editar para um número de série já usado por outro equipamento, mas aceita reenviar o próprio valor", async () => {
     const numeroSerieOcupado = `${prefixo}-sn-ocupado`;
-    await criar({ numeroSerie: numeroSerieOcupado, nome: `${prefixo} dono do serial` });
+    await criar({ numeroSerie: numeroSerieOcupado, modelo: `${prefixo} dono do serial` });
     const alvo = await criar({
       numeroSerie: `${prefixo}-sn-proprio`,
-      nome: `${prefixo} vai editar`,
+      modelo: `${prefixo} vai editar`,
     });
 
     await expect(
@@ -282,7 +307,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   });
 
   it("arquiva com sucesso (Administração) e grava a auditoria", async () => {
-    const original = await criar({ nome: `${prefixo} arquivar sucesso` });
+    const original = await criar({ modelo: `${prefixo} arquivar sucesso` });
 
     const arquivado = await arquivarEquipamento(prisma, atorAdministracao, original.id, {
       versao: original.versao,
@@ -298,7 +323,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   });
 
   it("perfil Operação não pode arquivar nem restaurar", async () => {
-    const original = await criar({ nome: `${prefixo} sem permissao` });
+    const original = await criar({ modelo: `${prefixo} sem permissao` });
 
     await expect(
       arquivarEquipamento(prisma, atorOperacao, original.id, { versao: original.versao }),
@@ -313,7 +338,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   });
 
   it("restaura com sucesso e grava a auditoria; não permite restaurar o que não está arquivado", async () => {
-    const original = await criar({ nome: `${prefixo} restaurar` });
+    const original = await criar({ modelo: `${prefixo} restaurar` });
 
     await expect(
       restaurarEquipamento(prisma, atorAdministracao, original.id, { versao: original.versao }),
@@ -337,7 +362,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   });
 
   it("arquivar duas vezes concorrentemente: só uma vence, a outra falha de forma previsível", async () => {
-    const original = await criar({ nome: `${prefixo} arquivar corrida` });
+    const original = await criar({ modelo: `${prefixo} arquivar corrida` });
 
     const resultados = await Promise.allSettled([
       arquivarEquipamento(prisma, atorAdministracao, original.id, { versao: original.versao }),
