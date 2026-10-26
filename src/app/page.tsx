@@ -1,8 +1,8 @@
 /**
  * Página inicial: duas entradas, cadastrar e ver o estoque.
  *
- * Estática de propósito (sem consulta ao banco): abre mesmo se o banco estiver
- * fora do ar. A autorização continua sendo verificada no servidor em cada tela
+ * Sem consulta ao banco, de propósito: abre mesmo se o banco estiver fora do
+ * ar. A autorização continua sendo verificada no servidor em cada tela
  * de destino, nunca aqui.
  *
  * São links (navegação) estilizados como cartões, para funcionarem com teclado

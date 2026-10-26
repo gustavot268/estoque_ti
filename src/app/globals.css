@@ -27,8 +27,15 @@
  * - Tema escuro: a paleta azul-marinho escolhida pela diretoria (#0A1931,
  *   #1A3D63, #4A7FA7, #B3CFE5, #F6FAFD). As camadas intermediárias de
  *   superfície são misturas dessas mesmas cores, não cores novas.
- * - O tema segue a preferência do sistema operacional (`prefers-color-scheme`),
- *   o mesmo critério da variante `dark:` do Tailwind.
+ * - Qual tema vale: a escolha feita no botão de tema (`src/components/botao-tema.tsx`),
+ *   gravada no cookie `tema` e aplicada pelo layout raiz como
+ *   `<html data-tema="claro|escuro">`; sem escolha (atributo ausente), a
+ *   preferência do sistema operacional (`prefers-color-scheme`). A variante
+ *   `dark:` do Tailwind segue exatamente a mesma regra (ver `@custom-variant`
+ *   abaixo).
+ * - Os valores do tema escuro aparecem duas vezes — escolha explícita e
+ *   preferência do sistema — porque CSS não junta um seletor comum e uma media
+ *   query na mesma regra. Mudou um, mude o outro.
  *
  * Contraste (WCAG AA pede 4,5:1 para texto, 3:1 para borda de controle):
  * - claro:  texto #0A1931 sobre branco 18,9:1; texto suave/primária #395886
@@ -67,8 +74,31 @@
   --trillogo-texto: #2a0633;
 }
 
+/* Tema escuro escolhido no botão. */
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+
+  --fundo: #0a1931;
+  --superficie: color-mix(in srgb, #1a3d63 40%, #0a1931);
+  --superficie-suave: color-mix(in srgb, #1a3d63 70%, #0a1931);
+  --superficie-realce: #1a3d63;
+  --borda: #1a3d63;
+  --borda-campo: #4a7fa7;
+  --texto: #f6fafd;
+  --texto-suave: #b3cfe5;
+  --primaria: #b3cfe5;
+  --primaria-hover: #f6fafd;
+  --sobre-primaria: #0a1931;
+  --link: #b3cfe5;
+  --foco: #b3cfe5;
+  --moldura: #1a3d63;
+  --sobre-moldura: #f6fafd;
+  --sombra: rgb(0 0 0 / 0.35);
+}
+
+/* Sem escolha no botão: segue o sistema. Mesmos valores do bloco acima. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema]) {
     color-scheme: dark;
 
     --fundo: #0a1931;
@@ -87,6 +117,22 @@
     --moldura: #1a3d63;
     --sobre-moldura: #f6fafd;
     --sombra: rgb(0 0 0 / 0.35);
+  }
+}
+
+/*
+ * `dark:` do Tailwind com a mesma regra dos tokens: tema escuro escolhido, ou
+ * nenhuma escolha e o sistema no escuro. (O padrão do Tailwind olharia só o
+ * sistema, e os selos/avisos ficariam no tema errado depois de usar o botão.)
+ */
+@custom-variant dark {
+  &:where([data-tema="escuro"], [data-tema="escuro"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-tema]), :root:not([data-tema]) *) {
+      @slot;
+    }
   }
 }
 

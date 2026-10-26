@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { BannerAmbiente } from "@/components/banner-ambiente";
 import { BarraDeNavegacao } from "@/components/barra-de-navegacao";
+import { lerTema, NOME_DO_COOKIE_DE_TEMA } from "@/components/tema";
 import "./globals.css";
 
 /**
@@ -13,6 +15,11 @@ import "./globals.css";
  *   deixa o build reproduzível em rede restrita.
  * - `robots: noindex, nofollow`: aplicação interna; nada aqui deve ser
  *   indexado, ainda que um dia fique atrás de um proxy público.
+ * - `data-tema`: o tema escolhido no botão de tema, lido do cookie aqui no
+ *   servidor para a página já chegar com as cores certas (ver
+ *   `src/components/tema.ts`). Ler cookie torna todas as rotas dinâmicas —
+ *   inclusive a página inicial, que antes era pré-renderizada; ela continua
+ *   sem consultar o banco.
  */
 export const metadata: Metadata = {
   title: {
@@ -34,12 +41,14 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const tema = lerTema((await cookies()).get(NOME_DO_COOKIE_DE_TEMA)?.value);
+
   return (
-    <html lang="pt-BR" className="h-full antialiased">
+    <html lang="pt-BR" className="h-full antialiased" data-tema={tema ?? undefined}>
       <body className="flex min-h-full flex-col bg-fundo text-texto">
         <BannerAmbiente />
-        <BarraDeNavegacao />
+        <BarraDeNavegacao temaInicial={tema} />
         {children}
       </body>
     </html>
