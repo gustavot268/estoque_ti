@@ -53,8 +53,8 @@ type Props = {
 const ESTADO_INICIAL: ResultadoEdicao | null = null;
 
 const CLASSE_CAMPO =
-  "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:outline-zinc-100";
-const CLASSE_RASTRO = "text-sm font-medium text-zinc-800 dark:text-zinc-200";
+  "w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto";
+const CLASSE_RASTRO = "text-sm font-medium text-texto";
 
 export function FormularioEdicaoDeEquipamento({
   equipamento,
@@ -96,16 +96,16 @@ export function FormularioEdicaoDeEquipamento({
       action={submeter}
       onChange={() => setModificado(true)}
       noValidate
-      className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8"
+      className="mx-auto my-8 flex w-[calc(100%-2rem)] max-w-2xl flex-col gap-6 rounded-2xl border border-borda bg-superficie p-5 shadow-cartao sm:p-8"
     >
-      <h1 className="text-xl font-semibold tracking-tight">Editar equipamento</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-texto">Editar equipamento</h1>
 
       <input type="hidden" name="versao" value={equipamento.versao} />
 
       {erroGeral !== null && (
         <p
           role="alert"
-          className="rounded border border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {erroGeral}
         </p>
@@ -266,7 +266,7 @@ export function FormularioEdicaoDeEquipamento({
             className={CLASSE_CAMPO}
             aria-describedby="observacoes-dica observacoes-erro"
           />
-          <p id="observacoes-dica" className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p id="observacoes-dica" className="text-xs text-texto-suave">
             Não inclua senhas, documentos pessoais ou outras informações sensíveis.
           </p>
           <ListaDeErros id="observacoes-erro" erros={errosDoCampo("observacoes")} />
@@ -282,9 +282,9 @@ export function FormularioEdicaoDeEquipamento({
               <img
                 src={`/api/equipamentos/${equipamento.id}/foto`}
                 alt={`Foto atual de ${equipamento.descricao}`}
-                className="h-20 w-20 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                className="h-20 w-20 rounded-lg border border-borda object-cover"
               />
-              <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+              <label className="flex items-center gap-2 text-sm text-texto">
                 <input id="removerFoto" name="removerFoto" type="checkbox" className="h-4 w-4" />
                 Remover a foto atual
               </label>
@@ -298,7 +298,7 @@ export function FormularioEdicaoDeEquipamento({
             className={CLASSE_CAMPO}
             aria-describedby="foto-dica foto-erro"
           />
-          <p id="foto-dica" className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p id="foto-dica" className="text-xs text-texto-suave">
             {equipamento.temFoto
               ? "Enviar um novo arquivo substitui a foto atual. JPEG, PNG ou WEBP, até 5 MB."
               : "Opcional. JPEG, PNG ou WEBP, até 5 MB."}
@@ -311,13 +311,13 @@ export function FormularioEdicaoDeEquipamento({
         <button
           type="submit"
           disabled={pendente}
-          className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primaria px-6 py-2.5 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {pendente ? "Salvando…" : "Salvar alterações"}
         </button>
         <a
           href={`/equipamentos/${equipamento.id}`}
-          className="text-sm underline underline-offset-2 text-zinc-700 dark:text-zinc-300"
+          className="text-sm text-texto-suave underline underline-offset-4 hover:text-texto"
         >
           Cancelar
         </a>
@@ -334,7 +334,7 @@ function ListaDeErros({ id, erros }: { id: string; erros: readonly string[] }) {
     <ul
       id={id}
       role="alert"
-      className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-400"
+      className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-300"
     >
       {erros.map((mensagem) => (
         <li key={mensagem}>{mensagem}</li>

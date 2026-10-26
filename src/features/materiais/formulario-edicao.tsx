@@ -56,16 +56,16 @@ export function FormularioEdicaoDeMaterial({
       action={submeter}
       onChange={() => setModificado(true)}
       noValidate
-      className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8"
+      className="mx-auto my-8 flex w-[calc(100%-2rem)] max-w-2xl flex-col gap-6 rounded-2xl border border-borda bg-superficie p-5 shadow-cartao sm:p-8"
     >
-      <h1 className="text-xl font-semibold tracking-tight">Editar material</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-texto">Editar material</h1>
 
       <input type="hidden" name="versao" value={versao} />
 
       {comErro !== null && (
         <p
           role="alert"
-          className="rounded border border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {comErro.mensagem}
         </p>
@@ -87,13 +87,13 @@ export function FormularioEdicaoDeMaterial({
         <button
           type="submit"
           disabled={pendente}
-          className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primaria px-6 py-2.5 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {pendente ? "Salvando…" : "Salvar alterações"}
         </button>
         <a
           href={`/materiais/${materialId}`}
-          className="text-sm text-zinc-700 underline underline-offset-2 dark:text-zinc-300"
+          className="text-sm text-texto-suave underline underline-offset-4 hover:text-texto"
         >
           Cancelar
         </a>

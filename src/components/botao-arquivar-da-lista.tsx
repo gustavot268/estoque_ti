@@ -26,7 +26,7 @@ type Props = {
 };
 
 const CLASSE_DOS_BOTOES_DO_DIALOGO =
-  "rounded border px-4 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border px-5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 
 function BotaoSim() {
   const { pending } = useFormStatus();
@@ -34,7 +34,7 @@ function BotaoSim() {
     <button
       type="submit"
       disabled={pending}
-      className={`${CLASSE_DOS_BOTOES_DO_DIALOGO} border-red-800 bg-red-800 text-white dark:border-red-300 dark:bg-red-300 dark:text-red-950`}
+      className={`${CLASSE_DOS_BOTOES_DO_DIALOGO} border-red-700 bg-red-700 text-white hover:bg-red-800 dark:border-red-300 dark:bg-red-300 dark:text-red-950 dark:hover:bg-red-200`}
     >
       Sim
     </button>
@@ -69,7 +69,7 @@ export function BotaoArquivarDaLista({
         onClick={abrir}
         aria-label={`Arquivar ${descricaoDoItem} ${nomeDoItem}`}
         title="Arquivar"
-        className="rounded p-2 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-red-700 transition-colors hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
       >
         <svg
           aria-hidden="true"
@@ -94,15 +94,15 @@ export function BotaoArquivarDaLista({
         ref={dialogo}
         aria-labelledby={idDoTitulo}
         aria-describedby={idDaDescricao}
-        className="m-auto w-full max-w-sm rounded border border-zinc-300 bg-white p-6 text-zinc-900 backdrop:bg-black/60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+        className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-borda bg-superficie p-6 text-texto shadow-2xl backdrop:bg-[#0a1931]/60 backdrop:backdrop-blur-sm"
       >
         <form action={acao} className="flex flex-col gap-4">
           <input type="hidden" name="versao" value={versao} />
           <input type="hidden" name="retorno" value={retorno} />
-          <h2 id={idDoTitulo} className="text-lg font-semibold">
+          <h2 id={idDoTitulo} className="text-lg font-semibold text-texto">
             Tem certeza?
           </h2>
-          <p id={idDaDescricao} className="text-sm text-zinc-700 dark:text-zinc-300">
+          <p id={idDaDescricao} className="text-sm text-texto-suave">
             Arquivar "{nomeDoItem}"? Ele sai da lista, mas o histórico é mantido e ele pode ser
             restaurado.
           </p>
@@ -111,7 +111,7 @@ export function BotaoArquivarDaLista({
               ref={botaoNao}
               type="button"
               onClick={fechar}
-              className={`${CLASSE_DOS_BOTOES_DO_DIALOGO} border-zinc-400 dark:border-zinc-600`}
+              className={`${CLASSE_DOS_BOTOES_DO_DIALOGO} border-borda-campo bg-superficie text-texto hover:bg-superficie-suave`}
             >
               Não
             </button>

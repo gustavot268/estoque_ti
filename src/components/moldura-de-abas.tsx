@@ -1,5 +1,5 @@
 /**
- * Moldura verde com as duas abas do estoque: "Inventário de Ativos de TI"
+ * Moldura com as duas abas do estoque: "Inventário de Ativos de TI"
  * (equipamentos, um registro por item com etiqueta) e "Materiais de TI"
  * (controle por quantidade). Envolve a lista e o cadastro de cada tipo.
  *
@@ -10,8 +10,10 @@
  * avisa antes de sair da página quando há dados digitados, e esse aviso só
  * dispara em navegação completa.
  *
- * O texto da aba ativa é quase preto sobre o verde (contraste 8,5:1); branco
- * sobre esse verde ficaria em 2,3:1, abaixo do mínimo WCAG AA.
+ * A cor da moldura e a do texto da aba ativa são tokens do tema (`--moldura`,
+ * `--sobre-moldura` em `src/app/globals.css`): azul-claro com texto
+ * azul-marinho no tema claro (10,4:1), azul-marinho com texto quase branco no
+ * escuro (10,6:1).
  */
 
 import type { ReactNode } from "react";
@@ -44,8 +46,8 @@ export function MolduraDeAbas({ abaAtiva, destinos, children }: Props) {
               data-lado={indice === 0 ? "esquerda" : "direita"}
               className={
                 ativa
-                  ? "aba-da-moldura-ativa relative flex items-center justify-center rounded-t-3xl bg-moldura px-3 py-3 text-center text-base font-semibold text-zinc-950 sm:text-lg"
-                  : "flex items-center justify-center px-3 py-3 text-center text-base font-medium text-zinc-900 underline-offset-4 hover:underline sm:text-lg dark:text-zinc-100"
+                  ? "aba-da-moldura-ativa relative flex items-center justify-center rounded-t-3xl bg-moldura px-3 py-3 text-center text-sm font-semibold text-sobre-moldura sm:text-lg"
+                  : "flex items-center justify-center px-3 py-3 text-center text-sm font-medium text-texto-suave underline-offset-4 transition-colors hover:text-texto hover:underline sm:text-lg"
               }
             >
               {rotulo}
@@ -54,11 +56,11 @@ export function MolduraDeAbas({ abaAtiva, destinos, children }: Props) {
         })}
       </nav>
       <div
-        className={`rounded-[2rem] bg-moldura p-3 sm:p-6 ${
+        className={`rounded-3xl bg-moldura p-2 sm:p-4 ${
           abaAtiva === "ativos" ? "rounded-tl-none" : "rounded-tr-none"
         }`}
       >
-        <div className="rounded-md bg-white p-4 sm:p-6 dark:bg-zinc-950">{children}</div>
+        <div className="rounded-2xl bg-superficie p-4 shadow-cartao sm:p-6">{children}</div>
       </div>
     </div>
   );

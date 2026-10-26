@@ -132,7 +132,10 @@ function CabecalhoOrdenavel({
   campo: CampoOrdenavelDeEquipamento;
 }) {
   return (
-    <th scope="col" className="py-2 pr-4 font-medium">
+    <th
+      scope="col"
+      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+    >
       <Link href={hrefDeOrdenacao(parametros, campo)} className="hover:underline">
         {ROTULOS_DE_ORDENACAO[campo]}
         {parametros.ordenarPor === campo && (parametros.direcao === "asc" ? " ▲" : " ▼")}
@@ -158,7 +161,7 @@ const MENSAGENS_DE_ERRO_DO_ARQUIVAMENTO: Readonly<Record<string, string>> = {
 const PADRAO_DE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CLASSE_CAMPO =
-  "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
+  "w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto";
 
 export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equipamentos">) {
   const brutos = await searchParams;
@@ -256,12 +259,12 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
       >
         <div className="flex flex-col gap-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">Equipamentos</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-texto">Equipamentos</h1>
             <div className="flex flex-wrap items-center gap-2">
               {podeVerArquivados && (
                 <Link
                   href="/equipamentos/arquivados"
-                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                  className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
                 >
                   Ver arquivados
                 </Link>
@@ -269,7 +272,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
               {podeGerenciarListas && (
                 <Link
                   href="/administracao/listas"
-                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                  className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
                 >
                   Gerenciar listas
                 </Link>
@@ -277,7 +280,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
               {podeExportar && (
                 <a
                   href={construirHrefDeExportacao(parametros)}
-                  className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                  className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
                 >
                   Exportar
                 </a>
@@ -285,7 +288,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
               {podeCadastrar && (
                 <Link
                   href="/equipamentos/novo"
-                  className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg bg-primaria px-4 py-2 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover"
                 >
                   Cadastrar equipamento
                 </Link>
@@ -296,14 +299,20 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
           {idArquivado !== null && (
             <p
               role="status"
-              className="rounded border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+              className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
             >
               Equipamento arquivado. O histórico foi mantido.{" "}
-              <Link href={`/equipamentos/${idArquivado}`} className="font-medium underline">
+              <Link
+                href={`/equipamentos/${idArquivado}`}
+                className="font-semibold underline underline-offset-4"
+              >
                 Ver equipamento ou restaurar
               </Link>
               {" · "}
-              <Link href="/equipamentos/arquivados" className="font-medium underline">
+              <Link
+                href="/equipamentos/arquivados"
+                className="font-semibold underline underline-offset-4"
+              >
                 Ver arquivados
               </Link>
             </p>
@@ -311,7 +320,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
           {mensagemDeErro !== null && (
             <p
               role="alert"
-              className="rounded border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+              className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
             >
               {mensagemDeErro}
             </p>
@@ -322,7 +331,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
             <input type="hidden" name="direcao" value={parametros.direcao} />
 
             <div className="flex flex-col gap-1 lg:col-span-2">
-              <label htmlFor="busca" className="text-sm font-medium">
+              <label htmlFor="busca" className="text-sm font-medium text-texto">
                 Buscar
               </label>
               <input
@@ -336,7 +345,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="categoriaId" className="text-sm font-medium">
+              <label htmlFor="categoriaId" className="text-sm font-medium text-texto">
                 Categoria
               </label>
               <select
@@ -355,7 +364,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="fabricanteId" className="text-sm font-medium">
+              <label htmlFor="fabricanteId" className="text-sm font-medium text-texto">
                 Fabricante
               </label>
               <select
@@ -374,7 +383,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="statusId" className="text-sm font-medium">
+              <label htmlFor="statusId" className="text-sm font-medium text-texto">
                 Status
               </label>
               <select
@@ -393,7 +402,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="andarId" className="text-sm font-medium">
+              <label htmlFor="andarId" className="text-sm font-medium text-texto">
                 Andar
               </label>
               <select
@@ -414,20 +423,20 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
             <div className="flex items-end gap-2">
               <button
                 type="submit"
-                className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg bg-primaria px-4 py-2 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover"
               >
                 Filtrar
               </button>
               <Link
                 href="/equipamentos"
-                className="rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
               >
                 Limpar filtros
               </Link>
             </div>
           </form>
 
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-texto-suave">
             {total === 0
               ? "Nenhum equipamento encontrado com os filtros atuais."
               : `${total} equipamento${total === 1 ? "" : "s"} encontrado${total === 1 ? "" : "s"}.`}
@@ -436,29 +445,47 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
           {itens.length > 0 && (
             <>
               {/* Desktop: tabela. */}
-              <table className="hidden w-full text-left text-sm md:table">
+              <table className="hidden w-full border-separate border-spacing-0 text-left text-sm md:table">
                 <caption className="sr-only">Lista de equipamentos</caption>
                 <thead>
-                  <tr className="border-b border-zinc-300 dark:border-zinc-700">
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                  <tr className="bg-superficie-suave text-texto-suave">
+                    <th
+                      scope="col"
+                      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                    >
                       Categoria
                     </th>
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                    <th
+                      scope="col"
+                      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                    >
                       Fabricante
                     </th>
                     <CabecalhoOrdenavel parametros={parametros} campo="modelo" />
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                    <th
+                      scope="col"
+                      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                    >
                       Código Trillogo
                     </th>
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                    <th
+                      scope="col"
+                      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                    >
                       Andar
                     </th>
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                    <th
+                      scope="col"
+                      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                    >
                       Status
                     </th>
                     <CabecalhoOrdenavel parametros={parametros} campo="criadoEm" />
                     <CabecalhoOrdenavel parametros={parametros} campo="atualizadoEm" />
-                    <th scope="col" className="py-2 font-medium">
+                    <th
+                      scope="col"
+                      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                    >
                       <span className="sr-only">Ações</span>
                     </th>
                   </tr>
@@ -467,28 +494,36 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                   {itens.map((equipamento) => (
                     <tr
                       key={equipamento.id}
-                      className="border-b border-zinc-200 dark:border-zinc-800"
+                      className="transition-colors hover:bg-superficie-suave"
                     >
-                      <td className="py-2 pr-4">{equipamento.categoria.nome}</td>
-                      <td className="py-2 pr-4">{equipamento.fabricante.nome}</td>
-                      <td className="py-2 pr-4">{equipamento.modelo}</td>
-                      <td className="py-2 pr-4">
+                      <td className="border-b border-borda px-3 py-3">
+                        {equipamento.categoria.nome}
+                      </td>
+                      <td className="border-b border-borda px-3 py-3">
+                        {equipamento.fabricante.nome}
+                      </td>
+                      <td className="border-b border-borda px-3 py-3">{equipamento.modelo}</td>
+                      <td className="border-b border-borda px-3 py-3">
                         <SeloTrillogo codigo={equipamento.codigoTrillogo} />
                       </td>
-                      <td className="py-2 pr-4">{equipamento.andar.nome}</td>
-                      <td className="py-2 pr-4">
+                      <td className="border-b border-borda px-3 py-3">{equipamento.andar.nome}</td>
+                      <td className="border-b border-borda px-3 py-3">
                         <SeloDeStatus
                           nome={equipamento.status.nome}
                           nomeNormalizado={equipamento.status.nomeNormalizado}
                         />
                       </td>
-                      <td className="py-2 pr-4">{formatarData(equipamento.criadoEm)}</td>
-                      <td className="py-2 pr-4">{formatarData(equipamento.atualizadoEm)}</td>
-                      <td className="py-2">
+                      <td className="border-b border-borda px-3 py-3">
+                        {formatarData(equipamento.criadoEm)}
+                      </td>
+                      <td className="border-b border-borda px-3 py-3">
+                        {formatarData(equipamento.atualizadoEm)}
+                      </td>
+                      <td className="border-b border-borda px-3 py-3">
                         <div className="flex items-center justify-end gap-3">
                           <Link
                             href={`/equipamentos/${equipamento.id}`}
-                            className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                            className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
                           >
                             Detalhes
                           </Link>
@@ -517,7 +552,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 {itens.map((equipamento) => (
                   <li
                     key={equipamento.id}
-                    className="flex flex-col gap-1 rounded border border-zinc-300 p-3 dark:border-zinc-700"
+                    className="flex flex-col gap-2 rounded-xl border border-borda bg-superficie p-4 shadow-cartao"
                   >
                     <span className="font-medium">
                       {descricaoDoEquipamento({
@@ -526,9 +561,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                         modelo: equipamento.modelo,
                       })}
                     </span>
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {equipamento.andar.nome}
-                    </span>
+                    <span className="text-sm text-texto-suave">{equipamento.andar.nome}</span>
                     <span className="flex flex-wrap items-center gap-2">
                       <SeloDeStatus
                         nome={equipamento.status.nome}
@@ -541,7 +574,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                     <div className="mt-1 flex items-center justify-between gap-3">
                       <Link
                         href={`/equipamentos/${equipamento.id}`}
-                        className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                        className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
                       >
                         Ver detalhes
                       </Link>
@@ -565,17 +598,20 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
 
               <nav
                 aria-label="Paginação"
-                className="flex items-center justify-center gap-4 text-sm"
+                className="flex flex-wrap items-center justify-center gap-3 text-sm"
               >
                 {pagina > 1 ? (
                   <Link
                     href={construirHref(parametros, { pagina: pagina - 1 })}
-                    className="underline"
+                    className="inline-flex min-h-10 items-center rounded-lg border border-borda-campo bg-superficie px-4 py-2 font-medium text-texto transition-colors hover:bg-superficie-suave"
                   >
                     Anterior
                   </Link>
                 ) : (
-                  <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex min-h-10 cursor-not-allowed items-center rounded-lg border border-borda px-4 py-2 text-texto-suave"
+                  >
                     Anterior
                   </span>
                 )}
@@ -585,12 +621,15 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 {pagina < totalPaginas ? (
                   <Link
                     href={construirHref(parametros, { pagina: pagina + 1 })}
-                    className="underline"
+                    className="inline-flex min-h-10 items-center rounded-lg border border-borda-campo bg-superficie px-4 py-2 font-medium text-texto transition-colors hover:bg-superficie-suave"
                   >
                     Próxima
                   </Link>
                 ) : (
-                  <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex min-h-10 cursor-not-allowed items-center rounded-lg border border-borda px-4 py-2 text-texto-suave"
+                  >
                     Próxima
                   </span>
                 )}

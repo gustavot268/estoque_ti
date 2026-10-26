@@ -66,7 +66,7 @@ export default async function PaginaDeEdicaoDeValorDeLista({
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-bold tracking-tight text-texto">
           Editar {rotuloDoTipo.toLowerCase()}
         </h1>
         {valor.pendenteRevisao && (
@@ -77,15 +77,17 @@ export default async function PaginaDeEdicaoDeValorDeLista({
         )}
       </div>
 
-      <FormularioValorDeLista
-        acao={acaoDeAtualizar}
-        valorInicial={{
-          nome: valor.nome,
-          ativo: valor.ativo,
-          ordemExibicao: valor.ordemExibicao,
-        }}
-        rotuloDoBotao="Salvar"
-      />
+      <div className="flex flex-col gap-6 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6">
+        <FormularioValorDeLista
+          acao={acaoDeAtualizar}
+          valorInicial={{
+            nome: valor.nome,
+            ativo: valor.ativo,
+            ordemExibicao: valor.ordemExibicao,
+          }}
+          rotuloDoBotao="Salvar"
+        />
+      </div>
     </main>
   );
 }

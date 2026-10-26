@@ -57,17 +57,17 @@ export function FormularioCadastroDeMaterial({ listas, fabricanteOutroId, hoje }
       noValidate
       className="flex w-full flex-col gap-6"
     >
-      <h1 className="text-xl font-semibold tracking-tight">Cadastrar material</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-texto">Cadastrar material</h1>
 
       {resultado?.sucesso && (
         <p
           role="status"
-          className="rounded border border-green-600 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-300"
+          className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
         >
           Material cadastrado com sucesso.{" "}
           <Link
             href={`/materiais/${resultado.materialId}`}
-            className="underline underline-offset-2"
+            className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
           >
             Ver detalhes
           </Link>
@@ -77,7 +77,7 @@ export function FormularioCadastroDeMaterial({ listas, fabricanteOutroId, hoje }
       {comErro !== null && (
         <p
           role="alert"
-          className="rounded border border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {comErro.mensagem}
         </p>
@@ -99,7 +99,7 @@ export function FormularioCadastroDeMaterial({ listas, fabricanteOutroId, hoje }
         <button
           type="submit"
           disabled={pendente}
-          className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primaria px-6 py-2.5 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {pendente ? "Salvando…" : "Cadastrar"}
         </button>

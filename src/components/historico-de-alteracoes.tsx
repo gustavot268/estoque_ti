@@ -43,21 +43,25 @@ export function HistoricoDeAlteracoes({
   readonly registros: readonly RegistroDoHistorico[];
 }) {
   return (
-    <section aria-labelledby="historico" className="flex flex-col gap-2">
-      <h2 id="historico" className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+    <section
+      aria-labelledby="historico"
+      className="flex flex-col gap-4 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6"
+    >
+      <h2 id="historico" className="text-base font-semibold text-texto">
         Histórico de alterações
       </h2>
       {registros.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Nenhum registro de histórico.</p>
+        <p className="text-sm text-texto-suave">Nenhum registro de histórico.</p>
       ) : (
-        <ol className="flex flex-col gap-2">
+        // Linha do tempo: um traço vertical com um ponto por registro.
+        <ol className="ml-1 flex flex-col gap-4 border-l-2 border-borda pl-5">
           {registros.map((registro) => (
             <li
               key={registro.id}
-              className="flex flex-wrap items-baseline gap-2 rounded border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+              className="relative flex flex-col gap-0.5 text-sm before:absolute before:top-1.5 before:-left-[26px] before:h-2.5 before:w-2.5 before:rounded-full before:bg-foco before:content-['']"
             >
-              <span className="font-medium">{ROTULOS_DE_ACAO[registro.tipoAcao]}</span>
-              <span className="text-zinc-600 dark:text-zinc-400">
+              <span className="font-medium text-texto">{ROTULOS_DE_ACAO[registro.tipoAcao]}</span>
+              <span className="text-texto-suave">
                 {formatarDataEHora(registro.ocorridoEm)}
                 {registro.usuarioNome !== null && ` · ${registro.usuarioNome}`} ·{" "}
                 {ROTULOS_DE_RESULTADO[registro.resultado]}

@@ -18,28 +18,103 @@
 }
 
 /*
- * Cores próprias do estoque, iguais nos temas claro e escuro.
+ * Paleta da interface, em tokens semânticos: as telas usam `bg-superficie`,
+ * `text-texto-suave`, `bg-primaria`… e nunca uma cor crua. Trocar o tema é
+ * trocar só os valores abaixo.
  *
- * - Moldura verde das abas "Inventário de Ativos de TI" / "Materiais de TI".
+ * - Tema claro: a paleta da logo da empresa (#F0F3FA, #D5DEEF, #B1C9EF,
+ *   #8AAEE0, #628ECB, #395886), com o azul-marinho #0A1931 para o texto.
+ * - Tema escuro: a paleta azul-marinho escolhida pela diretoria (#0A1931,
+ *   #1A3D63, #4A7FA7, #B3CFE5, #F6FAFD). As camadas intermediárias de
+ *   superfície são misturas dessas mesmas cores, não cores novas.
+ * - O tema segue a preferência do sistema operacional (`prefers-color-scheme`),
+ *   o mesmo critério da variante `dark:` do Tailwind.
+ *
+ * Contraste (WCAG AA pede 4,5:1 para texto, 3:1 para borda de controle):
+ * - claro:  texto #0A1931 sobre branco 18,9:1; texto suave/primária #395886
+ *   sobre branco 7,2:1 e sobre #F0F3FA 6,5:1; texto da aba ativa sobre a
+ *   moldura #B1C9EF 10,4:1; anel de foco #628ECB sobre branco 3,4:1.
+ * - escuro: texto #F6FAFD sobre #1A3D63 10,6:1; texto suave #B3CFE5 sobre
+ *   #1A3D63 6,9:1 e sobre #0A1931 10,8:1; texto da primária #0A1931 sobre
+ *   #B3CFE5 10,8:1; borda dos campos #4A7FA7 sobre a superfície 3,3:1.
+ *
+ * Cores próprias do estoque, iguais nos dois temas:
  * - Selo lilás do código Trillogo. O texto é um roxo bem escuro, e não o roxo
  *   médio do desenho original: sobre o lilás, este dá contraste 5,4:1 (o mínimo
  *   WCAG AA para texto pequeno é 4,5:1; o roxo médio dava 2,5:1).
  */
 :root {
-  --moldura: #86b499;
+  color-scheme: light;
+
+  --fundo: #f0f3fa;
+  --superficie: #ffffff;
+  --superficie-suave: #f0f3fa;
+  --superficie-realce: #d5deef;
+  --borda: #d5deef;
+  --borda-campo: #8aaee0;
+  --texto: #0a1931;
+  --texto-suave: #395886;
+  --primaria: #395886;
+  --primaria-hover: #1a3d63;
+  --sobre-primaria: #ffffff;
+  --link: #395886;
+  --foco: #628ecb;
+  --moldura: #b1c9ef;
+  --sobre-moldura: #0a1931;
+  --sombra: rgb(57 88 134 / 0.12);
+
   --trillogo: #ba71c9;
   --trillogo-texto: #2a0633;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --fundo: #0a1931;
+    --superficie: color-mix(in srgb, #1a3d63 40%, #0a1931);
+    --superficie-suave: color-mix(in srgb, #1a3d63 70%, #0a1931);
+    --superficie-realce: #1a3d63;
+    --borda: #1a3d63;
+    --borda-campo: #4a7fa7;
+    --texto: #f6fafd;
+    --texto-suave: #b3cfe5;
+    --primaria: #b3cfe5;
+    --primaria-hover: #f6fafd;
+    --sobre-primaria: #0a1931;
+    --link: #b3cfe5;
+    --foco: #b3cfe5;
+    --moldura: #1a3d63;
+    --sobre-moldura: #f6fafd;
+    --sombra: rgb(0 0 0 / 0.35);
+  }
+}
+
 @theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-superficie-suave: var(--superficie-suave);
+  --color-superficie-realce: var(--superficie-realce);
+  --color-borda: var(--borda);
+  --color-borda-campo: var(--borda-campo);
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-primaria: var(--primaria);
+  --color-primaria-hover: var(--primaria-hover);
+  --color-sobre-primaria: var(--sobre-primaria);
+  --color-link: var(--link);
+  --color-foco: var(--foco);
   --color-moldura: var(--moldura);
+  --color-sobre-moldura: var(--sobre-moldura);
   --color-trillogo: var(--trillogo);
   --color-trillogo-texto: var(--trillogo-texto);
+
+  --shadow-cartao: 0 1px 2px var(--sombra), 0 8px 24px -12px var(--sombra);
 }
 
 /* Foco sempre visível (acessibilidade: navegação por teclado). */
 :focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--foco);
   outline-offset: 2px;
 }
 
@@ -47,10 +122,28 @@ body {
   font-family: var(--font-sans);
 }
 
+::selection {
+  background: var(--superficie-realce);
+  color: var(--texto);
+}
+
+/* Quem pede menos movimento no sistema não vê transições nem deslocamentos. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: precisa vencer as utilidades `transition` das telas. */
+    transition-duration: 0s !important;
+    /* biome-ignore lint/complexity/noImportantStyles: idem, para animações. */
+    animation-duration: 0s !important;
+  }
+}
+
 /*
  * Aba ativa da moldura (src/components/moldura-de-abas.tsx): uma curva côncava
  * no pé, do lado de dentro, faz a aba "escorrer" para a moldura, como uma pasta
- * de arquivo. O quadradinho é verde fora de um círculo de raio `--raio`.
+ * de arquivo. O quadradinho tem a cor da moldura fora de um círculo de raio
+ * `--raio`.
  */
 .aba-da-moldura-ativa::after {
   --raio: 1.5rem;

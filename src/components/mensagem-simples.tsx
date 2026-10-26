@@ -14,14 +14,14 @@ type Props = {
 export function MensagemSimples({ titulo, descricao, acao }: Props) {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-3 px-4 py-16 text-center">
-      <h1 className="text-xl font-semibold tracking-tight">{titulo}</h1>
-      <p role="alert" className="text-zinc-600 dark:text-zinc-400">
+      <h1 className="text-2xl font-bold tracking-tight text-texto">{titulo}</h1>
+      <p role="alert" className="text-texto-suave">
         {descricao}
       </p>
       {acao !== undefined && (
         <Link
           href={acao.href}
-          className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+          className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
         >
           {acao.rotulo}
         </Link>

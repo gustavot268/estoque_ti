@@ -36,8 +36,8 @@ type Props = {
 const ESTADO_INICIAL: ResultadoCadastro | null = null;
 
 const CLASSE_CAMPO =
-  "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:outline-zinc-100";
-const CLASSE_RASTRO = "text-sm font-medium text-zinc-800 dark:text-zinc-200";
+  "w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto";
+const CLASSE_RASTRO = "text-sm font-medium text-texto";
 
 export function FormularioCadastroDeEquipamento({
   categorias,
@@ -89,17 +89,17 @@ export function FormularioCadastroDeEquipamento({
       noValidate
       className="flex w-full flex-col gap-6"
     >
-      <h1 className="text-xl font-semibold tracking-tight">Cadastrar equipamento</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-texto">Cadastrar equipamento</h1>
 
       {resultado?.sucesso && (
         <p
           role="status"
-          className="rounded border border-green-600 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-300"
+          className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
         >
           Equipamento cadastrado com sucesso.{" "}
           <Link
             href={`/equipamentos/${resultado.equipamentoId}`}
-            className="underline underline-offset-2"
+            className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
           >
             Ver detalhes
           </Link>
@@ -109,7 +109,7 @@ export function FormularioCadastroDeEquipamento({
       {erroGeral !== null && (
         <p
           role="alert"
-          className="rounded border border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {erroGeral}
         </p>
@@ -271,7 +271,7 @@ export function FormularioCadastroDeEquipamento({
             className={CLASSE_CAMPO}
             aria-describedby="observacoes-dica observacoes-erro"
           />
-          <p id="observacoes-dica" className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p id="observacoes-dica" className="text-xs text-texto-suave">
             Não inclua senhas, documentos pessoais ou outras informações sensíveis.
           </p>
           <ListaDeErros id="observacoes-erro" erros={errosDoCampo("observacoes")} />
@@ -289,7 +289,7 @@ export function FormularioCadastroDeEquipamento({
             className={CLASSE_CAMPO}
             aria-describedby="foto-dica foto-erro"
           />
-          <p id="foto-dica" className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p id="foto-dica" className="text-xs text-texto-suave">
             Opcional. JPEG, PNG ou WEBP, até 5 MB. No celular, abre a opção de tirar uma foto ou
             escolher da galeria.
           </p>
@@ -301,7 +301,7 @@ export function FormularioCadastroDeEquipamento({
         <button
           type="submit"
           disabled={pendente}
-          className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primaria px-6 py-2.5 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {pendente ? "Salvando…" : "Cadastrar"}
         </button>
@@ -318,7 +318,7 @@ function ListaDeErros({ id, erros }: { id: string; erros: readonly string[] }) {
     <ul
       id={id}
       role="alert"
-      className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-400"
+      className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-300"
     >
       {erros.map((mensagem) => (
         <li key={mensagem}>{mensagem}</li>

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "predemo": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/iniciar-postgres.ps1",
     "demo": "next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",

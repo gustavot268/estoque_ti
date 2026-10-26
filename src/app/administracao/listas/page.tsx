@@ -59,27 +59,25 @@ export default async function PaginaDeGestaoDeListas() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Gestão de listas</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <h1 className="text-2xl font-bold tracking-tight text-texto">Gestão de listas</h1>
+        <p className="mt-1 text-sm text-texto-suave">
           As listas formam as opções dos cadastros. Fabricante, Andar, Local de armazenamento e
           Orientação valem para equipamentos e materiais; as demais, só para um dos dois. Um valor
           só pode ser excluído se nenhum equipamento ou material o usar.
         </p>
       </div>
 
-      <ul className="flex flex-col gap-3">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {TIPOS_DE_LISTA.map((tipo) => (
           <li key={tipo}>
             <Link
               href={`/administracao/listas/${tipo}`}
-              className="block rounded border border-zinc-300 p-4 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              className="block h-full rounded-xl border border-borda bg-superficie p-5 shadow-cartao transition hover:-translate-y-0.5 hover:border-foco"
             >
-              <span className="font-medium">{ROTULOS_DE_TIPO_DE_LISTA[tipo]}</span>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {DESCRICOES_DE_TIPO[tipo]}
-              </p>
+              <span className="font-semibold text-texto">{ROTULOS_DE_TIPO_DE_LISTA[tipo]}</span>
+              <p className="mt-1 text-sm text-texto-suave">{DESCRICOES_DE_TIPO[tipo]}</p>
             </Link>
           </li>
         ))}

@@ -16,9 +16,8 @@ export const CLASSES_POR_COR: Readonly<Record<CorDoStatus, string>> = {
     "border-red-300 bg-red-100 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200",
   amarelo:
     "border-yellow-300 bg-yellow-100 text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-200",
-  cinza:
-    "border-zinc-300 bg-zinc-200 text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200",
-  neutra: "border-zinc-300 text-zinc-800 dark:border-zinc-600 dark:text-zinc-200",
+  cinza: "border-borda-campo bg-superficie-realce text-texto",
+  neutra: "border-borda-campo text-texto",
 };
 
 type Props = {

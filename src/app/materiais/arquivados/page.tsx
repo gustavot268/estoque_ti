@@ -39,7 +39,7 @@ const MENSAGENS_DE_ERRO_DA_RESTAURACAO: Readonly<Record<string, string>> = {
 const PADRAO_DE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CLASSE_BOTAO_SECUNDARIO =
-  "rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700";
+  "inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave";
 
 function primeiroValor(valor: string | string[] | undefined): string | undefined {
   return Array.isArray(valor) ? valor[0] : valor;
@@ -129,13 +129,13 @@ export default async function PaginaDeMateriaisArquivados({
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">Materiais arquivados</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-texto">Materiais arquivados</h1>
         <Link href="/materiais" className={CLASSE_BOTAO_SECUNDARIO}>
           Voltar para os materiais
         </Link>
       </div>
 
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-sm text-texto-suave">
         Materiais que saíram da lista principal. O histórico de cada um foi mantido e eles podem ser
         restaurados.
       </p>
@@ -143,10 +143,13 @@ export default async function PaginaDeMateriaisArquivados({
       {idRestaurado !== null && (
         <p
           role="status"
-          className="rounded border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+          className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
         >
           Material restaurado. Ele voltou para a lista principal.{" "}
-          <Link href={`/materiais/${idRestaurado}`} className="font-medium underline">
+          <Link
+            href={`/materiais/${idRestaurado}`}
+            className="font-semibold underline underline-offset-4"
+          >
             Ver material
           </Link>
         </p>
@@ -154,173 +157,212 @@ export default async function PaginaDeMateriaisArquivados({
       {mensagemDeErro !== null && (
         <p
           role="alert"
-          className="rounded border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {mensagemDeErro}
         </p>
       )}
 
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <div className="flex min-w-64 flex-1 flex-col gap-1">
-          <label htmlFor="busca" className="text-sm font-medium">
+      <div className="flex flex-col gap-6 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6">
+        <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="flex min-w-64 flex-1 flex-col gap-1">
+            <label htmlFor="busca" className="text-sm font-medium text-texto">
+              Buscar
+            </label>
+            <input
+              id="busca"
+              name="busca"
+              defaultValue={parametros.busca ?? ""}
+              placeholder="Categoria, tipo, especificação ou código Trillogo"
+              maxLength={120}
+              className="w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto"
+            />
+          </div>
+          <button
+            type="submit"
+            className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg bg-primaria px-4 py-2 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover"
+          >
             Buscar
-          </label>
-          <input
-            id="busca"
-            name="busca"
-            defaultValue={parametros.busca ?? ""}
-            placeholder="Categoria, tipo, especificação ou código Trillogo"
-            maxLength={120}
-            className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          />
-        </div>
-        <button
-          type="submit"
-          className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          Buscar
-        </button>
-        <Link href="/materiais/arquivados" className={CLASSE_BOTAO_SECUNDARIO}>
-          Limpar busca
-        </Link>
-      </form>
+          </button>
+          <Link href="/materiais/arquivados" className={CLASSE_BOTAO_SECUNDARIO}>
+            Limpar busca
+          </Link>
+        </form>
 
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        {total === 0
-          ? parametros.busca
-            ? "Nenhum material arquivado encontrado com esta busca."
-            : "Nenhum material arquivado."
-          : `${total} ${total === 1 ? "material arquivado" : "materiais arquivados"}.`}
-      </p>
+        <p className="text-sm text-texto-suave">
+          {total === 0
+            ? parametros.busca
+              ? "Nenhum material arquivado encontrado com esta busca."
+              : "Nenhum material arquivado."
+            : `${total} ${total === 1 ? "material arquivado" : "materiais arquivados"}.`}
+        </p>
 
-      {itens.length > 0 && (
-        <>
-          {/* Desktop: tabela. */}
-          <table className="hidden w-full text-left text-sm md:table">
-            <caption className="sr-only">Lista de materiais arquivados</caption>
-            <thead>
-              <tr className="border-b border-zinc-300 dark:border-zinc-700">
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Material
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Código Trillogo
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Quantidade
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Arquivado em
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Arquivado por
-                </th>
-                <th scope="col" className="py-2 font-medium">
-                  <span className="sr-only">Ações</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {itens.map((material) => (
-                <tr key={material.id} className="border-b border-zinc-200 dark:border-zinc-800">
-                  <td className="py-2 pr-4">{descricao(material)}</td>
-                  <td className="py-2 pr-4">
-                    <SeloTrillogo codigo={material.codigoTrillogo} />
-                  </td>
-                  <td className="py-2 pr-4 tabular-nums">
-                    {material.quantidade} ({material.unidadeMedida.nome})
-                  </td>
-                  <td className="py-2 pr-4">{formatarArquivadoEm(material.arquivadoEm)}</td>
-                  <td className="py-2 pr-4">{material.arquivadoPor?.nome ?? "—"}</td>
-                  <td className="py-2">
-                    <div className="flex items-center justify-end gap-3">
-                      <Link
-                        href={`/materiais/${material.id}`}
-                        className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
-                      >
-                        Detalhes
-                      </Link>
-                      <form action={restaurarMaterialDaListaAction.bind(null, material.id)}>
-                        <input type="hidden" name="versao" value={material.versao} />
-                        <input type="hidden" name="retorno" value={retornoDaLista} />
-                        <button
-                          type="submit"
-                          aria-label={`Restaurar o material ${descricao(material)}`}
-                          className={CLASSE_BOTAO_SECUNDARIO}
-                        >
-                          Restaurar
-                        </button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Celular: cartões. */}
-          <ul className="flex flex-col gap-3 md:hidden">
-            {itens.map((material) => (
-              <li
-                key={material.id}
-                className="flex flex-col gap-1 rounded border border-zinc-300 p-3 dark:border-zinc-700"
-              >
-                <span className="font-medium">{descricao(material)}</span>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {material.quantidade} ({material.unidadeMedida.nome})
-                </span>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Arquivado em {formatarArquivadoEm(material.arquivadoEm)} por{" "}
-                  {material.arquivadoPor?.nome ?? "—"}
-                </span>
-                <div className="mt-1 flex items-center justify-between gap-3">
-                  <Link
-                    href={`/materiais/${material.id}`}
-                    className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+        {itens.length > 0 && (
+          <>
+            {/* Desktop: tabela. */}
+            <table className="hidden w-full border-separate border-spacing-0 text-left text-sm md:table">
+              <caption className="sr-only">Lista de materiais arquivados</caption>
+              <thead>
+                <tr className="bg-superficie-suave text-texto-suave">
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
                   >
-                    Ver detalhes
-                  </Link>
-                  <form action={restaurarMaterialDaListaAction.bind(null, material.id)}>
-                    <input type="hidden" name="versao" value={material.versao} />
-                    <input type="hidden" name="retorno" value={retornoDaLista} />
-                    <button
-                      type="submit"
-                      aria-label={`Restaurar o material ${descricao(material)}`}
-                      className={CLASSE_BOTAO_SECUNDARIO}
-                    >
-                      Restaurar
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    Material
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                  >
+                    Código Trillogo
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                  >
+                    Quantidade
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                  >
+                    Arquivado em
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                  >
+                    Arquivado por
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                  >
+                    <span className="sr-only">Ações</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {itens.map((material) => (
+                  <tr key={material.id} className="transition-colors hover:bg-superficie-suave">
+                    <td className="border-b border-borda px-3 py-3">{descricao(material)}</td>
+                    <td className="border-b border-borda px-3 py-3">
+                      <SeloTrillogo codigo={material.codigoTrillogo} />
+                    </td>
+                    <td className="border-b border-borda px-3 py-3 tabular-nums">
+                      {material.quantidade} ({material.unidadeMedida.nome})
+                    </td>
+                    <td className="border-b border-borda px-3 py-3">
+                      {formatarArquivadoEm(material.arquivadoEm)}
+                    </td>
+                    <td className="border-b border-borda px-3 py-3">
+                      {material.arquivadoPor?.nome ?? "—"}
+                    </td>
+                    <td className="border-b border-borda px-3 py-3">
+                      <div className="flex items-center justify-end gap-3">
+                        <Link
+                          href={`/materiais/${material.id}`}
+                          className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
+                        >
+                          Detalhes
+                        </Link>
+                        <form action={restaurarMaterialDaListaAction.bind(null, material.id)}>
+                          <input type="hidden" name="versao" value={material.versao} />
+                          <input type="hidden" name="retorno" value={retornoDaLista} />
+                          <button
+                            type="submit"
+                            aria-label={`Restaurar o material ${descricao(material)}`}
+                            className={CLASSE_BOTAO_SECUNDARIO}
+                          >
+                            Restaurar
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-          <nav aria-label="Paginação" className="flex items-center justify-center gap-4 text-sm">
-            {pagina > 1 ? (
-              <Link href={construirHref(parametros.busca, pagina - 1)} className="underline">
-                Anterior
-              </Link>
-            ) : (
-              <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
-                Anterior
+            {/* Celular: cartões. */}
+            <ul className="flex flex-col gap-3 md:hidden">
+              {itens.map((material) => (
+                <li
+                  key={material.id}
+                  className="flex flex-col gap-2 rounded-xl border border-borda bg-superficie p-4 shadow-cartao"
+                >
+                  <span className="font-medium">{descricao(material)}</span>
+                  <span className="text-sm text-texto-suave">
+                    {material.quantidade} ({material.unidadeMedida.nome})
+                  </span>
+                  <span className="text-sm text-texto-suave">
+                    Arquivado em {formatarArquivadoEm(material.arquivadoEm)} por{" "}
+                    {material.arquivadoPor?.nome ?? "—"}
+                  </span>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <Link
+                      href={`/materiais/${material.id}`}
+                      className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
+                    >
+                      Ver detalhes
+                    </Link>
+                    <form action={restaurarMaterialDaListaAction.bind(null, material.id)}>
+                      <input type="hidden" name="versao" value={material.versao} />
+                      <input type="hidden" name="retorno" value={retornoDaLista} />
+                      <button
+                        type="submit"
+                        aria-label={`Restaurar o material ${descricao(material)}`}
+                        className={CLASSE_BOTAO_SECUNDARIO}
+                      >
+                        Restaurar
+                      </button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <nav
+              aria-label="Paginação"
+              className="flex flex-wrap items-center justify-center gap-3 text-sm"
+            >
+              {pagina > 1 ? (
+                <Link
+                  href={construirHref(parametros.busca, pagina - 1)}
+                  className="inline-flex min-h-10 items-center rounded-lg border border-borda-campo bg-superficie px-4 py-2 font-medium text-texto transition-colors hover:bg-superficie-suave"
+                >
+                  Anterior
+                </Link>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex min-h-10 cursor-not-allowed items-center rounded-lg border border-borda px-4 py-2 text-texto-suave"
+                >
+                  Anterior
+                </span>
+              )}
+              <span>
+                Página {pagina} de {totalPaginas}
               </span>
-            )}
-            <span>
-              Página {pagina} de {totalPaginas}
-            </span>
-            {pagina < totalPaginas ? (
-              <Link href={construirHref(parametros.busca, pagina + 1)} className="underline">
-                Próxima
-              </Link>
-            ) : (
-              <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
-                Próxima
-              </span>
-            )}
-          </nav>
-        </>
-      )}
+              {pagina < totalPaginas ? (
+                <Link
+                  href={construirHref(parametros.busca, pagina + 1)}
+                  className="inline-flex min-h-10 items-center rounded-lg border border-borda-campo bg-superficie px-4 py-2 font-medium text-texto transition-colors hover:bg-superficie-suave"
+                >
+                  Próxima
+                </Link>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex min-h-10 cursor-not-allowed items-center rounded-lg border border-borda px-4 py-2 text-texto-suave"
+                >
+                  Próxima
+                </span>
+              )}
+            </nav>
+          </>
+        )}
+      </div>
     </main>
   );
 }

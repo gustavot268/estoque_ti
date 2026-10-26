@@ -40,7 +40,7 @@ const MENSAGENS_DE_ERRO: Readonly<Record<string, string>> = {
 };
 
 const CLASSE_SUCESSO =
-  "rounded border border-green-600 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-300";
+  "rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200";
 
 function primeiroValor(valor: string | string[] | undefined): string | undefined {
   return Array.isArray(valor) ? valor[0] : valor;
@@ -106,18 +106,18 @@ export default async function PaginaDeDetalhesDoMaterial({
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-bold tracking-tight text-texto">
           {descricaoDoMaterial({
             categoria: material.categoria.nome,
             tipo: material.tipo,
             especificacao: material.especificacao,
           })}
         </h1>
-        <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           {podeEditar && (
             <Link
               href={`/materiais/${material.id}/editar`}
-              className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+              className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg bg-primaria px-4 py-2 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover"
             >
               Editar
             </Link>
@@ -127,7 +127,7 @@ export default async function PaginaDeDetalhesDoMaterial({
               <input type="hidden" name="versao" value={material.versao} />
               <button
                 type="submit"
-                className="font-medium text-amber-800 underline underline-offset-2 dark:text-amber-500"
+                className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-amber-400 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
               >
                 Arquivar
               </button>
@@ -138,13 +138,16 @@ export default async function PaginaDeDetalhesDoMaterial({
               <input type="hidden" name="versao" value={material.versao} />
               <button
                 type="submit"
-                className="font-medium text-green-800 underline underline-offset-2 dark:text-green-500"
+                className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-green-400 bg-green-50 px-4 py-2 text-sm font-medium text-green-900 transition-colors hover:bg-green-100 dark:border-green-700 dark:bg-green-950 dark:text-green-200 dark:hover:bg-green-900"
               >
                 Restaurar
               </button>
             </form>
           )}
-          <Link href="/materiais" className="underline underline-offset-2">
+          <Link
+            href="/materiais"
+            className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
+          >
             Voltar para a consulta
           </Link>
         </div>
@@ -168,7 +171,7 @@ export default async function PaginaDeDetalhesDoMaterial({
       {mensagemDeErro !== null && (
         <p
           role="alert"
-          className="rounded border border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {mensagemDeErro}
         </p>
@@ -177,66 +180,71 @@ export default async function PaginaDeDetalhesDoMaterial({
       {material.arquivadoEm !== null && (
         <p
           role="status"
-          className="rounded border border-amber-500 bg-amber-100 px-3 py-2 text-sm text-amber-950"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
         >
           Material arquivado em {formatarDataEHora(material.arquivadoEm)}
           {material.arquivadoPor !== null && ` por ${material.arquivadoPor.nome}`}.
         </p>
       )}
 
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Campo rotulo="Código Trillogo" valor={<SeloTrillogo codigo={material.codigoTrillogo} />} />
-        <Campo rotulo="Categoria" valor={material.categoria.nome} />
-        <Campo rotulo="Tipo" valor={material.tipo} />
-        <Campo rotulo="Especificação" valor={material.especificacao ?? "—"} />
-        <Campo rotulo="Fabricante" valor={material.fabricante?.nome ?? "—"} />
-        <Campo rotulo="Unidade de medida" valor={material.unidadeMedida.nome} />
-        <Campo
-          rotulo="Quantidade"
-          valor={
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="tabular-nums">{material.quantidade}</span>
-              <SeloDeEstoque
-                quantidade={material.quantidade}
-                estoqueMinimo={material.estoqueMinimo}
-              />
-            </span>
-          }
-        />
-        <Campo rotulo="Estoque mínimo" valor={material.estoqueMinimo ?? "—"} />
-        <Campo rotulo="Andar" valor={material.andar.nome} />
-        <Campo rotulo="Local de armazenamento" valor={material.localArmazenamento?.nome ?? "—"} />
-        <Campo rotulo="Orientação" valor={material.orientacao?.nome ?? "—"} />
-        <Campo
-          rotulo="Data da última contagem"
-          valor={
-            material.dataUltimaContagem === null
-              ? "—"
-              : formatarDataDoCalendario(material.dataUltimaContagem)
-          }
-        />
-        <Campo rotulo="Identificador interno" valor={material.id} monoespacado />
-      </dl>
+      <div className="flex flex-col gap-6 rounded-2xl border border-borda bg-superficie p-5 shadow-cartao sm:p-6">
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Campo
+            rotulo="Código Trillogo"
+            valor={<SeloTrillogo codigo={material.codigoTrillogo} />}
+          />
+          <Campo rotulo="Categoria" valor={material.categoria.nome} />
+          <Campo rotulo="Tipo" valor={material.tipo} />
+          <Campo rotulo="Especificação" valor={material.especificacao ?? "—"} />
+          <Campo rotulo="Fabricante" valor={material.fabricante?.nome ?? "—"} />
+          <Campo rotulo="Unidade de medida" valor={material.unidadeMedida.nome} />
+          <Campo
+            rotulo="Quantidade"
+            valor={
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="tabular-nums">{material.quantidade}</span>
+                <SeloDeEstoque
+                  quantidade={material.quantidade}
+                  estoqueMinimo={material.estoqueMinimo}
+                />
+              </span>
+            }
+          />
+          <Campo rotulo="Estoque mínimo" valor={material.estoqueMinimo ?? "—"} />
+          <Campo rotulo="Andar" valor={material.andar.nome} />
+          <Campo rotulo="Local de armazenamento" valor={material.localArmazenamento?.nome ?? "—"} />
+          <Campo rotulo="Orientação" valor={material.orientacao?.nome ?? "—"} />
+          <Campo
+            rotulo="Data da última contagem"
+            valor={
+              material.dataUltimaContagem === null
+                ? "—"
+                : formatarDataDoCalendario(material.dataUltimaContagem)
+            }
+          />
+          <Campo rotulo="Identificador interno" valor={material.id} monoespacado />
+        </dl>
 
-      {material.observacoes !== null && (
-        <div>
-          <h2 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Observações</h2>
-          <p className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-            {material.observacoes}
-          </p>
-        </div>
-      )}
+        {material.observacoes !== null && (
+          <div>
+            <h2 className="text-xs font-semibold tracking-wide text-texto-suave uppercase">
+              Observações
+            </h2>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-texto">{material.observacoes}</p>
+          </div>
+        )}
 
-      <dl className="grid grid-cols-1 gap-4 border-t border-zinc-200 pt-4 sm:grid-cols-2 dark:border-zinc-800">
-        <Campo
-          rotulo="Criado em"
-          valor={`${formatarDataEHora(material.criadoEm)} por ${material.criadoPor.nome}`}
-        />
-        <Campo
-          rotulo="Última alteração"
-          valor={`${formatarDataEHora(material.atualizadoEm)} por ${material.atualizadoPor.nome}`}
-        />
-      </dl>
+        <dl className="grid grid-cols-1 gap-4 border-t border-borda pt-4 sm:grid-cols-2">
+          <Campo
+            rotulo="Criado em"
+            valor={`${formatarDataEHora(material.criadoEm)} por ${material.criadoPor.nome}`}
+          />
+          <Campo
+            rotulo="Última alteração"
+            valor={`${formatarDataEHora(material.atualizadoEm)} por ${material.atualizadoPor.nome}`}
+          />
+        </dl>
+      </div>
 
       <HistoricoDeAlteracoes registros={historico} />
     </main>
@@ -254,8 +262,10 @@ function Campo({
 }) {
   return (
     <div>
-      <dt className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{rotulo}</dt>
-      <dd className={monoespacado ? "font-mono text-sm break-all" : "text-sm"}>{valor}</dd>
+      <dt className="text-xs font-semibold tracking-wide text-texto-suave uppercase">{rotulo}</dt>
+      <dd className={monoespacado ? "mt-1 font-mono text-sm break-all" : "mt-1 text-sm"}>
+        {valor}
+      </dd>
     </div>
   );
 }

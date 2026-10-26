@@ -102,7 +102,10 @@ function CabecalhoOrdenavel({
   const mesmoCampo = parametros.ordenarPor === campo;
   const direcao = mesmoCampo && parametros.direcao === "asc" ? "desc" : "asc";
   return (
-    <th scope="col" className="py-2 pr-3 font-medium">
+    <th
+      scope="col"
+      className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+    >
       <Link
         href={construirHref(parametros, { ordenarPor: campo, direcao, pagina: undefined })}
         className="hover:underline"
@@ -130,9 +133,9 @@ const MENSAGENS_DE_ERRO_DO_ARQUIVAMENTO: Readonly<Record<string, string>> = {
 const PADRAO_DE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CLASSE_CAMPO =
-  "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
+  "w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto";
 const CLASSE_BOTAO_SECUNDARIO =
-  "rounded border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700";
+  "inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave";
 
 export default async function PaginaDeConsultaDeMateriais({
   searchParams,
@@ -225,7 +228,7 @@ export default async function PaginaDeConsultaDeMateriais({
       >
         <div className="flex flex-col gap-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">Materiais</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-texto">Materiais</h1>
             <div className="flex flex-wrap items-center gap-2">
               {podeVerArquivados && (
                 <Link href="/materiais/arquivados" className={CLASSE_BOTAO_SECUNDARIO}>
@@ -245,7 +248,7 @@ export default async function PaginaDeConsultaDeMateriais({
               {podeCadastrar && (
                 <Link
                   href="/materiais/novo"
-                  className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg bg-primaria px-4 py-2 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover"
                 >
                   Cadastrar material
                 </Link>
@@ -256,14 +259,20 @@ export default async function PaginaDeConsultaDeMateriais({
           {idArquivado !== null && (
             <p
               role="status"
-              className="rounded border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+              className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
             >
               Material arquivado. O histórico foi mantido.{" "}
-              <Link href={`/materiais/${idArquivado}`} className="font-medium underline">
+              <Link
+                href={`/materiais/${idArquivado}`}
+                className="font-semibold underline underline-offset-4"
+              >
                 Ver material ou restaurar
               </Link>
               {" · "}
-              <Link href="/materiais/arquivados" className="font-medium underline">
+              <Link
+                href="/materiais/arquivados"
+                className="font-semibold underline underline-offset-4"
+              >
                 Ver arquivados
               </Link>
             </p>
@@ -271,7 +280,7 @@ export default async function PaginaDeConsultaDeMateriais({
           {mensagemDeErro !== null && (
             <p
               role="alert"
-              className="rounded border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+              className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
             >
               {mensagemDeErro}
             </p>
@@ -282,7 +291,7 @@ export default async function PaginaDeConsultaDeMateriais({
             <input type="hidden" name="direcao" value={parametros.direcao} />
 
             <div className="flex flex-col gap-1 lg:col-span-2">
-              <label htmlFor="busca" className="text-sm font-medium">
+              <label htmlFor="busca" className="text-sm font-medium text-texto">
                 Buscar
               </label>
               <input
@@ -296,7 +305,7 @@ export default async function PaginaDeConsultaDeMateriais({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="categoriaId" className="text-sm font-medium">
+              <label htmlFor="categoriaId" className="text-sm font-medium text-texto">
                 Categoria
               </label>
               <select
@@ -315,7 +324,7 @@ export default async function PaginaDeConsultaDeMateriais({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="andarId" className="text-sm font-medium">
+              <label htmlFor="andarId" className="text-sm font-medium text-texto">
                 Andar
               </label>
               <select
@@ -336,7 +345,7 @@ export default async function PaginaDeConsultaDeMateriais({
             <div className="flex items-end gap-2">
               <button
                 type="submit"
-                className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg bg-primaria px-4 py-2 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover"
               >
                 Filtrar
               </button>
@@ -346,7 +355,7 @@ export default async function PaginaDeConsultaDeMateriais({
             </div>
           </form>
 
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-texto-suave">
             {total === 0
               ? "Nenhum material encontrado com os filtros atuais."
               : `${total} ${total === 1 ? "material encontrado" : "materiais encontrados"}.`}
@@ -356,55 +365,84 @@ export default async function PaginaDeConsultaDeMateriais({
             <>
               {/* Desktop: tabela, com rolagem horizontal se a tela for estreita. */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[64rem] text-left text-sm">
+                <table className="w-full min-w-[64rem] border-separate border-spacing-0 text-left text-sm">
                   <caption className="sr-only">Lista de materiais</caption>
                   <thead>
-                    <tr className="border-b border-zinc-300 dark:border-zinc-700">
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                    <tr className="bg-superficie-suave text-texto-suave">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         Código Trillogo
                       </th>
                       <CabecalhoOrdenavel parametros={parametros} campo="categoria" />
                       <CabecalhoOrdenavel parametros={parametros} campo="tipo" />
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         Especificação
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         Fabricante
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         Unidade
                       </th>
                       <CabecalhoOrdenavel parametros={parametros} campo="quantidade" />
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         Estoque mínimo
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         Andar
                       </th>
                       <CabecalhoOrdenavel parametros={parametros} campo="dataUltimaContagem" />
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         Criado por
                       </th>
-                      <th scope="col" className="py-2 font-medium">
+                      <th
+                        scope="col"
+                        className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                      >
                         <span className="sr-only">Ações</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {itens.map((material) => (
-                      <tr
-                        key={material.id}
-                        className="border-b border-zinc-200 dark:border-zinc-800"
-                      >
-                        <td className="py-2 pr-3">
+                      <tr key={material.id} className="transition-colors hover:bg-superficie-suave">
+                        <td className="border-b border-borda px-3 py-3">
                           <SeloTrillogo codigo={material.codigoTrillogo} />
                         </td>
-                        <td className="py-2 pr-3">{material.categoria.nome}</td>
-                        <td className="py-2 pr-3">{material.tipo}</td>
-                        <td className="py-2 pr-3">{material.especificacao ?? "—"}</td>
-                        <td className="py-2 pr-3">{material.fabricante?.nome ?? "—"}</td>
-                        <td className="py-2 pr-3">{material.unidadeMedida.nome}</td>
-                        <td className="py-2 pr-3">
+                        <td className="border-b border-borda px-3 py-3">
+                          {material.categoria.nome}
+                        </td>
+                        <td className="border-b border-borda px-3 py-3">{material.tipo}</td>
+                        <td className="border-b border-borda px-3 py-3">
+                          {material.especificacao ?? "—"}
+                        </td>
+                        <td className="border-b border-borda px-3 py-3">
+                          {material.fabricante?.nome ?? "—"}
+                        </td>
+                        <td className="border-b border-borda px-3 py-3">
+                          {material.unidadeMedida.nome}
+                        </td>
+                        <td className="border-b border-borda px-3 py-3">
                           <div className="flex flex-col items-start gap-1">
                             <span className="tabular-nums">{material.quantidade}</span>
                             <SeloDeEstoque
@@ -413,19 +451,23 @@ export default async function PaginaDeConsultaDeMateriais({
                             />
                           </div>
                         </td>
-                        <td className="py-2 pr-3 tabular-nums">{material.estoqueMinimo ?? "—"}</td>
-                        <td className="py-2 pr-3">{material.andar.nome}</td>
-                        <td className="py-2 pr-3">
+                        <td className="border-b border-borda px-3 py-3 tabular-nums">
+                          {material.estoqueMinimo ?? "—"}
+                        </td>
+                        <td className="border-b border-borda px-3 py-3">{material.andar.nome}</td>
+                        <td className="border-b border-borda px-3 py-3">
                           {material.dataUltimaContagem === null
                             ? "—"
                             : formatarDataDoCalendario(material.dataUltimaContagem)}
                         </td>
-                        <td className="py-2 pr-3">{material.criadoPor.nome}</td>
-                        <td className="py-2">
+                        <td className="border-b border-borda px-3 py-3">
+                          {material.criadoPor.nome}
+                        </td>
+                        <td className="border-b border-borda px-3 py-3">
                           <div className="flex items-center justify-end gap-3">
                             <Link
                               href={`/materiais/${material.id}`}
-                              className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                              className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
                             >
                               Detalhes
                             </Link>
@@ -455,7 +497,7 @@ export default async function PaginaDeConsultaDeMateriais({
                 {itens.map((material) => (
                   <li
                     key={material.id}
-                    className="flex flex-col gap-1 rounded border border-zinc-300 p-3 dark:border-zinc-700"
+                    className="flex flex-col gap-2 rounded-xl border border-borda bg-superficie p-4 shadow-cartao"
                   >
                     <span className="font-medium">
                       {descricaoDoMaterial({
@@ -476,7 +518,7 @@ export default async function PaginaDeConsultaDeMateriais({
                         <SeloTrillogo codigo={material.codigoTrillogo} />
                       )}
                     </span>
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                    <span className="text-sm text-texto-suave">
                       {material.andar.nome}
                       {material.dataUltimaContagem !== null &&
                         ` · contado em ${formatarDataDoCalendario(material.dataUltimaContagem)}`}
@@ -484,7 +526,7 @@ export default async function PaginaDeConsultaDeMateriais({
                     <div className="mt-1 flex items-center justify-between gap-3">
                       <Link
                         href={`/materiais/${material.id}`}
-                        className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+                        className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
                       >
                         Ver detalhes
                       </Link>
@@ -508,17 +550,20 @@ export default async function PaginaDeConsultaDeMateriais({
 
               <nav
                 aria-label="Paginação"
-                className="flex items-center justify-center gap-4 text-sm"
+                className="flex flex-wrap items-center justify-center gap-3 text-sm"
               >
                 {pagina > 1 ? (
                   <Link
                     href={construirHref(parametros, { pagina: pagina - 1 })}
-                    className="underline"
+                    className="inline-flex min-h-10 items-center rounded-lg border border-borda-campo bg-superficie px-4 py-2 font-medium text-texto transition-colors hover:bg-superficie-suave"
                   >
                     Anterior
                   </Link>
                 ) : (
-                  <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex min-h-10 cursor-not-allowed items-center rounded-lg border border-borda px-4 py-2 text-texto-suave"
+                  >
                     Anterior
                   </span>
                 )}
@@ -528,12 +573,15 @@ export default async function PaginaDeConsultaDeMateriais({
                 {pagina < totalPaginas ? (
                   <Link
                     href={construirHref(parametros, { pagina: pagina + 1 })}
-                    className="underline"
+                    className="inline-flex min-h-10 items-center rounded-lg border border-borda-campo bg-superficie px-4 py-2 font-medium text-texto transition-colors hover:bg-superficie-suave"
                   >
                     Próxima
                   </Link>
                 ) : (
-                  <span aria-hidden="true" className="text-zinc-600 dark:text-zinc-400">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex min-h-10 cursor-not-allowed items-center rounded-lg border border-borda px-4 py-2 text-texto-suave"
+                  >
                     Próxima
                   </span>
                 )}

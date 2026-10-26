@@ -27,7 +27,7 @@ export function BotaoExcluirValorDeLista({ acao, nomeDoValor }: Props) {
     >
       <button
         type="submit"
-        className="font-medium text-red-800 underline underline-offset-2 dark:text-red-500"
+        className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-red-400 bg-red-50 px-4 py-2 text-sm font-medium text-red-900 transition-colors hover:bg-red-100 dark:border-red-700 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900"
       >
         Excluir
       </button>

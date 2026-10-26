@@ -84,8 +84,11 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">{rotuloDoTipo}</h1>
-        <Link href="/administracao/listas" className="text-sm underline underline-offset-2">
+        <h1 className="text-2xl font-bold tracking-tight text-texto">{rotuloDoTipo}</h1>
+        <Link
+          href="/administracao/listas"
+          className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
+        >
           Voltar para gestão de listas
         </Link>
       </div>
@@ -93,7 +96,7 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
       {erro !== undefined && (
         <p
           role="alert"
-          className="rounded border border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {erro}
         </p>
@@ -101,7 +104,7 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
       {mostrarExcluido && (
         <p
           role="status"
-          className="rounded border border-green-600 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-300"
+          className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
         >
           Valor excluído com sucesso.
         </p>
@@ -109,78 +112,92 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
       {mostrarAtualizado && (
         <p
           role="status"
-          className="rounded border border-green-600 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-300"
+          className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
         >
           Valor atualizado com sucesso.
         </p>
       )}
 
-      <section className="flex flex-col gap-2 rounded border border-zinc-300 p-4 dark:border-zinc-700">
-        <h2 className="text-sm font-semibold">Novo valor</h2>
+      <section className="flex flex-col gap-4 rounded-2xl border border-borda bg-superficie p-5 shadow-cartao sm:p-6">
+        <h2 className="text-base font-semibold text-texto">Novo valor</h2>
         <FormularioValorDeLista acao={acaoDeCriar} rotuloDoBotao="Adicionar" />
       </section>
 
-      {valores.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Nenhum valor cadastrado ainda.</p>
-      ) : (
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">Valores de {rotuloDoTipo}</caption>
-          <thead>
-            <tr className="border-b border-zinc-300 dark:border-zinc-700">
-              <th scope="col" className="py-2 pr-4 font-medium">
-                Nome
-              </th>
-              <th scope="col" className="py-2 pr-4 font-medium">
-                Ordem
-              </th>
-              <th scope="col" className="py-2 pr-4 font-medium">
-                Status
-              </th>
-              <th scope="col" className="py-2 font-medium">
-                <span className="sr-only">Ações</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {valores.map((valor) => {
-              const acaoDeExcluir = excluirValorDeListaAction.bind(null, tipo, valor.id);
-              return (
-                <tr key={valor.id} className="border-b border-zinc-200 dark:border-zinc-800">
-                  <td className="py-2 pr-4">{valor.nome}</td>
-                  <td className="py-2 pr-4">{valor.ordemExibicao}</td>
-                  <td className="py-2 pr-4">
-                    <span
-                      className={
-                        valor.ativo
-                          ? "rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300"
-                          : "rounded bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                      }
-                    >
-                      {valor.ativo ? "Ativo" : "Inativo"}
-                    </span>
-                    {valor.pendenteRevisao && (
-                      <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                        Pendente de revisão
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2">
-                    <div className="flex items-center gap-3">
-                      <Link
-                        href={`/administracao/listas/${tipo}/${valor.id}/editar`}
-                        className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100"
+      <div className="flex flex-col gap-6 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6">
+        {valores.length === 0 ? (
+          <p className="text-sm text-texto-suave">Nenhum valor cadastrado ainda.</p>
+        ) : (
+          <table className="w-full border-separate border-spacing-0 text-left text-sm">
+            <caption className="sr-only">Valores de {rotuloDoTipo}</caption>
+            <thead>
+              <tr className="bg-superficie-suave text-texto-suave">
+                <th
+                  scope="col"
+                  className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                >
+                  Nome
+                </th>
+                <th
+                  scope="col"
+                  className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                >
+                  Ordem
+                </th>
+                <th
+                  scope="col"
+                  className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                >
+                  Status
+                </th>
+                <th
+                  scope="col"
+                  className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                >
+                  <span className="sr-only">Ações</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {valores.map((valor) => {
+                const acaoDeExcluir = excluirValorDeListaAction.bind(null, tipo, valor.id);
+                return (
+                  <tr key={valor.id} className="transition-colors hover:bg-superficie-suave">
+                    <td className="border-b border-borda px-3 py-3">{valor.nome}</td>
+                    <td className="border-b border-borda px-3 py-3">{valor.ordemExibicao}</td>
+                    <td className="border-b border-borda px-3 py-3">
+                      <span
+                        className={
+                          valor.ativo
+                            ? "rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-900 dark:bg-green-950 dark:text-green-200"
+                            : "rounded-full bg-superficie-realce px-2.5 py-0.5 text-xs font-medium text-texto"
+                        }
                       >
-                        Editar
-                      </Link>
-                      <BotaoExcluirValorDeLista acao={acaoDeExcluir} nomeDoValor={valor.nome} />
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+                        {valor.ativo ? "Ativo" : "Inativo"}
+                      </span>
+                      {valor.pendenteRevisao && (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                          Pendente de revisão
+                        </span>
+                      )}
+                    </td>
+                    <td className="border-b border-borda px-3 py-3">
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href={`/administracao/listas/${tipo}/${valor.id}/editar`}
+                          className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
+                        >
+                          Editar
+                        </Link>
+                        <BotaoExcluirValorDeLista acao={acaoDeExcluir} nomeDoValor={valor.nome} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </main>
   );
 }

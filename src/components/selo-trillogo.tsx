@@ -12,7 +12,7 @@ type Props = {
 export function SeloTrillogo({ codigo }: Props) {
   if (codigo === null) {
     return (
-      <span className="text-zinc-600 dark:text-zinc-400">
+      <span className="text-texto-suave">
         <span aria-hidden="true">—</span>
         <span className="sr-only">sem código Trillogo</span>
       </span>

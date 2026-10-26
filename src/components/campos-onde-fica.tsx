@@ -27,8 +27,8 @@ type Props = {
 };
 
 const CLASSE_CAMPO =
-  "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:outline-zinc-100";
-const CLASSE_RASTRO = "text-sm font-medium text-zinc-800 dark:text-zinc-200";
+  "w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto";
+const CLASSE_RASTRO = "text-sm font-medium text-texto";
 
 export function CamposOndeFica({ opcoes, valores, errosDoCampo }: Props) {
   return (
@@ -102,7 +102,7 @@ function Seletor({
         <ul
           id={idDoErro}
           role="alert"
-          className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-400"
+          className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-300"
         >
           {erros.map((mensagem) => (
             <li key={mensagem}>{mensagem}</li>

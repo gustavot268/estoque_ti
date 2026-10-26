@@ -30,8 +30,8 @@ type Props = {
 const ESTADO_INICIAL: ResultadoValorDeLista | null = null;
 
 const CLASSE_CAMPO =
-  "rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:outline-zinc-100";
-const CLASSE_RASTRO = "text-sm font-medium text-zinc-800 dark:text-zinc-200";
+  "w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto";
+const CLASSE_RASTRO = "text-sm font-medium text-texto";
 
 export function FormularioValorDeLista({ acao, valorInicial, rotuloDoBotao }: Props) {
   const [resultado, submeter, pendente] = useActionState(acao, ESTADO_INICIAL);
@@ -57,7 +57,7 @@ export function FormularioValorDeLista({ acao, valorInicial, rotuloDoBotao }: Pr
       {erroGeral !== null && (
         <p
           role="alert"
-          className="rounded border border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {erroGeral}
         </p>
@@ -119,7 +119,7 @@ export function FormularioValorDeLista({ acao, valorInicial, rotuloDoBotao }: Pr
           <button
             type="submit"
             disabled={pendente}
-            className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primaria px-6 py-2.5 text-sm font-semibold text-sobre-primaria shadow-sm transition-colors hover:bg-primaria-hover disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {pendente ? "Salvando…" : rotuloDoBotao}
           </button>
@@ -137,7 +137,7 @@ function ListaDeErros({ id, erros }: { id: string; erros: readonly string[] }) {
     <ul
       id={id}
       role="alert"
-      className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-400"
+      className="flex flex-col gap-0.5 text-sm text-red-700 dark:text-red-300"
     >
       {erros.map((mensagem) => (
         <li key={mensagem}>{mensagem}</li>
