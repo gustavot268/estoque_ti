@@ -4,7 +4,9 @@
  *
  * Validação e a resolução do fluxo "Outro" de fabricante ficam na camada de
  * serviço (`src/services/materiais.ts`). Como no repositório de equipamentos,
- * todo `select` é explícito: cada tela e a exportação buscam só o que mostram.
+ * todo `select` é explícito: cada tela e a exportação buscam só o que mostram
+ * — e nenhuma delas busca o binário da foto, só `obterFotoPorId`, para a rota
+ * de download.
  */
 
 import type { Prisma } from "@prisma/client";
@@ -25,11 +27,19 @@ export type DadosParaCriarMaterial = {
   readonly orientacaoId: string | null;
   readonly dataUltimaContagem: Date | null;
   readonly observacoes: string | null;
+  readonly foto: Buffer | null;
+  readonly fotoTipoMime: string | null;
+  readonly fotoNomeArquivo: string | null;
+  readonly fotoTamanho: number | null;
   readonly criadoPorId: string;
   readonly atualizadoPorId: string;
 };
 
-/** Campos e relações de toda leitura detalhada de um material. */
+/**
+ * Campos e relações de toda leitura detalhada de um material. Da foto, só os
+ * metadados (para a tela saber se há foto e montar o
+ * `<img src="/api/materiais/{id}/foto">`) — nunca o binário.
+ */
 const SELECAO_DETALHADA = {
   id: true,
   codigoTrillogo: true,
@@ -45,6 +55,9 @@ const SELECAO_DETALHADA = {
   orientacaoId: true,
   dataUltimaContagem: true,
   observacoes: true,
+  fotoTipoMime: true,
+  fotoNomeArquivo: true,
+  fotoTamanho: true,
   criadoEm: true,
   atualizadoEm: true,
   criadoPorId: true,
@@ -64,7 +77,23 @@ const SELECAO_DETALHADA = {
 } as const;
 
 export async function criar(prisma: ClientePrisma, dados: DadosParaCriarMaterial) {
-  return prisma.material.create({ data: dados, select: SELECAO_DETALHADA });
+  return prisma.material.create({
+    // `Buffer` → `Uint8Array<ArrayBuffer>`, o tipo que o Prisma exige para `Bytes`.
+    data: { ...dados, foto: dados.foto === null ? null : Uint8Array.from(dados.foto) },
+    select: SELECAO_DETALHADA,
+  });
+}
+
+/**
+ * Só o binário da foto (e o tipo MIME para o cabeçalho `Content-Type`) — a
+ * única função deste repositório que busca o campo `foto`. Usada
+ * exclusivamente pela rota de download (`GET /api/materiais/[id]/foto`).
+ */
+export async function obterFotoPorId(prisma: ClientePrisma, id: string) {
+  return prisma.material.findUnique({
+    where: { id },
+    select: { foto: true, fotoTipoMime: true, fotoNomeArquivo: true },
+  });
 }
 
 /**
@@ -270,8 +299,19 @@ export async function listarParaExportacao(
  * Campos aceitos numa edição completa — já validados pelo serviço. Sem
  * `id`/`criadoEm`/`criadoPorId`/`arquivadoEm`/`arquivadoPorId`: a edição nunca
  * toca esses campos (ADR 0005, requisito 7.4).
+ *
+ * Os campos de foto são opcionais E aceitam `null`: ausentes significam "não
+ * mexer na foto atual"; `null`, "remover"; um valor, "substituir".
  */
-export type DadosParaAtualizarMaterial = Omit<DadosParaCriarMaterial, "criadoPorId">;
+export type DadosParaAtualizarMaterial = Omit<
+  DadosParaCriarMaterial,
+  "criadoPorId" | "foto" | "fotoTipoMime" | "fotoNomeArquivo" | "fotoTamanho"
+> & {
+  readonly foto?: Buffer | null;
+  readonly fotoTipoMime?: string | null;
+  readonly fotoNomeArquivo?: string | null;
+  readonly fotoTamanho?: number | null;
+};
 
 /**
  * Atualização com concorrência otimista (ADR 0005): só aplica se `versao`
@@ -284,9 +324,16 @@ export async function atualizar(
   versaoEsperada: number,
   dados: DadosParaAtualizarMaterial,
 ) {
+  const { foto, ...resto } = dados;
   return prisma.material.updateMany({
     where: { id, versao: versaoEsperada, arquivadoEm: null },
-    data: { ...dados, versao: { increment: 1 } },
+    data: {
+      ...resto,
+      // `undefined` = não mexer na foto atual; `null` = remover; um `Buffer` =
+      // substituir. Mesma conversão de tipo de `criar()`.
+      ...(foto !== undefined ? { foto: foto === null ? null : Uint8Array.from(foto) } : {}),
+      versao: { increment: 1 },
+    },
   });
 }
 

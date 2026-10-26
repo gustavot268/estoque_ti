@@ -1,5 +1,6 @@
 /**
- * Validação de arquivo de imagem anexado a um equipamento (foto).
+ * Validação de arquivo de imagem anexado a um item do estoque (foto do
+ * equipamento ou do material).
  *
  * Função pura, sem I/O: recebe os bytes já lidos e o tipo MIME declarado
  * pelo navegador, nunca confia só nesse tipo declarado — confere a
@@ -12,7 +13,7 @@
 export const TIPOS_DE_IMAGEM_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"] as const;
 export type TipoDeImagemPermitido = (typeof TIPOS_DE_IMAGEM_PERMITIDOS)[number];
 
-/** 5 MB — generoso para uma foto de equipamento, contido para não inflar o banco. */
+/** 5 MB — generoso para uma foto de equipamento ou material, contido para não inflar o banco. O limite de corpo das Server Actions (`next.config.ts`) acompanha este valor. */
 export const TAMANHO_MAXIMO_DA_FOTO_EM_BYTES = 5 * 1024 * 1024;
 
 const ASSINATURA_JPEG = [0xff, 0xd8, 0xff];

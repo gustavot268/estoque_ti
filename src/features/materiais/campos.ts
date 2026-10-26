@@ -30,7 +30,7 @@ export type CampoDoMaterial = (typeof CAMPOS_DO_MATERIAL)[number];
 
 export type ValoresDoFormularioDeMaterial = Readonly<Record<CampoDoMaterial, string>>;
 
-/** Texto de cada campo; campo ausente (ex.: "Nome do fabricante" escondido) vira "". */
+/** Texto de cada campo; campo ausente (ex.: "Nome da marca" escondido) vira "". */
 export function lerValoresDoFormulario(dados: FormData): ValoresDoFormularioDeMaterial {
   const valores = {} as Record<CampoDoMaterial, string>;
   for (const campo of CAMPOS_DO_MATERIAL) {

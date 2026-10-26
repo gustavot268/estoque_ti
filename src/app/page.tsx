@@ -2,8 +2,9 @@
  * Página inicial: duas entradas, cadastrar e ver o estoque.
  *
  * Sem consulta ao banco, de propósito: abre mesmo se o banco estiver fora do
- * ar. A autorização continua sendo verificada no servidor em cada tela
- * de destino, nunca aqui.
+ * ar. (A faixa do topo, no layout, busca a conta para mostrar a foto; se o
+ * banco cair, ela só esconde a foto — a página abre igual.) A autorização
+ * continua sendo verificada no servidor em cada tela de destino, nunca aqui.
  *
  * São links (navegação) estilizados como cartões, para funcionarem com teclado
  * e leitor de tela. Os ícones são decorativos (`aria-hidden`): o nome de cada

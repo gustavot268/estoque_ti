@@ -387,7 +387,7 @@ export default async function PaginaDeConsultaDeMateriais({
                         scope="col"
                         className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
                       >
-                        Fabricante
+                        Marca
                       </th>
                       <th
                         scope="col"

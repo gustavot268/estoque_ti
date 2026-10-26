@@ -4,10 +4,12 @@
  * Faixa de navegação do topo, presente em todas as telas (fica no layout raiz,
  * então cobre também as telas de erro e de acesso negado).
  *
- * À esquerda, o botão Home e o nome do sistema; à direita, simétrico ao Home,
- * o botão de tema (claro/escuro). Na própria página inicial o Home e o nome
- * somem — ali o botão apontaria para a mesma tela e o nome repetiria o título
- * —, mas o botão de tema continua. O nome é texto comum, e não um título
+ * À esquerda, o botão Home e o nome do sistema; à direita, simétricos ao
+ * Home, o menu de opções (reticências, com o tema claro/escuro) e a foto da
+ * conta. Na própria página inicial o Home e o nome somem — ali o botão
+ * apontaria para a mesma tela e o nome repetiria o título —, mas a direita
+ * continua. Sem pessoa logada (ou sem como saber, ex.: banco fora do ar), a
+ * foto não aparece. O nome é texto comum, e não um título
  * (`<h1>`): o título de cada tela continua sendo o da própria tela.
  *
  * Fica presa no topo ao rolar (`sticky`), com fundo translúcido e desfoque,
@@ -16,15 +18,18 @@
 
 import { usePathname } from "next/navigation";
 import { BotaoHome } from "./botao-home";
-import { BotaoTema } from "./botao-tema";
+import { type DadosDaConta, MenuDaConta } from "./menu-da-conta";
+import { MenuDeOpcoes } from "./menu-de-opcoes";
 import type { Tema } from "./tema";
 
 type Props = {
   /** Tema lido do cookie pelo layout raiz; `null` = sem escolha. */
   readonly temaInicial: Tema | null;
+  /** Pessoa logada; `null` = ninguém (a foto não aparece). */
+  readonly conta: DadosDaConta | null;
 };
 
-export function BarraDeNavegacao({ temaInicial }: Props) {
+export function BarraDeNavegacao({ temaInicial, conta }: Props) {
   const naPaginaInicial = usePathname() === "/";
 
   return (
@@ -38,7 +43,7 @@ export function BarraDeNavegacao({ temaInicial }: Props) {
     >
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-2.5">
         {naPaginaInicial ? (
-          // Mantém o botão de tema à direita mesmo sem nada à esquerda.
+          // Mantém os botões à direita mesmo sem nada à esquerda.
           <span aria-hidden="true" />
         ) : (
           <div className="flex min-w-0 items-center gap-3">
@@ -48,7 +53,10 @@ export function BarraDeNavegacao({ temaInicial }: Props) {
             </span>
           </div>
         )}
-        <BotaoTema temaInicial={temaInicial} />
+        <div className="flex shrink-0 items-center gap-1">
+          <MenuDeOpcoes temaInicial={temaInicial} />
+          {conta !== null && <MenuDaConta conta={conta} />}
+        </div>
       </div>
     </nav>
   );

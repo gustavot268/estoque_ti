@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 const DESCRICOES_DE_TIPO: Record<TipoDeLista, string> = {
   categoria: "Tipos de equipamento (Notebook, Monitor, Periférico…).",
   fabricante:
-    'Fabricantes de equipamentos e materiais, incluindo os pendentes de revisão do fluxo "Outro".',
+    'Marcas de equipamentos e materiais, incluindo os pendentes de revisão do fluxo "Outro".',
   status: "Status de funcionamento dos equipamentos (Operacional, Com defeito…).",
   andar: "Andares onde ficam os itens (15º andar, 16º andar…). Obrigatório no cadastro.",
   "local-armazenamento":
@@ -63,7 +63,7 @@ export default async function PaginaDeGestaoDeListas() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-texto">Gestão de listas</h1>
         <p className="mt-1 text-sm text-texto-suave">
-          As listas formam as opções dos cadastros. Fabricante, Andar, Local de armazenamento e
+          As listas formam as opções dos cadastros. Marca, Andar, Local de armazenamento e
           Orientação valem para equipamentos e materiais; as demais, só para um dos dois. Um valor
           só pode ser excluído se nenhum equipamento ou material o usar.
         </p>

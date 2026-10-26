@@ -7,7 +7,7 @@ import type { TipoDeLista } from "../../infrastructure/repositorios/administraca
 
 export const ROTULOS_DE_TIPO_DE_LISTA: Readonly<Record<TipoDeLista, string>> = {
   categoria: "Categoria",
-  fabricante: "Fabricante",
+  fabricante: "Marca",
   status: "Status de funcionamento",
   andar: "Andar",
   "local-armazenamento": "Local de armazenamento",

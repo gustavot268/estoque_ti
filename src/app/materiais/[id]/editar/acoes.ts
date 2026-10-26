@@ -22,6 +22,12 @@ import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
 import { editarMaterial } from "../../../../services/materiais";
 
+/** Fora dos valores do formulário (que passam pelo esquema Zod): um arquivo não é texto. */
+function extrairArquivoDaFoto(dados: FormData): File | null {
+  const valor = dados.get("foto");
+  return valor instanceof File ? valor : null;
+}
+
 export async function editarMaterialAction(
   materialId: string,
   _estadoAnterior: ResultadoDoFormularioDeMaterial | null,
@@ -46,10 +52,16 @@ export async function editarMaterialAction(
 
   let idAtualizado: string;
   try {
-    const material = await editarMaterial(obterPrisma(), ator, materialId, {
-      ...valoresEnviados,
-      versao,
-    });
+    const material = await editarMaterial(
+      obterPrisma(),
+      ator,
+      materialId,
+      { ...valoresEnviados, versao },
+      {
+        arquivo: extrairArquivoDaFoto(dadosDoFormulario),
+        remover: dadosDoFormulario.get("removerFoto") === "on",
+      },
+    );
     idAtualizado = material.id;
   } catch (erro) {
     if (erro instanceof EntradaInvalidaError) {

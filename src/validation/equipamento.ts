@@ -30,7 +30,7 @@ import {
 /** Campos preenchidos pelo usuário ao cadastrar um equipamento. */
 export const esquemaCriarEquipamento = z.strictObject({
   categoriaId: uuidObrigatorio("a categoria"),
-  fabricanteId: uuidObrigatorio("o fabricante"),
+  fabricanteId: uuidObrigatorio("a marca"),
   /** Nome livre usado somente quando o fabricante escolhido é "Outro". */
   fabricanteOutroNome: nomeDeFabricanteOutro,
   modelo: textoObrigatorio("o modelo", TAMANHOS.modelo),
@@ -103,7 +103,7 @@ export type CampoOrdenavelDeEquipamento = (typeof CAMPOS_ORDENAVEIS_DE_EQUIPAMEN
 export const esquemaConsultaEquipamentos = z.object({
   busca: textoOpcional("a busca", 120),
   categoriaId: uuidOpcional("a categoria"),
-  fabricanteId: uuidOpcional("o fabricante"),
+  fabricanteId: uuidOpcional("a marca"),
   statusId: uuidOpcional("o status de funcionamento"),
   andarId: uuidOpcional("o andar"),
   pagina: paginaDeConsulta,

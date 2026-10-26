@@ -30,7 +30,7 @@ test.describe("cadastro e consulta de equipamento (perfil Operação — o padr�
     await expect(page.getByLabel("Nome", { exact: true })).toHaveCount(0);
 
     await page.getByLabel("Categoria").selectOption({ label: "Notebook" });
-    await page.getByLabel("Fabricante").selectOption({ label: "Dell" });
+    await page.getByLabel("Marca").selectOption({ label: "Dell" });
     await page.getByLabel("Modelo").fill(modelo);
     await page.getByLabel("Número de série").fill(`${prefixo}-sn`);
     await page.getByLabel("Status de funcionamento").selectOption({ label: "Operacional" });

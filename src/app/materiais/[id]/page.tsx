@@ -103,16 +103,16 @@ export default async function PaginaDeDetalhesDoMaterial({
   const erroBruto = primeiroValor(parametrosDeBusca.erro);
   const mensagemDeErro = erroBruto !== undefined ? (MENSAGENS_DE_ERRO[erroBruto] ?? null) : null;
 
+  const descricao = descricaoDoMaterial({
+    categoria: material.categoria.nome,
+    tipo: material.tipo,
+    especificacao: material.especificacao,
+  });
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold tracking-tight text-texto">
-          {descricaoDoMaterial({
-            categoria: material.categoria.nome,
-            tipo: material.tipo,
-            especificacao: material.especificacao,
-          })}
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-texto">{descricao}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {podeEditar && (
             <Link
@@ -188,6 +188,14 @@ export default async function PaginaDeDetalhesDoMaterial({
       )}
 
       <div className="flex flex-col gap-6 rounded-2xl border border-borda bg-superficie p-5 shadow-cartao sm:p-6">
+        {material.fotoTipoMime !== null && (
+          // biome-ignore lint/performance/noImgElement: imagem enviada pelo usuário, servida por uma rota própria autenticada — next/image exige um domínio remoto configurado, que não se aplica aqui.
+          <img
+            src={`/api/materiais/${material.id}/foto`}
+            alt={`Foto de ${descricao}`}
+            className="h-auto max-h-80 w-auto max-w-full rounded-xl border border-borda object-contain"
+          />
+        )}
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo
             rotulo="Código Trillogo"
@@ -196,7 +204,7 @@ export default async function PaginaDeDetalhesDoMaterial({
           <Campo rotulo="Categoria" valor={material.categoria.nome} />
           <Campo rotulo="Tipo" valor={material.tipo} />
           <Campo rotulo="Especificação" valor={material.especificacao ?? "—"} />
-          <Campo rotulo="Fabricante" valor={material.fabricante?.nome ?? "—"} />
+          <Campo rotulo="Marca" valor={material.fabricante?.nome ?? "—"} />
           <Campo rotulo="Unidade de medida" valor={material.unidadeMedida.nome} />
           <Campo
             rotulo="Quantidade"

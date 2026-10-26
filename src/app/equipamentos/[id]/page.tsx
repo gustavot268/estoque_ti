@@ -197,7 +197,7 @@ export default async function PaginaDeDetalhes({
 
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo rotulo="Categoria" valor={equipamento.categoria.nome} />
-          <Campo rotulo="Fabricante" valor={equipamento.fabricante.nome} />
+          <Campo rotulo="Marca" valor={equipamento.fabricante.nome} />
           <Campo rotulo="Modelo" valor={equipamento.modelo} />
           <Campo rotulo="Status de funcionamento" valor={equipamento.status.nome} />
           <Campo rotulo="Andar" valor={equipamento.andar.nome} />

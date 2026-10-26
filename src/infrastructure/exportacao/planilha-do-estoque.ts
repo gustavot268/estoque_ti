@@ -98,7 +98,7 @@ const TITULOS: Readonly<Record<AbaDaPlanilha, string>> = {
 const CABECALHOS_DE_EQUIPAMENTOS = [
   "Identificador interno",
   "Categoria",
-  "Fabricante",
+  "Marca",
   "Modelo",
   "Número de série",
   "Código Trillogo",
@@ -120,7 +120,7 @@ const CABECALHOS_DE_MATERIAIS = [
   "Categoria",
   "Tipo",
   "Especificação",
-  "Fabricante",
+  "Marca",
   "Unidade de medida",
   "Quantidade",
   "Estoque mínimo",

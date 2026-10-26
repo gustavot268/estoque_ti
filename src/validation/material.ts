@@ -38,7 +38,7 @@ export const esquemaCriarMaterial = z.strictObject({
   tipo: textoObrigatorio("o tipo", TAMANHOS.tipoDeMaterial),
   especificacao: textoOpcional("a especificação", TAMANHOS.especificacao),
   /** Opcional: muitos materiais não têm marca. Vazio = sem fabricante. */
-  fabricanteId: uuidOpcionalDeFormulario("o fabricante"),
+  fabricanteId: uuidOpcionalDeFormulario("a marca"),
   /** Nome livre usado somente quando o fabricante escolhido é "Outro". */
   fabricanteOutroNome: nomeDeFabricanteOutro,
   unidadeMedidaId: uuidObrigatorio("a unidade de medida"),

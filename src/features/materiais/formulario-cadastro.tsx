@@ -92,6 +92,7 @@ export function FormularioCadastroDeMaterial({ listas, fabricanteOutroId, hoje }
           valores={comErro?.valoresEnviados ?? valoresVazios(hoje)}
           hoje={hoje}
           errosPorCampo={comErro?.errosPorCampo ?? {}}
+          fotoAtual={null}
         />
       </fieldset>
 

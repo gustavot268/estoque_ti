@@ -5,6 +5,10 @@
  * colunas da planilha "Materiais de TI – Controle por Quantidade"; "Criado
  * por" não aparece porque vem da sessão, nunca do formulário.
  *
+ * Depois das observações vem a foto (opcional), como no cadastro de
+ * equipamento. Na edição, com uma foto já anexada, aparece a miniatura e a
+ * opção de removê-la; um arquivo novo substitui a atual.
+ *
  * Campos não controlados (só `defaultValue`), como nos formulários de
  * equipamento. Quem usa este componente o remonta (`key`) a cada resposta do
  * servidor, para os valores iniciais valerem de novo.
@@ -30,6 +34,8 @@ type Props = {
   /** Dia de hoje em Brasília ("AAAA-MM-DD"): a contagem não pode ser depois dele. */
   readonly hoje: string;
   readonly errosPorCampo: Readonly<Record<string, readonly string[]>>;
+  /** Foto já anexada (só na edição); `null` = sem foto. */
+  readonly fotoAtual: { readonly url: string; readonly descricao: string } | null;
 };
 
 const CLASSE_CAMPO =
@@ -43,6 +49,7 @@ export function CamposDoMaterial({
   valores,
   hoje,
   errosPorCampo,
+  fotoAtual,
 }: Props) {
   const [fabricanteSelecionado, setFabricanteSelecionado] = useState(valores.fabricanteId);
   const ehFabricanteOutro =
@@ -130,7 +137,7 @@ export function CamposDoMaterial({
 
       <div className="flex flex-col gap-1">
         <label htmlFor="fabricanteId" className={CLASSE_RASTRO}>
-          Fabricante
+          Marca
         </label>
         <select
           id="fabricanteId"
@@ -140,7 +147,7 @@ export function CamposDoMaterial({
           aria-describedby="fabricanteId-erro"
           onChange={(evento) => setFabricanteSelecionado(evento.target.value)}
         >
-          <option value="">Sem fabricante</option>
+          <option value="">Sem marca</option>
           {listas.fabricantes.map((fabricante) => (
             <option key={fabricante.id} value={fabricante.id}>
               {fabricante.nome}
@@ -153,7 +160,7 @@ export function CamposDoMaterial({
       {ehFabricanteOutro && (
         <div className="flex flex-col gap-1">
           <label htmlFor="fabricanteOutroNome" className={CLASSE_RASTRO}>
-            Nome do fabricante <span aria-hidden="true">*</span>
+            Nome da marca <span aria-hidden="true">*</span>
           </label>
           <input
             id="fabricanteOutroNome"
@@ -277,6 +284,40 @@ export function CamposDoMaterial({
           Não inclua senhas, documentos pessoais ou outras informações sensíveis.
         </p>
         <ListaDeErros id="observacoes-erro" erros={erros("observacoes")} />
+      </div>
+
+      <div className="flex flex-col gap-2 md:col-span-2">
+        <label htmlFor="foto" className={CLASSE_RASTRO}>
+          Foto
+        </label>
+        {fotoAtual !== null && (
+          <div className="flex items-center gap-3">
+            {/* biome-ignore lint/performance/noImgElement: imagem enviada pelo usuário, servida por uma rota própria autenticada. */}
+            <img
+              src={fotoAtual.url}
+              alt={`Foto atual de ${fotoAtual.descricao}`}
+              className="h-20 w-20 rounded-lg border border-borda object-cover"
+            />
+            <label className="flex items-center gap-2 text-sm text-texto">
+              <input id="removerFoto" name="removerFoto" type="checkbox" className="h-4 w-4" />
+              Remover a foto atual
+            </label>
+          </div>
+        )}
+        <input
+          id="foto"
+          name="foto"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className={CLASSE_CAMPO}
+          aria-describedby="foto-dica foto-erro"
+        />
+        <p id="foto-dica" className={CLASSE_DICA}>
+          {fotoAtual !== null
+            ? "Enviar um novo arquivo substitui a foto atual. JPEG, PNG ou WEBP, até 5 MB."
+            : "Opcional. JPEG, PNG ou WEBP, até 5 MB. No celular, abre a opção de tirar uma foto ou escolher da galeria."}
+        </p>
+        <ListaDeErros id="foto-erro" erros={errosPorCampo.foto ?? []} />
       </div>
     </>
   );

@@ -8,10 +8,11 @@ produção.
 
 - Página inicial com dois botões: **Cadastrar** e **Ver estoque**.
 - Cadastro de equipamento pelo formulário (sem campo Nome: o título exibido é
-  "Categoria Fabricante Modelo"; localização em Andar, Local de armazenamento e
+  "Categoria Marca Modelo"; localização em Andar, Local de armazenamento e
   Orientação, com só o Andar na lista; com foto opcional e botão **Home** para voltar à página
   inicial, que avisa antes de sair se houver dados digitados), consulta, pesquisa,
-  filtros, detalhes e histórico de alterações.
+  filtros, detalhes e histórico de alterações. O cadastro e a edição de material também
+  aceitam uma foto opcional, exibida nos detalhes.
 - Edição de equipamento.
 - Status com cor na lista: Operacional (verde), Com defeito (vermelho), Em manutenção
   (amarelo) e Não testado (cinza). Um status criado depois na gestão de listas aparece

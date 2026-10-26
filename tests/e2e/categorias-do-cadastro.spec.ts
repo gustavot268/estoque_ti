@@ -37,7 +37,7 @@ test.describe("categorias DVR e Câmera no cadastro (perfil Operação — o pad
 
       await page.goto("/equipamentos/novo");
       await page.getByLabel("Categoria").selectOption({ label: categoria });
-      await page.getByLabel("Fabricante").selectOption({ label: "Hikvision" });
+      await page.getByLabel("Marca").selectOption({ label: "Hikvision" });
       await page.getByLabel("Modelo").fill(modelo);
       await page.getByLabel("Número de série").fill(`${prefixo}-${categoria}`);
       await page.getByLabel("Status de funcionamento").selectOption({ label: "Operacional" });

@@ -338,7 +338,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 id="busca"
                 name="busca"
                 defaultValue={parametros.busca ?? ""}
-                placeholder="Categoria, fabricante, modelo, número de série ou Trillogo"
+                placeholder="Categoria, marca, modelo, número de série ou Trillogo"
                 maxLength={120}
                 className={CLASSE_CAMPO}
               />
@@ -365,7 +365,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
 
             <div className="flex flex-col gap-1">
               <label htmlFor="fabricanteId" className="text-sm font-medium text-texto">
-                Fabricante
+                Marca
               </label>
               <select
                 id="fabricanteId"
@@ -459,7 +459,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                       scope="col"
                       className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
                     >
-                      Fabricante
+                      Marca
                     </th>
                     <CabecalhoOrdenavel parametros={parametros} campo="modelo" />
                     <th

@@ -2,7 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { BannerAmbiente } from "@/components/banner-ambiente";
 import { BarraDeNavegacao } from "@/components/barra-de-navegacao";
+import type { DadosDaConta } from "@/components/menu-da-conta";
 import { lerTema, NOME_DO_COOKIE_DE_TEMA } from "@/components/tema";
+import { obterAtorAtual } from "@/infrastructure/auth/ator-atual";
+import { logger } from "@/infrastructure/observability/logger";
 import "./globals.css";
 
 /**
@@ -20,6 +23,11 @@ import "./globals.css";
  *   `src/components/tema.ts`). Ler cookie torna todas as rotas dinâmicas —
  *   inclusive a página inicial, que antes era pré-renderizada; ela continua
  *   sem consultar o banco.
+ * - Conta (foto, nome, e-mail na faixa do topo): o mesmo ator que a página
+ *   usa (`obterAtorAtual` é memorizado por requisição). Se não der para
+ *   resolvê-lo — banco fora do ar, por exemplo —, a faixa só não mostra a
+ *   foto: a página inicial continua abrindo e cada tela segue tratando o erro
+ *   do seu jeito.
  */
 export const metadata: Metadata = {
   title: {
@@ -41,14 +49,26 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
+async function obterDadosDaConta(): Promise<DadosDaConta | null> {
+  try {
+    const ator = await obterAtorAtual();
+    // A foto virá do Microsoft Graph quando o login com o Entra ID existir (Etapa 3).
+    return ator === null ? null : { nome: ator.nome, email: ator.email, fotoUrl: null };
+  } catch (erro) {
+    logger.warn("Não foi possível resolver a conta para a faixa do topo.", { erro });
+    return null;
+  }
+}
+
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const tema = lerTema((await cookies()).get(NOME_DO_COOKIE_DE_TEMA)?.value);
+  const conta = await obterDadosDaConta();
 
   return (
     <html lang="pt-BR" className="h-full antialiased" data-tema={tema ?? undefined}>
       <body className="flex min-h-full flex-col bg-fundo text-texto">
         <BannerAmbiente />
-        <BarraDeNavegacao temaInicial={tema} />
+        <BarraDeNavegacao temaInicial={tema} conta={conta} />
         {children}
       </body>
     </html>

@@ -126,6 +126,18 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: true,
 
+  experimental: {
+    serverActions: {
+      // Os formulários de equipamento e de material enviam a foto pela Server
+      // Action, e a foto pode ter até 5 MB (`TAMANHO_MAXIMO_DA_FOTO_EM_BYTES`,
+      // `src/domain/imagem.ts`). O padrão do Next é 1 MB — uma foto entre 1 e
+      // 5 MB seria recusada antes de chegar à validação, sem a mensagem em
+      // português. 6 MB = a foto + os demais campos + a sobrecarga do
+      // `multipart/form-data`. Mudou o limite da foto, mude este junto.
+      bodySizeLimit: "6mb",
+    },
+  },
+
   async headers() {
     return [
       {

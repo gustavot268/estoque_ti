@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Botão de tema: alterna entre o tema claro e o escuro, no canto superior
- * direito da faixa de navegação (simétrico ao botão Home, à esquerda).
+ * Botão de tema: alterna entre o tema claro e o escuro. Fica dentro do menu
+ * de opções (reticências) da faixa do topo — `./menu-de-opcoes.tsx`.
  *
  * Desenho de "interruptor": no claro, rótulo à esquerda e a bolinha com o sol
  * à direita; no escuro, a bolinha com a lua vai para a esquerda e o rótulo
- * para a direita. No celular o rótulo some e fica só o interruptor.
+ * para a direita.
  *
  * Todo o visual (posição da bolinha, ícone, rótulo, cores) vem do CSS, pela
  * variante `dark:` — que segue `<html data-tema>` ou, sem escolha, o sistema
@@ -75,17 +75,17 @@ export function BotaoTema({ temaInicial }: Props) {
       aria-label="Tema escuro"
       title={escuro ? "Mudar para o tema claro" : "Mudar para o tema escuro"}
       onClick={() => gravarTema(escuro ? "claro" : "escuro")}
-      className="relative inline-flex h-11 w-20 shrink-0 items-center rounded-full border border-borda-campo bg-superficie-realce shadow-inner transition-colors hover:border-foco sm:w-32"
+      className="relative inline-flex h-11 w-32 shrink-0 items-center rounded-full border border-borda-campo bg-superficie-realce shadow-inner transition-colors hover:border-foco"
     >
       <span
         aria-hidden="true"
-        className="absolute inset-y-0 left-4 hidden items-center text-xs font-bold tracking-wider text-texto uppercase sm:flex sm:dark:hidden"
+        className="absolute inset-y-0 left-4 flex items-center text-xs font-bold tracking-wider text-texto uppercase dark:hidden"
       >
         Claro
       </span>
       <span
         aria-hidden="true"
-        className="absolute inset-y-0 right-4 hidden items-center text-xs font-bold tracking-wider text-texto uppercase sm:dark:flex"
+        className="absolute inset-y-0 right-4 hidden items-center text-xs font-bold tracking-wider text-texto uppercase dark:flex"
       >
         Escuro
       </span>

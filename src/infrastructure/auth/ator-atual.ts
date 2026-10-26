@@ -27,6 +27,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
+import { cache } from "react";
 import { type AtorAutenticado, ehPerfilDeAcesso, type PerfilAcesso } from "../../domain/ator";
 import { obterConfiguracao } from "../config/env";
 import { obterPrisma } from "../prisma/cliente";
@@ -50,30 +51,37 @@ async function resolverPerfilDeDesenvolvimento(): Promise<PerfilAcesso> {
 /**
  * Devolve o ator autenticado, ou `null` quando não há sessão válida — que,
  * nesta rodada (sem Etapa 3), é sempre o caso fora do modo de desenvolvimento.
+ *
+ * Memorizada por requisição (`React.cache`): o layout raiz (foto e conta na
+ * faixa do topo) e a página chamam esta função na mesma renderização, e os
+ * dois recebem o mesmo ator — uma consulta ao banco, um `correlacaoId`, e sem
+ * duas criações concorrentes do usuário na primeira visita.
  */
-export async function obterAtorAtual(): Promise<AtorAutenticado | null> {
-  const configuracao = obterConfiguracao();
-  if (!configuracao.DEV_AUTH_ENABLED) {
-    return null;
-  }
+export const obterAtorAtual = cache(
+  async function obterAtorAtual(): Promise<AtorAutenticado | null> {
+    const configuracao = obterConfiguracao();
+    if (!configuracao.DEV_AUTH_ENABLED) {
+      return null;
+    }
 
-  const prisma = obterPrisma();
-  const usuario = await prisma.usuario.upsert({
-    where: { entraObjectId: ENTRA_OBJECT_ID_DE_DESENVOLVIMENTO },
-    update: {},
-    create: {
-      entraObjectId: ENTRA_OBJECT_ID_DE_DESENVOLVIMENTO,
-      nome: "Usuário de Desenvolvimento",
-      email: "dev-local@example.invalid",
-    },
-  });
+    const prisma = obterPrisma();
+    const usuario = await prisma.usuario.upsert({
+      where: { entraObjectId: ENTRA_OBJECT_ID_DE_DESENVOLVIMENTO },
+      update: {},
+      create: {
+        entraObjectId: ENTRA_OBJECT_ID_DE_DESENVOLVIMENTO,
+        nome: "Usuário de Desenvolvimento",
+        email: "dev-local@example.invalid",
+      },
+    });
 
-  return {
-    usuarioId: usuario.id,
-    entraObjectId: usuario.entraObjectId,
-    nome: usuario.nome,
-    email: usuario.email,
-    perfil: await resolverPerfilDeDesenvolvimento(),
-    correlacaoId: randomUUID(),
-  };
-}
+    return {
+      usuarioId: usuario.id,
+      entraObjectId: usuario.entraObjectId,
+      nome: usuario.nome,
+      email: usuario.email,
+      perfil: await resolverPerfilDeDesenvolvimento(),
+      correlacaoId: randomUUID(),
+    };
+  },
+);

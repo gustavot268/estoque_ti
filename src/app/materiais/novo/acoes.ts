@@ -17,6 +17,12 @@ import { logger } from "../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../infrastructure/prisma/cliente";
 import { cadastrarMaterial } from "../../../services/materiais";
 
+/** Fora dos valores do formulário (que passam pelo esquema Zod): um arquivo não é texto. */
+function extrairArquivoDaFoto(dados: FormData): File | null {
+  const valor = dados.get("foto");
+  return valor instanceof File ? valor : null;
+}
+
 export async function cadastrarMaterialAction(
   _estadoAnterior: ResultadoDoFormularioDeMaterial | null,
   dadosDoFormulario: FormData,
@@ -37,7 +43,12 @@ export async function cadastrarMaterialAction(
   }
 
   try {
-    const material = await cadastrarMaterial(obterPrisma(), ator, valoresEnviados);
+    const material = await cadastrarMaterial(
+      obterPrisma(),
+      ator,
+      valoresEnviados,
+      extrairArquivoDaFoto(dadosDoFormulario),
+    );
     return { sucesso: true, materialId: material.id, chave: randomUUID() };
   } catch (erro) {
     if (erro instanceof EntradaInvalidaError) {

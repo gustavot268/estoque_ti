@@ -13,6 +13,7 @@ import {
   MensagemSimples,
 } from "../../../../components/mensagem-simples";
 import { dataDeHojeEmBrasilia, paraDataIso } from "../../../../domain/data-e-hora";
+import { descricaoDoMaterial } from "../../../../domain/descricao-do-item";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../../domain/erros";
 import { exigirPermissao } from "../../../../domain/permissoes";
 import { FormularioEdicaoDeMaterial } from "../../../../features/materiais/formulario-edicao";
@@ -157,6 +158,12 @@ export default async function PaginaDeEdicaoDeMaterial({
       }}
       fabricanteOutroId={fabricanteOutro?.id ?? null}
       hoje={dataDeHojeEmBrasilia()}
+      temFoto={material.fotoTipoMime !== null}
+      descricao={descricaoDoMaterial({
+        categoria: material.categoria.nome,
+        tipo: material.tipo,
+        especificacao: material.especificacao,
+      })}
     />
   );
 }

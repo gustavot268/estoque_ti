@@ -9,8 +9,8 @@
  * internamente.
  *
  * Diferenças deliberadas em relação ao equipamento: o código Trillogo não é
- * único (a mesma peça pode ter um registro por lugar), o fabricante é
- * opcional e não há foto.
+ * único (a mesma peça pode ter um registro por lugar) e o fabricante é
+ * opcional. A foto segue as mesmas regras da do equipamento (`./foto.ts`).
  */
 
 import type { Fabricante } from "@prisma/client";
@@ -38,6 +38,7 @@ import {
   listarArquivadosPaginado,
   listarPaginado,
   obterDetalhadoPorId,
+  obterFotoPorId,
   restaurar,
 } from "../infrastructure/repositorios/materiais";
 import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
@@ -50,6 +51,7 @@ import {
   esquemaRestaurarMaterial,
 } from "../validation/material";
 import { resolverFabricanteOutro } from "./fabricantes";
+import { alteracaoDaFoto, processarArquivoDeFoto } from "./foto";
 import { type OndeFica, validarOndeFica } from "./onde-fica";
 
 type DadosDeAuditoriaDoMaterial = {
@@ -67,6 +69,7 @@ type DadosDeAuditoriaDoMaterial = {
   readonly orientacaoId: string | null;
   readonly dataUltimaContagem: Date | null;
   readonly observacoes: string | null;
+  readonly fotoTipoMime: string | null;
 };
 
 function paraAuditoria(material: DadosDeAuditoriaDoMaterial) {
@@ -86,6 +89,8 @@ function paraAuditoria(material: DadosDeAuditoriaDoMaterial) {
     dataUltimaContagem:
       material.dataUltimaContagem === null ? null : paraDataIso(material.dataUltimaContagem),
     observacoes: material.observacoes,
+    // Nunca o binário na auditoria (mesma regra do equipamento) — só se há foto.
+    temFoto: material.fotoTipoMime !== null,
   };
 }
 
@@ -143,7 +148,7 @@ async function validarReferencias(
   }
   if (fabricante.nomeNormalizado === "outro") {
     if (entrada.fabricanteOutroNome === null) {
-      throw new EntradaInvalidaError({ fabricanteOutroNome: ["Informe o nome do fabricante."] });
+      throw new EntradaInvalidaError({ fabricanteOutroNome: ["Informe o nome da marca."] });
     }
     return { tipo: "outro", nomeDigitado: entrada.fabricanteOutroNome };
   }
@@ -205,11 +210,12 @@ async function exigirAtualizacaoAplicada(
   throw new ConflitoDeVersaoError(versaoEnviada);
 }
 
-/** Cadastra um material. Ordem: permissão → entrada → listas → gravação + auditoria. */
+/** Cadastra um material. Ordem: permissão → entrada → foto → listas → gravação + auditoria. */
 export async function cadastrarMaterial(
   prisma: PrismaClient,
   ator: AtorAutenticado,
   entradaBruta: unknown,
+  arquivoDaFoto?: File | null,
 ) {
   exigirPermissao(ator, "CADASTRAR_MATERIAL");
 
@@ -218,6 +224,8 @@ export async function cadastrarMaterial(
     throw new EntradaInvalidaError(errosPorCampo(resultado.error));
   }
   const entrada = resultado.data;
+
+  const foto = await processarArquivoDeFoto(arquivoDaFoto);
 
   const fabricanteEscolhido = await validarReferencias(prisma, entrada);
 
@@ -236,6 +244,10 @@ export async function cadastrarMaterial(
       orientacaoId: entrada.orientacaoId,
       dataUltimaContagem: entrada.dataUltimaContagem,
       observacoes: entrada.observacoes,
+      foto: foto?.foto ?? null,
+      fotoTipoMime: foto?.fotoTipoMime ?? null,
+      fotoNomeArquivo: foto?.fotoNomeArquivo ?? null,
+      fotoTamanho: foto?.fotoTamanho ?? null,
       criadoPorId: ator.usuarioId,
       atualizadoPorId: ator.usuarioId,
     });
@@ -269,6 +281,31 @@ export async function obterMaterialPorId(prisma: PrismaClient, ator: AtorAutenti
     throw new RegistroNaoEncontradoError();
   }
   return material;
+}
+
+/**
+ * Foto de um material — usada pela rota de download
+ * (`GET /api/materiais/[id]/foto`). Mesma permissão de visualizar o material;
+ * a consulta e os detalhes nunca carregam o binário.
+ */
+export async function obterFotoDoMaterial(prisma: PrismaClient, ator: AtorAutenticado, id: string) {
+  exigirPermissao(ator, "VISUALIZAR_MATERIAL");
+
+  const idValido = uuidObrigatorio("o identificador do material").safeParse(id);
+  if (!idValido.success) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  const registro = await obterFotoPorId(prisma, idValido.data);
+  if (registro === null || registro.foto === null || registro.fotoTipoMime === null) {
+    throw new RegistroNaoEncontradoError();
+  }
+
+  return {
+    foto: registro.foto,
+    fotoTipoMime: registro.fotoTipoMime,
+    fotoNomeArquivo: registro.fotoNomeArquivo,
+  };
 }
 
 /** Histórico de alterações de um material — usado na tela de detalhes. */
@@ -357,12 +394,16 @@ export async function listarMateriaisArquivados(
  * concorrência: se outra pessoa alterou o material depois que a tela foi
  * aberta — por exemplo, registrando outra contagem —, a gravação é recusada em
  * vez de sobrescrever a quantidade em silêncio.
+ *
+ * Foto: um arquivo novo substitui a atual; `remover` sem arquivo novo a
+ * apaga; sem nenhum dos dois, a foto atual fica como está.
  */
 export async function editarMaterial(
   prisma: PrismaClient,
   ator: AtorAutenticado,
   id: string,
   entradaBruta: unknown,
+  opcoesDeFoto?: { readonly arquivo?: File | null; readonly remover?: boolean },
 ) {
   exigirPermissao(ator, "EDITAR_MATERIAL");
 
@@ -376,6 +417,8 @@ export async function editarMaterial(
     throw new EntradaInvalidaError(errosPorCampo(resultado.error));
   }
   const entrada = resultado.data;
+
+  const novaFoto = await processarArquivoDeFoto(opcoesDeFoto?.arquivo);
 
   const atual = await obterDetalhadoPorId(prisma, idValido.data);
   if (atual === null) {
@@ -412,6 +455,8 @@ export async function editarMaterial(
       dataUltimaContagem: entrada.dataUltimaContagem,
       observacoes: entrada.observacoes,
       atualizadoPorId: ator.usuarioId,
+      // Substituir, remover ou manter — ver `alteracaoDaFoto`.
+      ...alteracaoDaFoto(novaFoto, opcoesDeFoto?.remover),
     });
     await exigirAtualizacaoAplicada(tx, idValido.data, entrada.versao, resultadoUpdate);
 

@@ -99,6 +99,7 @@ Controle por Quantidade".
 | `orientacaoId` | UUID (FK → `Orientacao`) | não | Mesma lista dos equipamentos |
 | `dataUltimaContagem` | `date` | não | Só o dia, sem hora nem fuso — por isso é exibido sem conversão para Brasília (ver `formatarDataDoCalendario` em `src/domain/data-e-hora.ts`). Não aceita dia depois de hoje |
 | `observacoes` | texto | não | Mesma orientação anti-dado-sensível do equipamento |
+| `foto`, `fotoTipoMime`, `fotoNomeArquivo`, `fotoTamanho` | binário + metadados | não | Foto opcional, mesmas regras da foto do equipamento: JPEG, PNG ou WEBP até 5 MB, conferidos pela assinatura dos bytes (`src/domain/imagem.ts`). O binário nunca entra na listagem, nos detalhes, na exportação nem na auditoria (que guarda só `temFoto`); só a rota autenticada `GET /api/materiais/[id]/foto` o lê |
 | `criadoEm`, `atualizadoEm`, `criadoPorId`, `atualizadoPorId`, `arquivadoEm`, `arquivadoPorId`, `versao` | — | — | Mesmo significado e mesmas regras do `Equipamento` (exclusão lógica, concorrência otimista — ADR 0005) |
 
 Regras associadas:

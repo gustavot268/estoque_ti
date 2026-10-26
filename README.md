@@ -39,7 +39,7 @@ Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline
 Permitir que uma equipe corporativa: autentique-se com sua conta corporativa; cadastre,
 consulte, pesquise, filtre e edite equipamentos e materiais de TI; arquive itens sem
 exclusão física; consulte o histórico de alterações de cada item; exporte os dados para
-Excel; e administre as listas auxiliares (categoria, fabricante, status, andar,
+Excel; e administre as listas auxiliares (categoria, marca, status, andar,
 local de armazenamento, orientação, categoria de material, unidade de medida) conforme sua permissão. A interface é responsiva (computador, tablet, celular). Não há
 funcionamento offline, aplicativo móvel nativo ou sincronização com o arquivo Excel
 exportado.
@@ -186,7 +186,7 @@ pnpm db:migrate:status    # verifica o estado das migrações
 pnpm db:seed
 ```
 
-Popula as listas controladas com os valores iniciais do cliente (Categoria, Fabricante,
+Popula as listas controladas com os valores iniciais do cliente (Categoria, Marca,
 Status de funcionamento, Andar, Local de armazenamento, Orientação) e um ponto de partida para as listas dos materiais
 (Categoria de material, Unidade de medida). O seed é **idempotente**: executá-lo mais de
 uma vez não duplica registros (usa `upsert` por `nomeNormalizado`) e não desfaz o que a
@@ -287,14 +287,14 @@ consulta e de cadastro) e da mesma planilha exportada:
 - **Materiais de TI – Controle por Quantidade** (`/materiais`): itens sem etiqueta
   individual e numerosos (cabos, conectores, adaptadores…), um registro por peça em cada
   lugar, com a quantidade contada. Os campos são as colunas da planilha de controle:
-  código Trillogo, categoria, tipo, especificação, fabricante (opcional), unidade de
+  código Trillogo, categoria, tipo, especificação, marca (opcional), unidade de
   medida, quantidade, estoque mínimo, andar, local de armazenamento, orientação, data da
   última contagem, observações e quem cadastrou.
 
 Nos dois tipos de item, a localização é dividida em três listas controladas: **Andar**
 (obrigatório e a única que aparece na lista), **Local de armazenamento** e **Orientação**
 (opcionais; aparecem nos detalhes e na planilha). Nenhum dos dois tem campo "Nome": o
-título exibido é montado na hora — "Categoria Fabricante Modelo" no equipamento e
+título exibido é montado na hora — "Categoria Marca Modelo" no equipamento e
 "Categoria Tipo Especificação" no material.
 
 Regras dos materiais:
@@ -307,7 +307,7 @@ Regras dos materiais:
   abaixo dele ("Abaixo do mínimo"); a planilha destaca a célula da quantidade com a mesma
   cor.
 - Categoria de material e Unidade de medida são listas controladas próprias, em
-  "Gerenciar listas"; Fabricante, Andar, Local de armazenamento e Orientação são as mesmas dos
+  "Gerenciar listas"; Marca, Andar, Local de armazenamento e Orientação são as mesmas dos
   equipamentos.
 - Mesmas regras de acesso dos equipamentos, com ações próprias (`*_MATERIAL`) — ver
   [`docs/permissoes.md`](docs/permissoes.md).

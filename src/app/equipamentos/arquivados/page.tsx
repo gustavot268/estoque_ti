@@ -171,7 +171,7 @@ export default async function PaginaDeArquivados({
               id="busca"
               name="busca"
               defaultValue={parametros.busca ?? ""}
-              placeholder="Categoria, fabricante, modelo, número de série ou Trillogo"
+              placeholder="Categoria, marca, modelo, número de série ou Trillogo"
               maxLength={120}
               className="w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto"
             />
@@ -212,7 +212,7 @@ export default async function PaginaDeArquivados({
                     scope="col"
                     className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
                   >
-                    Fabricante
+                    Marca
                   </th>
                   <th
                     scope="col"

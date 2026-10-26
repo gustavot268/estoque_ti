@@ -103,7 +103,7 @@ describe("gerarPlanilhaDoEstoque — duas abas", () => {
     expect(valores?.slice(1)).toEqual([
       "Identificador interno",
       "Categoria",
-      "Fabricante",
+      "Marca",
       "Modelo",
       "Número de série",
       "Código Trillogo",
@@ -132,7 +132,7 @@ describe("gerarPlanilhaDoEstoque — duas abas", () => {
       "Categoria",
       "Tipo",
       "Especificação",
-      "Fabricante",
+      "Marca",
       "Unidade de medida",
       "Quantidade",
       "Estoque mínimo",

@@ -47,7 +47,7 @@ export function uuidObrigatorio(rotulo: string) {
   return z
     .string({ error: () => `Informe ${rotulo}.` })
     .trim()
-    .pipe(z.uuid({ error: () => `${rotulo} inválido.` }));
+    .pipe(z.uuid({ error: () => `Valor inválido para ${rotulo}.` }));
 }
 
 /**
@@ -61,7 +61,7 @@ export function uuidOpcional(rotulo: string) {
     .trim()
     .optional()
     .transform((valor) => (valor === undefined || valor === "" ? undefined : valor))
-    .pipe(z.uuid({ error: () => `${rotulo} inválido.` }).optional());
+    .pipe(z.uuid({ error: () => `Valor inválido para ${rotulo}.` }).optional());
 }
 
 /** Texto obrigatório de linha única. */
@@ -158,7 +158,7 @@ export function uuidOpcionalDeFormulario(rotulo: string) {
       const aparado = valor.trim();
       return aparado === "" ? null : aparado;
     })
-    .pipe(z.uuid({ error: () => `${rotulo} inválido.` }).nullable());
+    .pipe(z.uuid({ error: () => `Valor inválido para ${rotulo}.` }).nullable());
 }
 
 /**
@@ -177,10 +177,10 @@ export const nomeDeFabricanteOutro = z
     return aparado === "" ? null : aparado;
   })
   .refine((valor) => valor === null || valor.length >= 2, {
-    error: () => "O nome do fabricante deve ter pelo menos 2 caracteres.",
+    error: () => "O nome da marca deve ter pelo menos 2 caracteres.",
   })
   .refine((valor) => valor === null || valor.length <= TAMANHOS.nomeDeLista, {
-    error: () => `O nome do fabricante deve ter no máximo ${TAMANHOS.nomeDeLista} caracteres.`,
+    error: () => `O nome da marca deve ter no máximo ${TAMANHOS.nomeDeLista} caracteres.`,
   });
 
 /**

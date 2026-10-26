@@ -22,6 +22,9 @@ type Props = {
   readonly listas: ListasDoMaterial;
   readonly fabricanteOutroId: string | null;
   readonly hoje: string;
+  readonly temFoto: boolean;
+  /** "Categoria Tipo Especificação", para o texto alternativo da foto. */
+  readonly descricao: string;
 };
 
 const ESTADO_INICIAL: ResultadoDoFormularioDeMaterial | null = null;
@@ -33,6 +36,8 @@ export function FormularioEdicaoDeMaterial({
   listas,
   fabricanteOutroId,
   hoje,
+  temFoto,
+  descricao,
 }: Props) {
   const submeterComId = editarMaterialAction.bind(null, materialId);
   const [resultado, submeter, pendente] = useActionState(submeterComId, ESTADO_INICIAL);
@@ -80,6 +85,7 @@ export function FormularioEdicaoDeMaterial({
           valores={comErro?.valoresEnviados ?? valoresAtuais}
           hoje={hoje}
           errosPorCampo={comErro?.errosPorCampo ?? {}}
+          fotoAtual={temFoto ? { url: `/api/materiais/${materialId}/foto`, descricao } : null}
         />
       </fieldset>
 

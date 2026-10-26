@@ -137,7 +137,7 @@ export function FormularioEdicaoDeEquipamento({
 
         <div className="flex flex-col gap-1">
           <label htmlFor="fabricanteId" className={CLASSE_RASTRO}>
-            Fabricante <span aria-hidden="true">*</span>
+            Marca <span aria-hidden="true">*</span>
           </label>
           <select
             id="fabricanteId"
@@ -160,7 +160,7 @@ export function FormularioEdicaoDeEquipamento({
         {ehFabricanteOutro && (
           <div className="flex flex-col gap-1">
             <label htmlFor="fabricanteOutroNome" className={CLASSE_RASTRO}>
-              Nome do fabricante <span aria-hidden="true">*</span>
+              Nome da marca <span aria-hidden="true">*</span>
             </label>
             <input
               id="fabricanteOutroNome"
