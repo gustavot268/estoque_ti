@@ -22,9 +22,9 @@ precisa decidir**. Nenhum valor fictício foi usado como substituto de uma decis
 | Pendência | Bloqueia | Responsável esperado |
 | --- | --- | --- |
 | Registro da aplicação no tenant corporativo (client ID, client secret, URI de redirecionamento) | Toda a Etapa 3 (autenticação); sem isso não há login real possível | Responsável pelo Entra ID |
-| Definição de quais grupos corporativos mapeiam para Consulta/Operação/Administração | Autorização funcional real; sem grupos definidos, o comportamento correto é negar acesso a todos (ver [`docs/permissoes.md`](permissoes.md)) | Responsável pelo Entra ID + Segurança da Informação |
+| E-mail do administrador inicial (`ADMIN_INICIAL_EMAIL`) e política de revisão periódica da lista de acessos (convites — [ADR 0009](adr/0009-acesso-por-convite.md)) | Primeiros convites em produção; sem o e-mail a aplicação não inicia em produção | Segurança da Informação |
 | Confirmação de tenant único (ou necessidade de outro modelo) | Configuração de validação de token na Etapa 3 | Responsável pelo Entra ID |
-| Escopos/permissões de API concedidos ao registro do aplicativo | Implementação da resolução de grupo do usuário na Etapa 3 | Responsável pelo Entra ID |
+| Conceder as permissões delegadas `openid`, `profile` e `email` ao registro do aplicativo (nada além disso) | Login real | Responsável pelo Entra ID |
 | Política de expiração/rotação do client secret | Procedimento de rotação de segredo (ver [`docs/resposta-a-incidentes.md`](resposta-a-incidentes.md)) | Responsável pelo Entra ID + Segurança da Informação |
 
 Detalhes de contexto: [`docs/configuracao-entra-id.md`](configuracao-entra-id.md).

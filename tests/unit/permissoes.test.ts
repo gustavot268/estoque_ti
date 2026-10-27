@@ -34,3 +34,11 @@ describe("matriz de permissões — materiais", () => {
     expect(perfilPodeExecutar("ADMINISTRACAO", "RESTAURAR_MATERIAL")).toBe(true);
   });
 });
+
+describe("matriz de permissões — acesso por convite", () => {
+  it("só Administração gerencia quem pode entrar", () => {
+    expect(perfilPodeExecutar("ADMINISTRACAO", "GERENCIAR_ACESSOS")).toBe(true);
+    expect(perfilPodeExecutar("OPERACAO", "GERENCIAR_ACESSOS")).toBe(false);
+    expect(perfilPodeExecutar("CONSULTA", "GERENCIAR_ACESSOS")).toBe(false);
+  });
+});

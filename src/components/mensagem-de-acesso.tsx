@@ -15,7 +15,7 @@ const CONTEUDO: Record<Props["variante"], { titulo: string; descricao: string }>
   "nao-autenticado": {
     titulo: "Sessão não encontrada",
     descricao:
-      "Não foi possível confirmar sua identidade. Atualize a página para entrar novamente com sua conta corporativa.",
+      "Sua sessão terminou ou não foi encontrada. Entre de novo com a sua conta Microsoft da empresa.",
   },
   "sem-permissao": {
     titulo: "Sem permissão para esta ação",
@@ -26,5 +26,11 @@ const CONTEUDO: Record<Props["variante"], { titulo: string; descricao: string }>
 
 export function MensagemDeAcesso({ variante }: Props) {
   const { titulo, descricao } = CONTEUDO[variante];
-  return <MensagemSimples titulo={titulo} descricao={descricao} />;
+  return (
+    <MensagemSimples
+      titulo={titulo}
+      descricao={descricao}
+      acao={variante === "nao-autenticado" ? { href: "/entrar", rotulo: "Entrar" } : undefined}
+    />
+  );
 }

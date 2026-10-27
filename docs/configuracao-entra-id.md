@@ -33,28 +33,21 @@ tenant real.
    - Tipo de conta suportada: apenas o tenant único da organização (a menos que uma
      decisão corporativa explícita exija outro modelo — registrar essa decisão como
      atualização deste documento, não presumir).
-   - URI de redirecionamento: URL de callback de autenticação da aplicação (definida na
-     Etapa 3, com base em `APP_BASE_URL` — ex.:
-     `https://<host-fictício-da-aplicacao>/api/auth/callback/microsoft-entra-id`, ajustar
-     ao caminho real que a Etapa 3 implementar).
+   - Plataforma **Web**, URI de redirecionamento: `${APP_BASE_URL}/api/auth/retorno`
+     (ex.: `https://<host-da-aplicacao>/api/auth/retorno`). Para testar localmente, cadastre
+     também o endereço local, ex.: `http://localhost:3000/api/auth/retorno`.
 2. **Gerar um client secret** (Certificados e segredos → Novo segredo do cliente).
    - Definir prazo de expiração conforme a política corporativa de rotação de segredos
      (pendência — ver [`docs/pendencias-corporativas.md`](pendencias-corporativas.md)).
    - O valor do segredo só é exibido uma vez — armazenar imediatamente em um cofre de
      segredos apropriado ao ambiente (ver "Onde guardar" abaixo), nunca em texto simples
      em arquivo versionado.
-3. **Configurar permissões de API** mínimas necessárias para autenticação e leitura de
-   associação a grupos (ex.: `openid`, `profile`, `email`, e a permissão necessária para
-   o aplicativo conhecer os grupos do usuário autenticado — o conjunto exato de escopos é
-   definido durante a implementação da Etapa 3, em conformidade com o princípio de menor
-   privilégio: nenhuma permissão além do necessário para autenticação e resolução de
-   grupo).
-4. **Criar ou identificar os grupos corporativos** que correspondem a cada perfil da
-   aplicação (Consulta, Operação, Administração) — ou reutilizar grupos corporativos já
-   existentes, se apropriado e aprovado pela equipe responsável.
-5. **Anotar os quatro identificadores** que a aplicação precisa (ver tabela abaixo) e
-   preenchê-los como segredo/variável de ambiente no ambiente correspondente — nunca no
-   repositório de código.
+3. **Permissões de API**: apenas as delegadas `openid`, `profile` e `email` (Microsoft
+   Graph). O app não lê grupos nem chama o Graph — quem entra e com qual perfil é decidido
+   pela lista de convites do próprio app ([ADR 0009](adr/0009-acesso-por-convite.md)).
+4. **Anotar os identificadores** que a aplicação precisa (ver tabela abaixo) e preenchê-los
+   como segredo/variável de ambiente no ambiente correspondente — nunca no repositório de
+   código. Informe também o e-mail do primeiro administrador (`ADMIN_INICIAL_EMAIL`).
 
 ## Variáveis a preencher
 
@@ -67,9 +60,7 @@ ID:
 | `ENTRA_TENANT_ID` | ID do diretório (tenant) — Entra ID → Visão geral |
 | `ENTRA_CLIENT_ID` | ID do aplicativo (cliente) — Registros de aplicativo → Visão geral do registro criado no passo 1 |
 | `ENTRA_CLIENT_SECRET` | Valor do segredo criado no passo 2 (visível apenas na criação) |
-| `ENTRA_GROUP_ID_CONSULTA` | ID do objeto do grupo mapeado para o perfil Consulta |
-| `ENTRA_GROUP_ID_OPERACAO` | ID do objeto do grupo mapeado para o perfil Operação |
-| `ENTRA_GROUP_ID_ADMINISTRACAO` | ID do objeto do grupo mapeado para o perfil Administração |
+| `ADMIN_INICIAL_EMAIL` | Não vem do portal: o e-mail (como a pessoa entra na Microsoft) de quem fará os primeiros convites |
 
 ## Valores de exemplo (fictícios — `.env.example`)
 
@@ -80,9 +71,7 @@ para ilustrar o formato esperado:
 ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
 ENTRA_CLIENT_ID=00000000-0000-0000-0000-000000000000
 ENTRA_CLIENT_SECRET=coloque-o-segredo-aqui
-ENTRA_GROUP_ID_CONSULTA=00000000-0000-0000-0000-000000000001
-ENTRA_GROUP_ID_OPERACAO=00000000-0000-0000-0000-000000000002
-ENTRA_GROUP_ID_ADMINISTRACAO=00000000-0000-0000-0000-000000000003
+ADMIN_INICIAL_EMAIL=nome.sobrenome@empresa.example
 ```
 
 O `.env.example` real do repositório (território do agente de implementação) deve seguir
@@ -112,10 +101,10 @@ em variável `NEXT_PUBLIC_*`, ou imprimir variáveis de ambiente completas em lo
   diferente registrada explicitamente.
 - Nunca confiar em informação de usuário/perfil enviada diretamente pelo navegador — a
   identidade vem exclusivamente da sessão validada no servidor.
-- Resolver o perfil (`PerfilAcesso`) a partir dos grupos do usuário, comparando com
-  `ENTRA_GROUP_ID_CONSULTA`/`ENTRA_GROUP_ID_OPERACAO`/`ENTRA_GROUP_ID_ADMINISTRACAO` — ver
-  [`docs/permissoes.md`](permissoes.md).
-- Negar acesso a usuário autenticado sem grupo mapeado.
+- Resolver o perfil (`PerfilAcesso`) pela lista de acessos permitidos (convites), ou pelo
+  administrador inicial — ver [`docs/permissoes.md`](permissoes.md).
+- Negar acesso a usuário autenticado fora da lista (tela `/acesso-negado`, tentativa
+  registrada na auditoria).
 - Recusar-se a iniciar se as variáveis obrigatórias em produção estiverem ausentes (ver
   [`docs/variaveis-de-ambiente.md`](variaveis-de-ambiente.md)).
 - MFA e Acesso Condicional permanecem sob responsabilidade do Microsoft Entra ID e das
@@ -125,7 +114,6 @@ em variável `NEXT_PUBLIC_*`, ou imprimir variáveis de ambiente completas em lo
 ## O que fica pendente (depende da equipe responsável pelo Entra ID)
 
 - Execução real do registro da aplicação (passos 1–5 acima).
-- Definição de quais grupos corporativos existentes (ou novos) mapeiam para cada perfil.
 - Política de expiração/rotação do client secret.
 - Decisão sobre tenant único vs. outro modelo, caso a organização exija algo diferente do
   padrão assumido.
@@ -136,9 +124,11 @@ em variável `NEXT_PUBLIC_*`, ou imprimir variáveis de ambiente completas em lo
 Essas pendências estão consolidadas também em
 [`docs/pendencias-corporativas.md`](pendencias-corporativas.md).
 
-## Estado desta rodada
+## Estado atual
 
-Nenhuma parte da integração com o Microsoft Entra ID foi implementada ou testada nesta
-rodada (Etapas 1–2). Este documento existe apenas como guia de configuração e contrato de
-variáveis para quando a Etapa 3 implementar a autenticação e a equipe responsável
-fornecer as credenciais reais.
+Implementado na Etapa 3 (ver [ADR 0006](adr/0006-estrategia-de-sessao.md) e
+[ADR 0009](adr/0009-acesso-por-convite.md)): tela `/entrar`, rotas `/api/auth/entrar` e
+`/api/auth/retorno`, sessão, "Sair", acesso por convite e tela de acesso negado. Ainda não
+testado contra o tenant real — depende do registro acima. Para testar localmente: preencha
+as variáveis, defina `DEV_AUTH_ENABLED=false`, acesse o app pelo mesmo endereço de
+`APP_BASE_URL` e entre com o e-mail de `ADMIN_INICIAL_EMAIL`.

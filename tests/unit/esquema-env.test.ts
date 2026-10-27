@@ -26,9 +26,7 @@ function baseDeProducao(sobrescritas: Record<string, string | undefined> = {}) {
     ENTRA_TENANT_ID: "11111111-1111-1111-1111-111111111111",
     ENTRA_CLIENT_ID: "22222222-2222-2222-2222-222222222222",
     ENTRA_CLIENT_SECRET: "segredo-do-client",
-    ENTRA_GROUP_ID_CONSULTA: "33333333-3333-3333-3333-333333333333",
-    ENTRA_GROUP_ID_OPERACAO: "44444444-4444-4444-4444-444444444444",
-    ENTRA_GROUP_ID_ADMINISTRACAO: "55555555-5555-5555-5555-555555555555",
+    ADMIN_INICIAL_EMAIL: "admin@example.com",
     ...sobrescritas,
   });
 }
@@ -172,5 +170,30 @@ describe("validarAmbiente — mensagens nunca vazam segredo", () => {
     }
     expect(erroCapturado).toBeInstanceOf(ErroDeConfiguracaoError);
     expect((erroCapturado as Error).message).not.toContain(senhaSecreta);
+  });
+});
+
+describe("validarAmbiente — ADMIN_INICIAL_EMAIL (primeiro administrador do acesso por convite)", () => {
+  it("é obrigatória em produção: sem ela, ninguém conseguiria entrar para convidar os demais", () => {
+    expect(() => validarAmbiente(baseDeProducao({ ADMIN_INICIAL_EMAIL: undefined }))).toThrow(
+      /ADMIN_INICIAL_EMAIL/,
+    );
+  });
+
+  it("é normalizada (minúsculas, sem espaços nas pontas)", () => {
+    const configuracao = validarAmbiente(
+      baseDeDesenvolvimento({ ADMIN_INICIAL_EMAIL: "  Admin@Example.COM " }),
+    );
+    expect(configuracao.ADMIN_INICIAL_EMAIL).toBe("admin@example.com");
+  });
+
+  it("recusa um valor que não é e-mail", () => {
+    expect(() =>
+      validarAmbiente(baseDeDesenvolvimento({ ADMIN_INICIAL_EMAIL: "não-é-email" })),
+    ).toThrow(/ADMIN_INICIAL_EMAIL deve ser um endereço de e-mail válido/);
+  });
+
+  it("é opcional fora de produção (o modo de desenvolvimento não tem login)", () => {
+    expect(validarAmbiente(baseDeDesenvolvimento()).ADMIN_INICIAL_EMAIL).toBeUndefined();
   });
 });

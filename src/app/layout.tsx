@@ -4,7 +4,9 @@ import { BannerAmbiente } from "@/components/banner-ambiente";
 import { BarraDeNavegacao } from "@/components/barra-de-navegacao";
 import type { DadosDaConta } from "@/components/menu-da-conta";
 import { lerTema, NOME_DO_COOKIE_DE_TEMA } from "@/components/tema";
+import { perfilPodeExecutar } from "@/domain/permissoes";
 import { obterAtorAtual } from "@/infrastructure/auth/ator-atual";
+import { obterConfiguracao } from "@/infrastructure/config/env";
 import { logger } from "@/infrastructure/observability/logger";
 import "./globals.css";
 
@@ -49,26 +51,44 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-async function obterDadosDaConta(): Promise<DadosDaConta | null> {
+async function obterDadosDaConta(): Promise<{
+  readonly conta: DadosDaConta | null;
+  readonly podeGerenciarAcessos: boolean;
+}> {
   try {
     const ator = await obterAtorAtual();
-    // A foto virá do Microsoft Graph quando o login com o Entra ID existir (Etapa 3).
-    return ator === null ? null : { nome: ator.nome, email: ator.email, fotoUrl: null };
+    if (ator === null) {
+      return { conta: null, podeGerenciarAcessos: false };
+    }
+    return {
+      // Sem foto por enquanto: as iniciais aparecem no lugar (ver `foto-do-usuario.tsx`).
+      conta: {
+        nome: ator.nome,
+        email: ator.email,
+        fotoUrl: null,
+        loginMicrosoft: !obterConfiguracao().DEV_AUTH_ENABLED,
+      },
+      podeGerenciarAcessos: perfilPodeExecutar(ator.perfil, "GERENCIAR_ACESSOS"),
+    };
   } catch (erro) {
     logger.warn("Não foi possível resolver a conta para a faixa do topo.", { erro });
-    return null;
+    return { conta: null, podeGerenciarAcessos: false };
   }
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const tema = lerTema((await cookies()).get(NOME_DO_COOKIE_DE_TEMA)?.value);
-  const conta = await obterDadosDaConta();
+  const { conta, podeGerenciarAcessos } = await obterDadosDaConta();
 
   return (
     <html lang="pt-BR" className="h-full antialiased" data-tema={tema ?? undefined}>
       <body className="flex min-h-full flex-col bg-fundo text-texto">
         <BannerAmbiente />
-        <BarraDeNavegacao temaInicial={tema} conta={conta} />
+        <BarraDeNavegacao
+          temaInicial={tema}
+          conta={conta}
+          podeGerenciarAcessos={podeGerenciarAcessos}
+        />
         {children}
       </body>
     </html>

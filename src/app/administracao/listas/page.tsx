@@ -60,13 +60,21 @@ export default async function PaginaDeGestaoDeListas() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-texto">Gestão de listas</h1>
-        <p className="mt-1 text-sm text-texto-suave">
-          As listas formam as opções dos cadastros. Marca, Andar, Local de armazenamento e
-          Orientação valem para equipamentos e materiais; as demais, só para um dos dois. Um valor
-          só pode ser excluído se nenhum equipamento ou material o usar.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-2xl">
+          <h1 className="text-2xl font-bold tracking-tight text-texto">Gestão de listas</h1>
+          <p className="mt-1 text-sm text-texto-suave">
+            As listas formam as opções dos cadastros. Marca, Andar, Local de armazenamento e
+            Orientação valem para equipamentos e materiais; as demais, só para um dos dois. Um valor
+            só pode ser excluído se nenhum equipamento ou material o usar.
+          </p>
+        </div>
+        <Link
+          href="/administracao/acessos"
+          className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
+        >
+          Usuários permitidos
+        </Link>
       </div>
 
       <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">

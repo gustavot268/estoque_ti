@@ -106,6 +106,18 @@ function uuidOpcional(nome: string) {
  * liga. Qualquer outro texto é erro, para que um valor como `"1"` ou `"yes"`
  * nunca ative silenciosamente (nem desative por engano) um recurso sensível.
  */
+/** E-mail opcional, já normalizado (minúsculo, sem espaços nas pontas). */
+function emailOpcional(nome: string) {
+  return z
+    .string()
+    .trim()
+    .optional()
+    .transform((valor) => (valor === undefined || valor === "" ? undefined : valor.toLowerCase()))
+    .refine((valor) => valor === undefined || z.email().safeParse(valor).success, {
+      error: () => `${nome} deve ser um endereço de e-mail válido.`,
+    });
+}
+
 function booleanoEstrito(nome: string, padrao: boolean) {
   return z
     .string()
@@ -167,9 +179,13 @@ export const esquemaAmbiente = z.object({
   ENTRA_TENANT_ID: uuidOpcional("ENTRA_TENANT_ID"),
   ENTRA_CLIENT_ID: uuidOpcional("ENTRA_CLIENT_ID"),
   ENTRA_CLIENT_SECRET: textoOpcional("ENTRA_CLIENT_SECRET", 512),
-  ENTRA_GROUP_ID_CONSULTA: uuidOpcional("ENTRA_GROUP_ID_CONSULTA"),
-  ENTRA_GROUP_ID_OPERACAO: uuidOpcional("ENTRA_GROUP_ID_OPERACAO"),
-  ENTRA_GROUP_ID_ADMINISTRACAO: uuidOpcional("ENTRA_GROUP_ID_ADMINISTRACAO"),
+  /**
+   * Primeiro administrador do acesso por convite (ADR 0009): sempre pode
+   * entrar, sempre com o perfil Administração, e não pode ser removido pela
+   * tela — é por ele que os demais convites começam, e é o que impede a
+   * lista de ficar sem nenhum administrador.
+   */
+  ADMIN_INICIAL_EMAIL: emailOpcional("ADMIN_INICIAL_EMAIL"),
 
   DEV_AUTH_ENABLED: booleanoEstrito("DEV_AUTH_ENABLED", false),
   /**
@@ -219,9 +235,7 @@ const CHAVES_OBRIGATORIAS_EM_PRODUCAO = [
   ["ENTRA_TENANT_ID", "tenant do Microsoft Entra ID"],
   ["ENTRA_CLIENT_ID", "client ID do Microsoft Entra ID"],
   ["ENTRA_CLIENT_SECRET", "client secret do Microsoft Entra ID"],
-  ["ENTRA_GROUP_ID_CONSULTA", "grupo do perfil Consulta"],
-  ["ENTRA_GROUP_ID_OPERACAO", "grupo do perfil Operação"],
-  ["ENTRA_GROUP_ID_ADMINISTRACAO", "grupo do perfil Administração"],
+  ["ADMIN_INICIAL_EMAIL", "e-mail do primeiro administrador do acesso por convite"],
 ] as const;
 
 /**

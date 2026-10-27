@@ -86,43 +86,29 @@ então exportar exige as duas permissões de exportação.
   modelo de auditoria (ver [`docs/modelo-de-dados.md`](modelo-de-dados.md)) existe
   justamente para isso, sem armazenar informação sensível desnecessária no evento.
 
-## Mapeamento perfil ↔ grupo do Microsoft Entra ID
+## De onde vem o perfil: acesso por convite
 
-O mapeamento é feito por **variável de ambiente**, um identificador de grupo do Entra ID
-por perfil (ver [`docs/variaveis-de-ambiente.md`](variaveis-de-ambiente.md)):
+Desde a Etapa 3 o perfil **não** vem de grupos do Entra ID: vem da lista de **acessos
+permitidos**, mantida pela Administração na tela "Usuários permitidos"
+(`/administracao/acessos`) — ver [ADR 0009](adr/0009-acesso-por-convite.md).
 
-| Variável | Perfil mapeado |
-| --- | --- |
-| `ENTRA_GROUP_ID_CONSULTA` | Consulta |
-| `ENTRA_GROUP_ID_OPERACAO` | Operação |
-| `ENTRA_GROUP_ID_ADMINISTRACAO` | Administração |
+- Entrar com a conta Microsoft só prova **quem** a pessoa é. Só entra quem tem o e-mail na
+  lista; o perfil (Consulta, Operação ou Administração) é o escolhido no convite.
+- O administrador inicial (`ADMIN_INICIAL_EMAIL`) sempre entra como Administração e não pode
+  ser removido nem rebaixado pela tela.
+- O perfil é conferido na lista **a cada requisição**: remover ou rebaixar alguém vale na
+  próxima página que a pessoa abrir.
+- Ninguém altera nem remove o próprio acesso pela tela.
+- Gerenciar a lista é a ação `GERENCIAR_ACESSOS`, só da Administração.
 
-Essa é uma escolha deliberada: os perfis não são atribuídos por uma tabela de associação
-usuário↔perfil mantida dentro do aplicativo, mas **derivados dos grupos corporativos do
-Entra ID** aos quais o usuário pertence, conforme preferência explícita do cliente por
-grupos/papéis corporativos quando viável (seção 6 dos requisitos). Isso significa que:
+## Usuário autenticado fora da lista
 
-- A gestão de "quem está em qual grupo" é responsabilidade do Microsoft Entra ID e da
-  equipe responsável por ele — não do aplicativo.
-- Se um usuário pertencer a mais de um grupo mapeado, a regra de precedência entre
-  perfis (ex.: assumir o mais permissivo) é uma decisão de implementação da Etapa 3,
-  ainda não definida neste contrato — deve ser documentada como atualização deste arquivo
-  quando a Etapa 3 a definir.
-
-## Usuário autenticado sem grupo mapeado
-
-Um usuário que se autentica com sucesso no Microsoft Entra ID, mas **não pertence a
-nenhum** dos grupos referenciados por `ENTRA_GROUP_ID_CONSULTA`,
-`ENTRA_GROUP_ID_OPERACAO` ou `ENTRA_GROUP_ID_ADMINISTRACAO`, **não recebe nenhum
-perfil** e, portanto, **acesso é negado** a toda ação protegida — inclusive à simples
-visualização de equipamentos. Isso é consequência direta do princípio de negação por
-padrão e é um requisito explícito do cliente (seção 6: *"Sem grupos configurados ⇒ acesso
+Quem se autentica com sucesso na Microsoft, mas **não está na lista** (nem é o administrador
+inicial), **não recebe perfil nenhum**: nenhuma sessão é aberta, a pessoa vê a tela
+`/acesso-negado` (sem detalhe interno) e a tentativa é registrada na auditoria como
+`ACESSO_NEGADO`. É a negação por padrão (seção 6: *"Sem grupos configurados ⇒ acesso
 negado"*; seção 18: *"Usuário autenticado sem grupo ou perfil autorizado receber acesso
-negado"*).
-
-A experiência para esse caso (tela amigável de acesso negado, sem detalhes internos) é
-prevista na seção de telas dos requisitos do cliente e será implementada junto com o
-restante da Etapa 3.
+negado"*), agora aplicada à lista de convites.
 
 ## Separação entre administração técnica e funcional
 

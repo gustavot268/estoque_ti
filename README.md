@@ -265,10 +265,11 @@ verificação de autorização que consome esse contrato (matriz de permissões,
 
 ## Como funciona a autorização
 
-Três perfis — **Consulta**, **Operação**, **Administração** — mapeados a partir de
-grupos do Microsoft Entra ID via variável de ambiente (um `ENTRA_GROUP_ID_*` por perfil).
-Negação por padrão: usuário autenticado sem grupo mapeado não tem acesso a nenhuma ação
-protegida. A autorização é **sempre** verificada no servidor — nunca apenas por um botão
+Entrada só pela conta Microsoft da empresa (SSO), em `/entrar`, e acesso **por convite**:
+só entra quem a Administração incluiu na tela "Usuários permitidos", com um de três perfis —
+**Consulta**, **Operação**, **Administração** ([ADR 0009](docs/adr/0009-acesso-por-convite.md)).
+Negação por padrão: quem entra pela Microsoft mas não foi convidado vê "Acesso negado" e não
+tem acesso a nenhuma ação protegida. A autorização é **sempre** verificada no servidor — nunca apenas por um botão
 oculto na interface. Matriz completa de permissões por ação em
 [`docs/permissoes.md`](docs/permissoes.md).
 
@@ -447,6 +448,7 @@ nenhum item ali é marcado como validado sem evidência correspondente.
 - [0006 — Estratégia de sessão](docs/adr/0006-estrategia-de-sessao.md)
 - [0007 — Banco: menor privilégio](docs/adr/0007-banco-menor-privilegio.md)
 - [0008 — Auditoria append-only](docs/adr/0008-auditoria-append-only.md)
+- [0009 — Acesso por convite com login Microsoft (SSO)](docs/adr/0009-acesso-por-convite.md)
 
 ### Referência técnica
 

@@ -40,8 +40,66 @@ enum TipoAcaoAuditoria {
   LISTA_CRIACAO
   LISTA_EDICAO
   LISTA_EXCLUSAO
+  /// Entrada e saída do app (login com a conta Microsoft / "Sair"). Sem
+  /// equipamento nem material: quem entrou vai em `usuario*`.
+  LOGIN
+  LOGOUT
+  /// Mudanças na lista de quem pode entrar (acesso por convite — ADR 0009):
+  /// o e-mail e o perfil afetados vão em `dadosAnteriores`/`dadosPosteriores`.
+  ACESSO_CONCEDIDO
+  ACESSO_ALTERADO
+  ACESSO_REVOGADO
 
   @@map("tipo_acao_auditoria")
+}
+
+// ---------------------------------------------------------------------------
+// Acesso por convite e sessões (ADR 0006 e ADR 0009)
+// ---------------------------------------------------------------------------
+
+/// Perfis do app (ver `src/domain/ator.ts` e `docs/permissoes.md`).
+enum PerfilAcesso {
+  CONSULTA
+  OPERACAO
+  ADMINISTRACAO
+
+  @@map("perfil_acesso")
+}
+
+/// Lista de quem pode entrar (acesso por convite — ADR 0009). Entrar com a
+/// conta Microsoft só prova QUEM a pessoa é; é estar nesta lista (ou ser o
+/// administrador inicial da configuração, `ADMIN_INICIAL_EMAIL`) que dá
+/// acesso, e com qual perfil.
+model AcessoPermitido {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Sempre em minúsculas, sem espaços (restrição `CHECK` na migração).
+  email         String       @unique(map: "acessos_permitidos_email_key") @db.VarChar(254)
+  perfil        PerfilAcesso
+  incluidoEm    DateTime     @default(now()) @map("incluido_em") @db.Timestamptz(3)
+  incluidoPorId String?      @map("incluido_por_id") @db.Uuid
+  atualizadoEm  DateTime     @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  incluidoPor Usuario? @relation("AcessoIncluidoPor", fields: [incluidoPorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("acessos_permitidos")
+}
+
+/// Sessão aberta pelo login com a conta Microsoft (ADR 0006). O navegador
+/// guarda só um token aleatório num cookie `HttpOnly`; aqui fica apenas o
+/// hash SHA-256 dele — quem ler esta tabela não consegue se passar por
+/// ninguém. Validade fixa, sem renovação automática.
+model Sessao {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash String   @unique(map: "sessoes_token_hash_key") @map("token_hash") @db.Char(64)
+  usuarioId String   @map("usuario_id") @db.Uuid
+  criadaEm  DateTime @default(now()) @map("criada_em") @db.Timestamptz(3)
+  expiraEm  DateTime @map("expira_em") @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([usuarioId], map: "sessoes_usuario_idx")
+  @@index([expiraEm], map: "sessoes_expira_em_idx")
+  @@map("sessoes")
 }
 
 enum ResultadoAuditoria {
@@ -216,6 +274,8 @@ model Usuario {
   materiaisCriados        Material[]    @relation("MaterialCriadoPor")
   materiaisAtualizados    Material[]    @relation("MaterialAtualizadoPor")
   materiaisArquivados     Material[]    @relation("MaterialArquivadoPor")
+  acessosIncluidos        AcessoPermitido[] @relation("AcessoIncluidoPor")
+  sessoes                 Sessao[]
 
   @@index([email], map: "usuarios_email_idx")
   @@map("usuarios")

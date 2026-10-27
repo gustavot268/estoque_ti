@@ -9,7 +9,8 @@
  * conta. Na própria página inicial o Home e o nome somem — ali o botão
  * apontaria para a mesma tela e o nome repetiria o título —, mas a direita
  * continua. Sem pessoa logada (ou sem como saber, ex.: banco fora do ar), a
- * foto não aparece. O nome é texto comum, e não um título
+ * foto não aparece. Nas telas de entrada (`/entrar`, `/acesso-negado`) fica
+ * só o menu de opções, com o tema. O nome é texto comum, e não um título
  * (`<h1>`): o título de cada tela continua sendo o da própria tela.
  *
  * Fica presa no topo ao rolar (`sticky`), com fundo translúcido e desfoque,
@@ -27,10 +28,16 @@ type Props = {
   readonly temaInicial: Tema | null;
   /** Pessoa logada; `null` = ninguém (a foto não aparece). */
   readonly conta: DadosDaConta | null;
+  readonly podeGerenciarAcessos: boolean;
 };
 
-export function BarraDeNavegacao({ temaInicial, conta }: Props) {
-  const naPaginaInicial = usePathname() === "/";
+/** A "porta de entrada": nem Home nem conta, só o tema. */
+const TELAS_DE_ENTRADA = ["/entrar", "/acesso-negado"];
+
+export function BarraDeNavegacao({ temaInicial, conta, podeGerenciarAcessos }: Props) {
+  const caminho = usePathname();
+  const naTelaDeEntrada = TELAS_DE_ENTRADA.includes(caminho);
+  const naPaginaInicial = caminho === "/" || naTelaDeEntrada;
 
   return (
     <nav
@@ -54,8 +61,11 @@ export function BarraDeNavegacao({ temaInicial, conta }: Props) {
           </div>
         )}
         <div className="flex shrink-0 items-center gap-1">
-          <MenuDeOpcoes temaInicial={temaInicial} />
-          {conta !== null && <MenuDaConta conta={conta} />}
+          <MenuDeOpcoes
+            temaInicial={temaInicial}
+            podeGerenciarAcessos={podeGerenciarAcessos && !naTelaDeEntrada}
+          />
+          {conta !== null && !naTelaDeEntrada && <MenuDaConta conta={conta} />}
         </div>
       </div>
     </nav>

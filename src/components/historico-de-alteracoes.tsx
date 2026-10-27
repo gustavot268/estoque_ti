@@ -22,6 +22,12 @@ const ROTULOS_DE_ACAO: Record<TipoAcaoAuditoria, string> = {
   LISTA_CRIACAO: "Criação de valor de lista",
   LISTA_EDICAO: "Edição de valor de lista",
   LISTA_EXCLUSAO: "Exclusão de valor de lista",
+  // Entrada/saída e lista de acessos também nunca referenciam um item.
+  LOGIN: "Entrada no app",
+  LOGOUT: "Saída do app",
+  ACESSO_CONCEDIDO: "Acesso concedido",
+  ACESSO_ALTERADO: "Acesso alterado",
+  ACESSO_REVOGADO: "Acesso removido",
 };
 
 const ROTULOS_DE_RESULTADO: Record<ResultadoAuditoria, string> = {

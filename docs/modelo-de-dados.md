@@ -168,9 +168,9 @@ Etapa 2.
 | `atualizadoEm` | timestamptz | |
 
 Deliberadamente **não** armazena: perfil completo do Entra ID, tokens de acesso/atualização,
-claims adicionais, foto, cargo, grupo (o grupo é resolvido em tempo de sessão a partir das
-variáveis `ENTRA_GROUP_ID_*`, não persistido por usuário — ver
-[`docs/permissoes.md`](permissoes.md)). Ver justificativa de minimização em
+claims adicionais, foto, cargo, grupo. O perfil não fica no usuário: vem da lista de acessos
+permitidos (`acessos_permitidos`), conferida a cada requisição — ver
+[`docs/permissoes.md`](permissoes.md) e [ADR 0009](adr/0009-acesso-por-convite.md). Ver justificativa de minimização em
 [`docs/inventario-de-dados.md`](inventario-de-dados.md).
 
 ## Entidade `RegistroAuditoria` (append-only)

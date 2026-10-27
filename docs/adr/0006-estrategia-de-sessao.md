@@ -1,9 +1,8 @@
 # ADR 0006 — Estratégia de sessão e cookies
 
-- Status: **decisão de direção aceita; implementação é da Etapa 3** — este documento
-  registra a estratégia pretendida e os riscos associados, conforme exigido pela seção
-  14.4 dos requisitos do cliente. Nada aqui foi implementado ou testado por este agente
-  de documentação.
+- Status: **aceito — implementado na Etapa 3** (ver "Implementação" no fim e o
+  [ADR 0009](0009-acesso-por-convite.md), acesso por convite). Os itens que estavam pendentes
+  foram fixados lá.
 - Etapa de origem: contrato definido nas Etapas 1–2; implementação na Etapa 3
   (Autenticação e autorização)
 - Relacionado: [`docs/permissoes.md`](../permissoes.md), [`docs/configuracao-entra-id.md`](../configuracao-entra-id.md), [`docs/analise-de-ameacas.md`](../analise-de-ameacas.md)
@@ -92,3 +91,28 @@ cliente).
   segura pode ser feita ainda** — este ADR documenta intenção e contrato, não um controle
   já em vigor. A confirmação de que a estratégia foi implementada como descrita aqui deve
   vir da revisão de código da Etapa 3, não deste documento.
+
+## Implementação (Etapa 3)
+
+Os pontos que esta decisão deixava em aberto foram fixados assim:
+
+- **Mecanismo**: sessão no banco (tabela `sessoes`). O cookie guarda um token aleatório de
+  256 bits; o banco guarda só o hash SHA-256 dele. Sair (`sairAction`) apaga a sessão no
+  servidor — o token deixa de valer mesmo se tiver sido copiado — e remover alguém da lista
+  de acessos apaga todas as sessões daquele e-mail.
+- **Validade**: 8 horas fixas a partir do login, sem renovação automática. Passado o prazo, a
+  pessoa entra de novo pela Microsoft.
+- **Cookie**: `HttpOnly`, `Path=/`, `Secure` em HTTPS e, em HTTPS, com o prefixo `__Host-`
+  (o navegador só o aceita `Secure`, sem `Domain` e com `Path=/`).
+- **`SameSite=Lax`**, e não `Strict`: a volta da Microsoft para `/api/auth/retorno` é uma
+  navegação vinda de outro site. Com `Strict`, o comprovante do login não chegaria no retorno
+  e a sessão recém-criada não seria enviada no redirecionamento seguinte. `Lax` ainda bloqueia
+  o cookie em requisições de outros sites que não sejam navegação de topo; as Server Actions
+  têm a própria checagem de origem.
+- **Comprovante do login** (state, nonce, verificador PKCE, destino): cookie `HttpOnly` de 10
+  minutos, selado com HMAC-SHA256 sobre `AUTH_SECRET`; é de uso único e apagado no retorno.
+- **`proxy.ts`**: só checa a presença do cookie de sessão e manda para `/entrar` quem não o
+  tem. A validação real (sessão no banco + convite + perfil) é feita a cada requisição no
+  servidor (`obterAtorAtual`).
+- **Destino após o login**: só caminhos deste app (`destinoAposEntrar`), contra
+  redirecionamento aberto.

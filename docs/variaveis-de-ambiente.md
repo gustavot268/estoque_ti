@@ -23,13 +23,11 @@
 | `DATABASE_URL` | sim | todos | String de conexão da conta de aplicação (`estoque_app`), menor privilégio — ver [ADR 0007](adr/0007-banco-menor-privilegio.md) | **sim** | não |
 | `MIGRATION_DATABASE_URL` | não em geral; sim para aplicar migrações | dev, CI, deploy | String de conexão da conta usada só por migrações (`estoque_migrator`) | **sim** | não |
 | `TEST_DATABASE_URL` | não em geral; sim em teste | test | String de conexão do banco isolado de testes (`estoque_ti_test`) | **sim** | não |
-| `AUTH_SECRET` | sim em produção | todos (obrigatória em produção) | Segredo usado para proteger a sessão (assinatura/cifra, conforme mecanismo escolhido na Etapa 3) | **sim** | não |
+| `AUTH_SECRET` | sim em produção | todos (obrigatória em produção; necessária para o login com a Microsoft em qualquer ambiente) | Sela (HMAC-SHA256) o comprovante do login em andamento — ver [ADR 0006](adr/0006-estrategia-de-sessao.md) | **sim** | não |
 | `ENTRA_TENANT_ID` | sim em produção | todos (obrigatória em produção) | Identificador do tenant único do Microsoft Entra ID | não é segredo, mas é dado interno — não publicar | não |
 | `ENTRA_CLIENT_ID` | sim em produção | todos (obrigatória em produção) | Identificador do registro da aplicação no Entra ID | não é segredo, mas é dado interno — não publicar | não |
 | `ENTRA_CLIENT_SECRET` | sim em produção | todos (obrigatória em produção) | Segredo do registro da aplicação no Entra ID | **sim** | não |
-| `ENTRA_GROUP_ID_CONSULTA` | sim em produção | todos (obrigatória em produção) | Mapeia grupo do Entra ID → perfil Consulta — ver [`docs/permissoes.md`](permissoes.md) | não é segredo, mas é dado interno — não publicar | não |
-| `ENTRA_GROUP_ID_OPERACAO` | sim em produção | todos (obrigatória em produção) | Mapeia grupo do Entra ID → perfil Operação | não é segredo, mas é dado interno — não publicar | não |
-| `ENTRA_GROUP_ID_ADMINISTRACAO` | sim em produção | todos (obrigatória em produção) | Mapeia grupo do Entra ID → perfil Administração | não é segredo, mas é dado interno — não publicar | não |
+| `ADMIN_INICIAL_EMAIL` | sim em produção | todos (obrigatória em produção) | E-mail do primeiro administrador do acesso por convite: sempre entra como Administração e não pode ser removido pela tela — ver [ADR 0009](adr/0009-acesso-por-convite.md). Normalizado para minúsculas | não é segredo, mas é dado pessoal corporativo — não publicar | não |
 | `DEV_AUTH_ENABLED` | não | apenas desenvolvimento local | Ativa modo de autenticação simplificado para desenvolvimento sem credenciais reais. Default **`false`**; exige valor explícito `"true"` para ativar | não | não |
 | `DEV_AUTH_PERFIL` | não | apenas desenvolvimento local | Perfil do usuário fictício do modo `DEV_AUTH_ENABLED`: `CONSULTA`, `OPERACAO` ou `ADMINISTRACAO`. Vazio = `OPERACAO`. Sem efeito com `DEV_AUTH_ENABLED=false`; valor inválido impede a inicialização. Na demonstração usa-se `ADMINISTRACAO` | não | não |
 | `EXPORT_MAX_ROWS` | não | todos | Limite de linhas por exportação para Excel. Default `10000` | não | não |
@@ -51,10 +49,10 @@
 
 ## Por que algumas variáveis "não secretas" também não são publicadas
 
-`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` e os três `ENTRA_GROUP_ID_*` não são segredos no
+`ENTRA_TENANT_ID` e `ENTRA_CLIENT_ID` não são segredos no
 sentido criptográfico (não concedem acesso por si só sem o fluxo completo de OAuth/OIDC),
 mas são tratados como **dados internos, não públicos**: expor o tenant, o client ID da
-aplicação ou os identificadores de grupo amplia a superfície de informação disponível
+aplicação amplia a superfície de informação disponível
 para um atacante que tente mapear a infraestrutura corporativa antes de um ataque. Por
 isso nenhuma dessas variáveis usa o prefixo `NEXT_PUBLIC_` e todas permanecem
 exclusivamente no lado do servidor.
