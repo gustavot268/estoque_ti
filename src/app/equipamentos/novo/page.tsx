@@ -21,11 +21,11 @@ import { obterPrisma } from "../../../infrastructure/prisma/cliente";
 import {
   listarAndaresAtivos,
   listarCategoriasAtivas,
-  listarFabricantesAtivos,
   listarLocaisDeArmazenamentoAtivos,
   listarOrientacoesAtivas,
   listarStatusFuncionamentoAtivos,
 } from "../../../infrastructure/repositorios/listas-controladas";
+import { listarMarcasAtivasComCategorias } from "../../../infrastructure/repositorios/marcas-por-categoria";
 
 export const metadata: Metadata = { title: "Cadastrar equipamento" };
 
@@ -55,7 +55,7 @@ export default async function PaginaDeCadastro() {
   }
 
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
-  let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
+  let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
   let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
   let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
@@ -65,7 +65,7 @@ export default async function PaginaDeCadastro() {
     [categorias, fabricantes, statusFuncionamento, andares, locaisDeArmazenamento, orientacoes] =
       await Promise.all([
         listarCategoriasAtivas(prisma),
-        listarFabricantesAtivos(prisma),
+        listarMarcasAtivasComCategorias(prisma),
         listarStatusFuncionamentoAtivos(prisma),
         listarAndaresAtivos(prisma),
         listarLocaisDeArmazenamentoAtivos(prisma),
@@ -90,6 +90,7 @@ export default async function PaginaDeCadastro() {
           fabricantes={fabricantes.map((fabricante) => ({
             id: fabricante.id,
             nome: fabricante.nome,
+            categoriaIds: fabricante.categoriaIds,
           }))}
           statusFuncionamento={statusFuncionamento.map((status) => ({
             id: status.id,

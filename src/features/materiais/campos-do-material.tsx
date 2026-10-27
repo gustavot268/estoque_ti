@@ -15,14 +15,17 @@
  */
 
 import { useState } from "react";
+import { CampoDeMarca, marcaContinuaNaCategoria } from "../../components/campo-de-marca";
 import { CamposOndeFica, type OpcoesDeOndeFica } from "../../components/campos-onde-fica";
+import type { MarcaComCategorias } from "../../domain/marcas-por-categoria";
 import type { CampoDoMaterial, ValoresDoFormularioDeMaterial } from "./campos";
 
 type OpcaoDeLista = { readonly id: string; readonly nome: string };
 
 export type ListasDoMaterial = {
   readonly categorias: readonly OpcaoDeLista[];
-  readonly fabricantes: readonly OpcaoDeLista[];
+  /** Marcas com as categorias de MATERIAL atribuídas (ADR 0010). */
+  readonly fabricantes: readonly MarcaComCategorias[];
   readonly unidadesDeMedida: readonly OpcaoDeLista[];
   readonly ondeFica: OpcoesDeOndeFica;
 };
@@ -36,6 +39,8 @@ type Props = {
   readonly errosPorCampo: Readonly<Record<string, readonly string[]>>;
   /** Foto já anexada (só na edição); `null` = sem foto. */
   readonly fotoAtual: { readonly url: string; readonly descricao: string } | null;
+  /** Na edição, a marca que o material já tem: aparece em qualquer categoria (regra 4.2). */
+  readonly marcaAtualId: string | null;
 };
 
 const CLASSE_CAMPO =
@@ -50,8 +55,11 @@ export function CamposDoMaterial({
   hoje,
   errosPorCampo,
   fotoAtual,
+  marcaAtualId,
 }: Props) {
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState(valores.categoriaId);
   const [fabricanteSelecionado, setFabricanteSelecionado] = useState(valores.fabricanteId);
+  const sempreVisiveis = [fabricanteOutroId, marcaAtualId];
   const ehFabricanteOutro =
     fabricanteOutroId !== null && fabricanteSelecionado === fabricanteOutroId;
 
@@ -85,6 +93,21 @@ export function CamposDoMaterial({
           defaultValue={valores.categoriaId}
           className={CLASSE_CAMPO}
           aria-describedby="categoriaId-erro"
+          onChange={(evento) => {
+            const novaCategoria = evento.target.value;
+            setCategoriaSelecionada(novaCategoria);
+            // A marca escolhida não serve para a nova categoria? Volta para "Sem marca".
+            if (
+              !marcaContinuaNaCategoria(
+                listas.fabricantes,
+                novaCategoria,
+                fabricanteSelecionado,
+                sempreVisiveis,
+              )
+            ) {
+              setFabricanteSelecionado("");
+            }
+          }}
         >
           <option value="" disabled>
             Selecione
@@ -135,27 +158,17 @@ export function CamposDoMaterial({
         <ListaDeErros id="especificacao-erro" erros={erros("especificacao")} />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="fabricanteId" className={CLASSE_RASTRO}>
-          Marca
-        </label>
-        <select
-          id="fabricanteId"
-          name="fabricanteId"
-          defaultValue={valores.fabricanteId}
-          className={CLASSE_CAMPO}
-          aria-describedby="fabricanteId-erro"
-          onChange={(evento) => setFabricanteSelecionado(evento.target.value)}
-        >
-          <option value="">Sem marca</option>
-          {listas.fabricantes.map((fabricante) => (
-            <option key={fabricante.id} value={fabricante.id}>
-              {fabricante.nome}
-            </option>
-          ))}
-        </select>
-        <ListaDeErros id="fabricanteId-erro" erros={erros("fabricanteId")} />
-      </div>
+      <CampoDeMarca
+        marcas={listas.fabricantes}
+        categoriaId={categoriaSelecionada}
+        valor={fabricanteSelecionado}
+        aoMudar={setFabricanteSelecionado}
+        obrigatorio={false}
+        sempreVisiveis={sempreVisiveis}
+        erros={erros("fabricanteId")}
+        classeDoCampo={CLASSE_CAMPO}
+        classeDoRotulo={CLASSE_RASTRO}
+      />
 
       {ehFabricanteOutro && (
         <div className="flex flex-col gap-1">

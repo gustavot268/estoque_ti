@@ -19,7 +19,9 @@ import {
   editarEquipamentoAction,
   type ResultadoEdicao,
 } from "../../app/equipamentos/[id]/editar/acoes";
+import { CampoDeMarca, marcaContinuaNaCategoria } from "../../components/campo-de-marca";
 import { CamposOndeFica, type OpcoesDeOndeFica } from "../../components/campos-onde-fica";
+import type { MarcaComCategorias } from "../../domain/marcas-por-categoria";
 
 type OpcaoDeLista = { readonly id: string; readonly nome: string };
 
@@ -44,7 +46,8 @@ type DadosDoEquipamento = {
 type Props = {
   readonly equipamento: DadosDoEquipamento;
   readonly categorias: readonly OpcaoDeLista[];
-  readonly fabricantes: readonly OpcaoDeLista[];
+  /** Marcas com as categorias de equipamento atribuídas (ADR 0010). */
+  readonly fabricantes: readonly MarcaComCategorias[];
   readonly statusFuncionamento: readonly OpcaoDeLista[];
   readonly ondeFica: OpcoesDeOndeFica;
   readonly fabricanteOutroId: string | null;
@@ -66,7 +69,10 @@ export function FormularioEdicaoDeEquipamento({
 }: Props) {
   const submeterComId = editarEquipamentoAction.bind(null, equipamento.id);
   const [resultado, submeter, pendente] = useActionState(submeterComId, ESTADO_INICIAL);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState(equipamento.categoriaId);
   const [fabricanteSelecionado, setFabricanteSelecionado] = useState(equipamento.fabricanteId);
+  // A marca que o equipamento já tem continua disponível, mesmo fora da categoria (regra 4.2).
+  const sempreVisiveis = [fabricanteOutroId, equipamento.fabricanteId];
   const [modificado, setModificado] = useState(false);
 
   useEffect(() => {
@@ -125,6 +131,21 @@ export function FormularioEdicaoDeEquipamento({
             defaultValue={equipamento.categoriaId}
             className={CLASSE_CAMPO}
             aria-describedby="categoriaId-erro"
+            onChange={(evento) => {
+              const novaCategoria = evento.target.value;
+              setCategoriaSelecionada(novaCategoria);
+              // A marca escolhida não serve para a nova categoria? Volta para "Selecione".
+              if (
+                !marcaContinuaNaCategoria(
+                  fabricantes,
+                  novaCategoria,
+                  fabricanteSelecionado,
+                  sempreVisiveis,
+                )
+              ) {
+                setFabricanteSelecionado("");
+              }
+            }}
           >
             {categorias.map((categoria) => (
               <option key={categoria.id} value={categoria.id}>
@@ -135,27 +156,17 @@ export function FormularioEdicaoDeEquipamento({
           <ListaDeErros id="categoriaId-erro" erros={errosDoCampo("categoriaId")} />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="fabricanteId" className={CLASSE_RASTRO}>
-            Marca <span aria-hidden="true">*</span>
-          </label>
-          <select
-            id="fabricanteId"
-            name="fabricanteId"
-            required
-            defaultValue={equipamento.fabricanteId}
-            className={CLASSE_CAMPO}
-            aria-describedby="fabricanteId-erro"
-            onChange={(evento) => setFabricanteSelecionado(evento.target.value)}
-          >
-            {fabricantes.map((fabricante) => (
-              <option key={fabricante.id} value={fabricante.id}>
-                {fabricante.nome}
-              </option>
-            ))}
-          </select>
-          <ListaDeErros id="fabricanteId-erro" erros={errosDoCampo("fabricanteId")} />
-        </div>
+        <CampoDeMarca
+          marcas={fabricantes}
+          categoriaId={categoriaSelecionada}
+          valor={fabricanteSelecionado}
+          aoMudar={setFabricanteSelecionado}
+          obrigatorio
+          sempreVisiveis={sempreVisiveis}
+          erros={errosDoCampo("fabricanteId")}
+          classeDoCampo={CLASSE_CAMPO}
+          classeDoRotulo={CLASSE_RASTRO}
+        />
 
         {ehFabricanteOutro && (
           <div className="flex flex-col gap-1">

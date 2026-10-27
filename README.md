@@ -449,6 +449,7 @@ nenhum item ali é marcado como validado sem evidência correspondente.
 - [0007 — Banco: menor privilégio](docs/adr/0007-banco-menor-privilegio.md)
 - [0008 — Auditoria append-only](docs/adr/0008-auditoria-append-only.md)
 - [0009 — Acesso por convite com login Microsoft (SSO)](docs/adr/0009-acesso-por-convite.md)
+- [0010 — Marcas por categoria](docs/adr/0010-marcas-por-categoria.md)
 
 ### Referência técnica
 

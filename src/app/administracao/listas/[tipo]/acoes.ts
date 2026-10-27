@@ -13,6 +13,7 @@ import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
 import { criarValorDeLista, excluirValorDeLista } from "../../../../services/administracao-listas";
+import { extrairAtribuicoesDoFormulario } from "../atribuicoes-do-formulario";
 
 export type ResultadoValorDeLista =
   | { readonly sucesso: true }
@@ -51,6 +52,7 @@ export async function criarValorDeListaAction(
       ator,
       tipo,
       extrairEntradaDoFormulario(dadosDoFormulario),
+      extrairAtribuicoesDoFormulario(dadosDoFormulario),
     );
   } catch (erro) {
     if (erro instanceof EntradaInvalidaError) {

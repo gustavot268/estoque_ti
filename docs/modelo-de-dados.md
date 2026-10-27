@@ -119,6 +119,11 @@ Regras associadas:
 (migração `20261008180000_dividir_localizacao_e_remover_nome`: a tabela `localizacoes`
 foi renomeada para `andares`, preservando os valores e os vínculos).
 
+`Fabricante` (exibido como **Marca**) pode ser atribuída a categorias, para o cadastro mostrar
+só as marcas de cada categoria — tabelas de ligação `marcas_categorias` (marca × `Categoria`)
+e `marcas_categorias_material` (marca × `CategoriaMaterial`). Marca sem nenhuma ligação de um
+tipo aparece em todas as categorias daquele tipo. Ver [ADR 0010](adr/0010-marcas-por-categoria.md).
+
 | Campo | Tipo | Observações |
 | --- | --- | --- |
 | `id` | UUID | Gerado pelo banco |

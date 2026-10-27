@@ -6,6 +6,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { IconeLapis } from "../../../../components/icones";
 import { MensagemDeAcesso } from "../../../../components/mensagem-de-acesso";
 import {
   MensagemDeIndisponibilidade,
@@ -13,13 +14,50 @@ import {
 } from "../../../../components/mensagem-simples";
 import { AcessoNegadoError, EntradaInvalidaError } from "../../../../domain/erros";
 import { BotaoExcluirValorDeLista } from "../../../../features/administracao/botao-excluir-valor-de-lista";
-import { FormularioValorDeLista } from "../../../../features/administracao/formulario-valor-de-lista";
+import {
+  type AtribuicaoDeCategorias,
+  FormularioValorDeLista,
+} from "../../../../features/administracao/formulario-valor-de-lista";
 import { rotuloDoTipoDeLista } from "../../../../features/administracao/rotulos-de-lista";
 import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
-import { listarValoresDeLista } from "../../../../services/administracao-listas";
+import {
+  listarValoresDeLista,
+  resumirCategoriasDasMarcas,
+} from "../../../../services/administracao-listas";
+import { carregarOpcoesDeCategorias } from "../opcoes-de-categorias";
 import { criarValorDeListaAction, excluirValorDeListaAction } from "./acoes";
+
+/**
+ * Coluna "Atribuições" da tabela de marcas (ADR 0010): quantas categorias
+ * (de equipamento + de material) a marca tem. Passando o mouse, os nomes.
+ * Zero = sem atribuição, a marca aparece em todas as categorias.
+ */
+function ContagemDeAtribuicoes({
+  resumo,
+}: {
+  readonly resumo: { readonly equipamento: string[]; readonly material: string[] } | undefined;
+}) {
+  const nomes = [...(resumo?.equipamento ?? []), ...(resumo?.material ?? [])];
+  const dica = nomes.length === 0 ? "Nenhuma: aparece em todas as categorias" : nomes.join(", ");
+  return (
+    <span
+      title={dica}
+      className={`inline-flex min-w-8 justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
+        nomes.length === 0
+          ? "border border-borda-campo text-texto-suave"
+          : "bg-superficie-realce text-texto"
+      }`}
+    >
+      {nomes.length}
+      <span className="sr-only">
+        {nomes.length === 1 ? " categoria atribuída" : " categorias atribuídas"}
+        {nomes.length > 0 ? `: ${nomes.join(", ")}` : " (aparece em todas)"}
+      </span>
+    </span>
+  );
+}
 
 // Depende de sessão e de dado vivo do banco — nunca cacheado (ADR 0006).
 export const dynamic = "force-dynamic";
@@ -74,6 +112,23 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
     return <MensagemDeIndisponibilidade />;
   }
 
+  // Marca: as caixinhas de categorias no "Novo valor" e a coluna "Atribuições" (ADR 0010).
+  let atribuicao: AtribuicaoDeCategorias | undefined;
+  let resumoDasMarcas: Awaited<ReturnType<typeof resumirCategoriasDasMarcas>> | undefined;
+  if (tipo === "fabricante") {
+    try {
+      const [opcoes, resumo] = await Promise.all([
+        carregarOpcoesDeCategorias(obterPrisma(), ator),
+        resumirCategoriasDasMarcas(obterPrisma(), ator),
+      ]);
+      atribuicao = { ...opcoes, selecionadas: { categoriaIds: [], categoriaMaterialIds: [] } };
+      resumoDasMarcas = resumo;
+    } catch (erro) {
+      logger.error("Falha ao carregar as categorias das marcas.", { erro });
+      return <MensagemDeIndisponibilidade />;
+    }
+  }
+
   const rotuloDoTipo = rotuloDoTipoDeLista(tipo);
   const acaoDeCriar = criarValorDeListaAction.bind(null, tipo);
 
@@ -82,7 +137,11 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
   const mostrarAtualizado = primeiroValor(parametrosDeBusca.atualizado) === "1";
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
+    <main
+      className={`mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-8 ${
+        resumoDasMarcas !== undefined ? "max-w-4xl" : "max-w-3xl"
+      }`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-texto">{rotuloDoTipo}</h1>
         <Link
@@ -120,7 +179,11 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
 
       <section className="flex flex-col gap-4 rounded-2xl border border-borda bg-superficie p-5 shadow-cartao sm:p-6">
         <h2 className="text-base font-semibold text-texto">Novo valor</h2>
-        <FormularioValorDeLista acao={acaoDeCriar} rotuloDoBotao="Adicionar" />
+        <FormularioValorDeLista
+          acao={acaoDeCriar}
+          rotuloDoBotao="Adicionar"
+          atribuicao={atribuicao}
+        />
       </section>
 
       <div className="flex flex-col gap-6 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6">
@@ -149,6 +212,14 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
                 >
                   Status
                 </th>
+                {resumoDasMarcas !== undefined && (
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                  >
+                    Atribuições
+                  </th>
+                )}
                 <th
                   scope="col"
                   className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
@@ -180,13 +251,20 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
                         </span>
                       )}
                     </td>
+                    {resumoDasMarcas !== undefined && (
+                      <td className="border-b border-borda px-3 py-3">
+                        <ContagemDeAtribuicoes resumo={resumoDasMarcas.get(valor.id)} />
+                      </td>
+                    )}
                     <td className="border-b border-borda px-3 py-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-end gap-1">
                         <Link
                           href={`/administracao/listas/${tipo}/${valor.id}/editar`}
-                          className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
+                          aria-label={`Editar ${valor.nome}`}
+                          title="Editar"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-texto-suave transition-colors hover:bg-superficie-realce hover:text-texto"
                         >
-                          Editar
+                          <IconeLapis />
                         </Link>
                         <BotaoExcluirValorDeLista acao={acaoDeExcluir} nomeDoValor={valor.nome} />
                       </div>

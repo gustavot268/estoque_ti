@@ -10,12 +10,20 @@ import {
   MensagemSimples,
 } from "../../../../../../components/mensagem-simples";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../../../../domain/erros";
-import { FormularioValorDeLista } from "../../../../../../features/administracao/formulario-valor-de-lista";
+import {
+  type AtribuicaoDeCategorias,
+  FormularioValorDeLista,
+} from "../../../../../../features/administracao/formulario-valor-de-lista";
 import { rotuloDoTipoDeLista } from "../../../../../../features/administracao/rotulos-de-lista";
 import { obterAtorAtual } from "../../../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../../../infrastructure/prisma/cliente";
-import { obterValorDeLista } from "../../../../../../services/administracao-listas";
+import {
+  listarMarcasDaCategoria,
+  obterCategoriasAtribuidasDaMarca,
+  obterValorDeLista,
+} from "../../../../../../services/administracao-listas";
+import { carregarOpcoesDeCategorias } from "../../../opcoes-de-categorias";
 import { atualizarValorDeListaAction } from "./acoes";
 
 export const metadata: Metadata = { title: "Editar valor de lista" };
@@ -60,11 +68,34 @@ export default async function PaginaDeEdicaoDeValorDeLista({
     return <MensagemDeIndisponibilidade />;
   }
 
+  // ADR 0010: marca → caixinhas das categorias; categoria → marcas atribuídas a ela.
+  let atribuicao: AtribuicaoDeCategorias | undefined;
+  let marcasDaCategoria: string[] | null = null;
+  try {
+    const prisma = obterPrisma();
+    if (tipo === "fabricante") {
+      const [opcoes, selecionadas] = await Promise.all([
+        carregarOpcoesDeCategorias(prisma, ator),
+        obterCategoriasAtribuidasDaMarca(prisma, ator, id),
+      ]);
+      atribuicao = { ...opcoes, selecionadas };
+    } else {
+      marcasDaCategoria = await listarMarcasDaCategoria(prisma, ator, tipo, id);
+    }
+  } catch (erro) {
+    logger.error("Falha ao carregar as marcas e categorias do valor de lista.", { erro });
+    return <MensagemDeIndisponibilidade />;
+  }
+
   const rotuloDoTipo = rotuloDoTipoDeLista(tipo);
   const acaoDeAtualizar = atualizarValorDeListaAction.bind(null, tipo, id);
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8">
+    <main
+      className={`mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-8 ${
+        atribuicao !== undefined ? "max-w-4xl" : "max-w-2xl"
+      }`}
+    >
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-texto">
           Editar {rotuloDoTipo.toLowerCase()}
@@ -86,8 +117,48 @@ export default async function PaginaDeEdicaoDeValorDeLista({
             ordemExibicao: valor.ordemExibicao,
           }}
           rotuloDoBotao="Salvar"
+          atribuicao={atribuicao}
         />
       </div>
+
+      {marcasDaCategoria !== null && (
+        <section
+          aria-labelledby="marcas-da-categoria"
+          className="flex flex-col gap-3 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6"
+        >
+          <h2 id="marcas-da-categoria" className="text-base font-semibold text-texto">
+            Marcas atribuídas a esta categoria
+          </h2>
+          {marcasDaCategoria.length === 0 ? (
+            <p className="text-sm text-texto-suave">
+              Nenhuma marca foi atribuída a esta categoria. No cadastro, aparecem só as marcas sem
+              nenhuma categoria atribuída.
+            </p>
+          ) : (
+            <>
+              <ul className="flex flex-wrap gap-2">
+                {marcasDaCategoria.map((nome) => (
+                  <li
+                    key={nome}
+                    className="rounded-full border border-borda-campo bg-superficie-suave px-3 py-1 text-sm text-texto"
+                  >
+                    {nome}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-texto-suave">
+                No cadastro, além destas, aparecem as marcas sem nenhuma categoria atribuída.
+              </p>
+            </>
+          )}
+          <a
+            href="/administracao/listas/fabricante"
+            className="self-start text-sm font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
+          >
+            Atribuir marcas em Gerenciar listas → Marca
+          </a>
+        </section>
+      )}
     </main>
   );
 }

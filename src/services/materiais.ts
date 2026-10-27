@@ -50,7 +50,7 @@ import {
   esquemaCriarMaterial,
   esquemaRestaurarMaterial,
 } from "../validation/material";
-import { resolverFabricanteOutro } from "./fabricantes";
+import { exigirMarcaNaCategoria, resolverFabricanteOutroNaCategoria } from "./fabricantes";
 import { alteracaoDaFoto, processarArquivoDeFoto } from "./foto";
 import { type OndeFica, validarOndeFica } from "./onde-fica";
 
@@ -155,6 +155,13 @@ async function validarReferencias(
   if (!fabricante.ativo && atual?.fabricanteId !== entrada.fabricanteId) {
     throw new ValorDeListaInvalidoError("fabricanteId");
   }
+  await exigirMarcaNaCategoria(
+    prisma,
+    "material",
+    fabricante.id,
+    entrada.categoriaId,
+    atual?.fabricanteId,
+  );
   return { tipo: "existente", fabricante };
 }
 
@@ -166,6 +173,7 @@ async function validarReferencias(
 async function resolverFabricanteId(
   tx: ClientePrisma,
   escolhido: FabricanteEscolhido,
+  categoriaId: string,
 ): Promise<string | null> {
   switch (escolhido.tipo) {
     case "nenhum":
@@ -173,7 +181,14 @@ async function resolverFabricanteId(
     case "existente":
       return escolhido.fabricante.id;
     case "outro":
-      return (await resolverFabricanteOutro(tx, escolhido.nomeDigitado)).id;
+      return (
+        await resolverFabricanteOutroNaCategoria(
+          tx,
+          escolhido.nomeDigitado,
+          "material",
+          categoriaId,
+        )
+      ).id;
   }
 }
 
@@ -235,7 +250,7 @@ export async function cadastrarMaterial(
       categoriaId: entrada.categoriaId,
       tipo: entrada.tipo,
       especificacao: entrada.especificacao,
-      fabricanteId: await resolverFabricanteId(tx, fabricanteEscolhido),
+      fabricanteId: await resolverFabricanteId(tx, fabricanteEscolhido, entrada.categoriaId),
       unidadeMedidaId: entrada.unidadeMedidaId,
       quantidade: entrada.quantidade,
       estoqueMinimo: entrada.estoqueMinimo,
@@ -445,7 +460,7 @@ export async function editarMaterial(
       categoriaId: entrada.categoriaId,
       tipo: entrada.tipo,
       especificacao: entrada.especificacao,
-      fabricanteId: await resolverFabricanteId(tx, fabricanteEscolhido),
+      fabricanteId: await resolverFabricanteId(tx, fabricanteEscolhido, entrada.categoriaId),
       unidadeMedidaId: entrada.unidadeMedidaId,
       quantidade: entrada.quantidade,
       estoqueMinimo: entrada.estoqueMinimo,

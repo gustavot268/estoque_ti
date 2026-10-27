@@ -21,11 +21,11 @@ import { obterPrisma } from "../../../infrastructure/prisma/cliente";
 import {
   listarAndaresAtivos,
   listarCategoriasDeMaterialAtivas,
-  listarFabricantesAtivos,
   listarLocaisDeArmazenamentoAtivos,
   listarOrientacoesAtivas,
   listarUnidadesDeMedidaAtivas,
 } from "../../../infrastructure/repositorios/listas-controladas";
+import { listarMarcasAtivasComCategorias } from "../../../infrastructure/repositorios/marcas-por-categoria";
 
 export const metadata: Metadata = { title: "Cadastrar material" };
 
@@ -55,7 +55,7 @@ export default async function PaginaDeCadastroDeMaterial() {
   }
 
   let categorias: Awaited<ReturnType<typeof listarCategoriasDeMaterialAtivas>>;
-  let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
+  let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let unidadesDeMedida: Awaited<ReturnType<typeof listarUnidadesDeMedidaAtivas>>;
   let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
   let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
@@ -65,7 +65,7 @@ export default async function PaginaDeCadastroDeMaterial() {
     [categorias, fabricantes, unidadesDeMedida, andares, locaisDeArmazenamento, orientacoes] =
       await Promise.all([
         listarCategoriasDeMaterialAtivas(prisma),
-        listarFabricantesAtivos(prisma),
+        listarMarcasAtivasComCategorias(prisma),
         listarUnidadesDeMedidaAtivas(prisma),
         listarAndaresAtivos(prisma),
         listarLocaisDeArmazenamentoAtivos(prisma),
@@ -88,7 +88,11 @@ export default async function PaginaDeCadastroDeMaterial() {
         <FormularioCadastroDeMaterial
           listas={{
             categorias: categorias.map(paraOpcao),
-            fabricantes: fabricantes.map(paraOpcao),
+            fabricantes: fabricantes.map((marca) => ({
+              id: marca.id,
+              nome: marca.nome,
+              categoriaIds: marca.categoriaMaterialIds,
+            })),
             unidadesDeMedida: unidadesDeMedida.map(paraOpcao),
             ondeFica: {
               andares: andares.map(paraOpcao),

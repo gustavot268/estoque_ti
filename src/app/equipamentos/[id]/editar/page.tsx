@@ -14,6 +14,7 @@ import {
 } from "../../../../components/mensagem-simples";
 import { descricaoDoEquipamento } from "../../../../domain/descricao-do-item";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../../domain/erros";
+import type { MarcaComCategorias } from "../../../../domain/marcas-por-categoria";
 import { exigirPermissao } from "../../../../domain/permissoes";
 import { FormularioEdicaoDeEquipamento } from "../../../../features/equipamentos/formulario-edicao";
 import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
@@ -22,11 +23,11 @@ import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
 import {
   listarAndaresAtivos,
   listarCategoriasAtivas,
-  listarFabricantesAtivos,
   listarLocaisDeArmazenamentoAtivos,
   listarOrientacoesAtivas,
   listarStatusFuncionamentoAtivos,
 } from "../../../../infrastructure/repositorios/listas-controladas";
+import { listarMarcasAtivasComCategorias } from "../../../../infrastructure/repositorios/marcas-por-categoria";
 import { obterEquipamentoPorId } from "../../../../services/equipamentos";
 
 export const metadata: Metadata = { title: "Editar equipamento" };
@@ -50,6 +51,17 @@ function comOpcaoAtual(
     return ativos.map(paraOpcao);
   }
   return [...ativos.map(paraOpcao), paraOpcao(atual)];
+}
+
+/** A marca que o item já tem entra na lista mesmo se inativa (regra 4.2) e aparece em qualquer categoria. */
+function comMarcaAtual(
+  marcas: readonly MarcaComCategorias[],
+  atual: OpcaoDeLista | null,
+): MarcaComCategorias[] {
+  if (atual === null || marcas.some((marca) => marca.id === atual.id)) {
+    return [...marcas];
+  }
+  return [...marcas, { id: atual.id, nome: atual.nome, categoriaIds: [] }];
 }
 
 export default async function PaginaDeEdicao({ params }: PageProps<"/equipamentos/[id]/editar">) {
@@ -79,7 +91,7 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
   const prisma = obterPrisma();
   let equipamento: Awaited<ReturnType<typeof obterEquipamentoPorId>>;
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
-  let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
+  let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
   let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
   let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
@@ -89,7 +101,7 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
     [categorias, fabricantes, statusFuncionamento, andares, locaisDeArmazenamento, orientacoes] =
       await Promise.all([
         listarCategoriasAtivas(prisma),
-        listarFabricantesAtivos(prisma),
+        listarMarcasAtivasComCategorias(prisma),
         listarStatusFuncionamentoAtivos(prisma),
         listarAndaresAtivos(prisma),
         listarLocaisDeArmazenamentoAtivos(prisma),
@@ -144,7 +156,14 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
         versao: equipamento.versao,
       }}
       categorias={comOpcaoAtual(categorias, equipamento.categoria)}
-      fabricantes={comOpcaoAtual(fabricantes, equipamento.fabricante)}
+      fabricantes={comMarcaAtual(
+        fabricantes.map((marca) => ({
+          id: marca.id,
+          nome: marca.nome,
+          categoriaIds: marca.categoriaIds,
+        })),
+        equipamento.fabricante,
+      )}
       statusFuncionamento={comOpcaoAtual(statusFuncionamento, equipamento.status)}
       ondeFica={{
         andares: comOpcaoAtual(andares, equipamento.andar),

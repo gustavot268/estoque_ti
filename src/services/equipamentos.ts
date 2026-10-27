@@ -51,7 +51,7 @@ import {
   esquemaCriarEquipamento,
   esquemaRestaurarEquipamento,
 } from "../validation/equipamento";
-import { resolverFabricanteOutro } from "./fabricantes";
+import { exigirMarcaNaCategoria, resolverFabricanteOutroNaCategoria } from "./fabricantes";
 import { alteracaoDaFoto, processarArquivoDeFoto } from "./foto";
 import { type OndeFica, validarOndeFica } from "./onde-fica";
 
@@ -173,6 +173,13 @@ async function validarReferencias(
     if (!fabricanteSelecionado.ativo && !fabricanteInalterado) {
       throw new ValorDeListaInvalidoError("fabricanteId");
     }
+    await exigirMarcaNaCategoria(
+      prisma,
+      "equipamento",
+      entrada.fabricanteId,
+      entrada.categoriaId,
+      atual?.fabricanteId,
+    );
   }
 
   return { ehFabricanteOutro, fabricanteSelecionado };
@@ -267,7 +274,12 @@ export async function cadastrarEquipamento(
       // depois (ex.: corrida de unicidade em numeroSerie), o fabricante
       // pendente criado agora é revertido junto — não fica órfão.
       const fabricanteResolvido = ehFabricanteOutro
-        ? await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)
+        ? await resolverFabricanteOutroNaCategoria(
+            tx,
+            entrada.fabricanteOutroNome as string,
+            "equipamento",
+            entrada.categoriaId,
+          )
         : fabricanteSelecionado;
 
       const equipamento = await criar(tx, {
@@ -547,7 +559,14 @@ export async function editarEquipamento(
   try {
     return await prisma.$transaction(async (tx) => {
       const fabricanteResolvidoId = ehFabricanteOutro
-        ? (await resolverFabricanteOutro(tx, entrada.fabricanteOutroNome as string)).id
+        ? (
+            await resolverFabricanteOutroNaCategoria(
+              tx,
+              entrada.fabricanteOutroNome as string,
+              "equipamento",
+              entrada.categoriaId,
+            )
+          ).id
         : fabricanteSelecionado.id;
 
       const resultadoUpdate = await atualizar(tx, idValido.data, entrada.versao, {

@@ -8,7 +8,12 @@
  * lista é física e definitiva — vale o passo extra. Sem JavaScript no
  * navegador, o formulário ainda funciona (só sem o `confirm`), então a ação
  * nunca fica inacessível.
+ *
+ * Visual: só o ícone de lixeira, o mesmo da lista do estoque. O nome da ação
+ * ("Excluir <valor>") fica no `aria-label`, para leitor de tela e testes.
  */
+
+import { IconeLixeira } from "../../components/icones";
 
 type Props = {
   readonly acao: (dados: FormData) => Promise<void>;
@@ -27,9 +32,11 @@ export function BotaoExcluirValorDeLista({ acao, nomeDoValor }: Props) {
     >
       <button
         type="submit"
-        className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-red-400 bg-red-50 px-4 py-2 text-sm font-medium text-red-900 transition-colors hover:bg-red-100 dark:border-red-700 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900"
+        aria-label={`Excluir ${nomeDoValor}`}
+        title="Excluir"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-red-700 transition-colors hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
       >
-        Excluir
+        <IconeLixeira />
       </button>
     </form>
   );

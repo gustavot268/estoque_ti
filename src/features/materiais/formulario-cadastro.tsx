@@ -93,6 +93,7 @@ export function FormularioCadastroDeMaterial({ listas, fabricanteOutroId, hoje }
           hoje={hoje}
           errosPorCampo={comErro?.errosPorCampo ?? {}}
           fotoAtual={null}
+          marcaAtualId={null}
         />
       </fieldset>
 

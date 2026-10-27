@@ -15,6 +15,7 @@ import { obterAtorAtual } from "../../../../../../infrastructure/auth/ator-atual
 import { logger } from "../../../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../../../infrastructure/prisma/cliente";
 import { atualizarValorDeLista } from "../../../../../../services/administracao-listas";
+import { extrairAtribuicoesDoFormulario } from "../../../atribuicoes-do-formulario";
 import type { ResultadoValorDeLista } from "../../acoes";
 
 function extrairEntradaDoFormulario(dados: FormData): Record<string, unknown> {
@@ -48,6 +49,7 @@ export async function atualizarValorDeListaAction(
       tipo,
       id,
       extrairEntradaDoFormulario(dadosDoFormulario),
+      extrairAtribuicoesDoFormulario(dadosDoFormulario),
     );
   } catch (erro) {
     if (erro instanceof EntradaInvalidaError) {

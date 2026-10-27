@@ -122,7 +122,8 @@ model Categoria {
   criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
-  equipamentos Equipamento[]
+  equipamentos     Equipamento[]
+  marcasAtribuidas MarcaCategoria[]
 
   @@index([ativo, ordemExibicao, nome], map: "categorias_ativo_ordem_idx")
   @@map("categorias")
@@ -142,6 +143,11 @@ model Fabricante {
 
   equipamentos Equipamento[]
   materiais    Material[]
+
+  /// Categorias em que esta marca aparece no cadastro (ADR 0010). Sem
+  /// nenhuma linha de um tipo, a marca aparece em todas as categorias daquele tipo.
+  categoriasAtribuidas           MarcaCategoria[]
+  categoriasDeMaterialAtribuidas MarcaCategoriaMaterial[]
 
   @@index([ativo, ordemExibicao, nome], map: "fabricantes_ativo_ordem_idx")
   @@index([pendenteRevisao], map: "fabricantes_pendente_revisao_idx")
@@ -233,10 +239,39 @@ model CategoriaMaterial {
   criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
-  materiais Material[]
+  materiais        Material[]
+  marcasAtribuidas MarcaCategoriaMaterial[]
 
   @@index([ativo, ordemExibicao, nome], map: "categorias_material_ativo_ordem_idx")
   @@map("categorias_material")
+}
+
+/// Marca atribuída a uma categoria de EQUIPAMENTO (ADR 0010): no cadastro,
+/// escolhida a categoria, o campo Marca mostra só as marcas atribuídas a ela
+/// — mais as marcas sem atribuição nenhuma, que aparecem em todas.
+model MarcaCategoria {
+  fabricanteId String @map("fabricante_id") @db.Uuid
+  categoriaId  String @map("categoria_id") @db.Uuid
+
+  fabricante Fabricante @relation(fields: [fabricanteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  categoria  Categoria  @relation(fields: [categoriaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([fabricanteId, categoriaId], map: "marcas_categorias_pkey")
+  @@index([categoriaId], map: "marcas_categorias_categoria_idx")
+  @@map("marcas_categorias")
+}
+
+/// Marca atribuída a uma categoria de MATERIAL — mesma regra de `MarcaCategoria`.
+model MarcaCategoriaMaterial {
+  fabricanteId        String @map("fabricante_id") @db.Uuid
+  categoriaMaterialId String @map("categoria_material_id") @db.Uuid
+
+  fabricante        Fabricante        @relation(fields: [fabricanteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  categoriaMaterial CategoriaMaterial @relation(fields: [categoriaMaterialId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([fabricanteId, categoriaMaterialId], map: "marcas_categorias_material_pkey")
+  @@index([categoriaMaterialId], map: "marcas_categorias_material_categoria_idx")
+  @@map("marcas_categorias_material")
 }
 
 /// Unidade em que a quantidade de um material é contada (Unidade, Metro, Caixa…).
@@ -268,12 +303,12 @@ model Usuario {
   criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm  DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
-  equipamentosCriados     Equipamento[] @relation("EquipamentoCriadoPor")
-  equipamentosAtualizados Equipamento[] @relation("EquipamentoAtualizadoPor")
-  equipamentosArquivados  Equipamento[] @relation("EquipamentoArquivadoPor")
-  materiaisCriados        Material[]    @relation("MaterialCriadoPor")
-  materiaisAtualizados    Material[]    @relation("MaterialAtualizadoPor")
-  materiaisArquivados     Material[]    @relation("MaterialArquivadoPor")
+  equipamentosCriados     Equipamento[]     @relation("EquipamentoCriadoPor")
+  equipamentosAtualizados Equipamento[]     @relation("EquipamentoAtualizadoPor")
+  equipamentosArquivados  Equipamento[]     @relation("EquipamentoArquivadoPor")
+  materiaisCriados        Material[]        @relation("MaterialCriadoPor")
+  materiaisAtualizados    Material[]        @relation("MaterialAtualizadoPor")
+  materiaisArquivados     Material[]        @relation("MaterialArquivadoPor")
   acessosIncluidos        AcessoPermitido[] @relation("AcessoIncluidoPor")
   sessoes                 Sessao[]
 

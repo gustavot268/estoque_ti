@@ -15,6 +15,7 @@ import {
 import { dataDeHojeEmBrasilia, paraDataIso } from "../../../../domain/data-e-hora";
 import { descricaoDoMaterial } from "../../../../domain/descricao-do-item";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../../domain/erros";
+import type { MarcaComCategorias } from "../../../../domain/marcas-por-categoria";
 import { exigirPermissao } from "../../../../domain/permissoes";
 import { FormularioEdicaoDeMaterial } from "../../../../features/materiais/formulario-edicao";
 import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
@@ -23,11 +24,11 @@ import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
 import {
   listarAndaresAtivos,
   listarCategoriasDeMaterialAtivas,
-  listarFabricantesAtivos,
   listarLocaisDeArmazenamentoAtivos,
   listarOrientacoesAtivas,
   listarUnidadesDeMedidaAtivas,
 } from "../../../../infrastructure/repositorios/listas-controladas";
+import { listarMarcasAtivasComCategorias } from "../../../../infrastructure/repositorios/marcas-por-categoria";
 import { obterMaterialPorId } from "../../../../services/materiais";
 
 export const metadata: Metadata = { title: "Editar material" };
@@ -49,6 +50,17 @@ function comOpcaoAtual(
     return [...ativos];
   }
   return [...ativos, paraOpcao(atual)];
+}
+
+/** A marca que o item já tem entra na lista mesmo se inativa (regra 4.2) e aparece em qualquer categoria. */
+function comMarcaAtual(
+  marcas: readonly MarcaComCategorias[],
+  atual: OpcaoDeLista | null,
+): MarcaComCategorias[] {
+  if (atual === null || marcas.some((marca) => marca.id === atual.id)) {
+    return [...marcas];
+  }
+  return [...marcas, { id: atual.id, nome: atual.nome, categoriaIds: [] }];
 }
 
 export default async function PaginaDeEdicaoDeMaterial({
@@ -80,7 +92,7 @@ export default async function PaginaDeEdicaoDeMaterial({
   const prisma = obterPrisma();
   let material: Awaited<ReturnType<typeof obterMaterialPorId>>;
   let categorias: Awaited<ReturnType<typeof listarCategoriasDeMaterialAtivas>>;
-  let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
+  let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let unidadesDeMedida: Awaited<ReturnType<typeof listarUnidadesDeMedidaAtivas>>;
   let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
   let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
@@ -90,7 +102,7 @@ export default async function PaginaDeEdicaoDeMaterial({
     [categorias, fabricantes, unidadesDeMedida, andares, locaisDeArmazenamento, orientacoes] =
       await Promise.all([
         listarCategoriasDeMaterialAtivas(prisma),
-        listarFabricantesAtivos(prisma),
+        listarMarcasAtivasComCategorias(prisma),
         listarUnidadesDeMedidaAtivas(prisma),
         listarAndaresAtivos(prisma),
         listarLocaisDeArmazenamentoAtivos(prisma),
@@ -145,7 +157,14 @@ export default async function PaginaDeEdicaoDeMaterial({
       }}
       listas={{
         categorias: comOpcaoAtual(categorias.map(paraOpcao), material.categoria),
-        fabricantes: comOpcaoAtual(fabricantes.map(paraOpcao), material.fabricante),
+        fabricantes: comMarcaAtual(
+          fabricantes.map((marca) => ({
+            id: marca.id,
+            nome: marca.nome,
+            categoriaIds: marca.categoriaMaterialIds,
+          })),
+          material.fabricante,
+        ),
         unidadesDeMedida: comOpcaoAtual(unidadesDeMedida.map(paraOpcao), material.unidadeMedida),
         ondeFica: {
           andares: comOpcaoAtual(andares.map(paraOpcao), material.andar),

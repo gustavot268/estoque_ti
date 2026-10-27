@@ -21,13 +21,16 @@ import {
   cadastrarEquipamentoAction,
   type ResultadoCadastro,
 } from "../../app/equipamentos/novo/acoes";
+import { CampoDeMarca, marcaContinuaNaCategoria } from "../../components/campo-de-marca";
 import { CamposOndeFica, type OpcoesDeOndeFica } from "../../components/campos-onde-fica";
+import type { MarcaComCategorias } from "../../domain/marcas-por-categoria";
 
 type OpcaoDeLista = { readonly id: string; readonly nome: string };
 
 type Props = {
   readonly categorias: readonly OpcaoDeLista[];
-  readonly fabricantes: readonly OpcaoDeLista[];
+  /** Marcas com as categorias de equipamento atribuídas (ADR 0010). */
+  readonly fabricantes: readonly MarcaComCategorias[];
   readonly statusFuncionamento: readonly OpcaoDeLista[];
   readonly ondeFica: OpcoesDeOndeFica;
   readonly fabricanteOutroId: string | null;
@@ -50,7 +53,9 @@ export function FormularioCadastroDeEquipamento({
     cadastrarEquipamentoAction,
     ESTADO_INICIAL,
   );
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState("");
   const [fabricanteSelecionado, setFabricanteSelecionado] = useState("");
+  const sempreVisiveis = [fabricanteOutroId];
   const [modificado, setModificado] = useState(false);
 
   useEffect(() => {
@@ -67,6 +72,7 @@ export function FormularioCadastroDeEquipamento({
   useEffect(() => {
     if (resultado?.sucesso) {
       setModificado(false);
+      setCategoriaSelecionada("");
       setFabricanteSelecionado("");
     }
   }, [resultado]);
@@ -129,6 +135,21 @@ export function FormularioCadastroDeEquipamento({
             defaultValue=""
             className={CLASSE_CAMPO}
             aria-describedby="categoriaId-erro"
+            onChange={(evento) => {
+              const novaCategoria = evento.target.value;
+              setCategoriaSelecionada(novaCategoria);
+              // A marca escolhida não serve para a nova categoria? Volta para "Selecione".
+              if (
+                !marcaContinuaNaCategoria(
+                  fabricantes,
+                  novaCategoria,
+                  fabricanteSelecionado,
+                  sempreVisiveis,
+                )
+              ) {
+                setFabricanteSelecionado("");
+              }
+            }}
           >
             <option value="" disabled>
               Selecione
@@ -142,30 +163,17 @@ export function FormularioCadastroDeEquipamento({
           <ListaDeErros id="categoriaId-erro" erros={errosDoCampo("categoriaId")} />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="fabricanteId" className={CLASSE_RASTRO}>
-            Marca <span aria-hidden="true">*</span>
-          </label>
-          <select
-            id="fabricanteId"
-            name="fabricanteId"
-            required
-            defaultValue=""
-            className={CLASSE_CAMPO}
-            aria-describedby="fabricanteId-erro"
-            onChange={(evento) => setFabricanteSelecionado(evento.target.value)}
-          >
-            <option value="" disabled>
-              Selecione
-            </option>
-            {fabricantes.map((fabricante) => (
-              <option key={fabricante.id} value={fabricante.id}>
-                {fabricante.nome}
-              </option>
-            ))}
-          </select>
-          <ListaDeErros id="fabricanteId-erro" erros={errosDoCampo("fabricanteId")} />
-        </div>
+        <CampoDeMarca
+          marcas={fabricantes}
+          categoriaId={categoriaSelecionada}
+          valor={fabricanteSelecionado}
+          aoMudar={setFabricanteSelecionado}
+          obrigatorio
+          sempreVisiveis={sempreVisiveis}
+          erros={errosDoCampo("fabricanteId")}
+          classeDoCampo={CLASSE_CAMPO}
+          classeDoRotulo={CLASSE_RASTRO}
+        />
 
         {ehFabricanteOutro && (
           <div className="flex flex-col gap-1">

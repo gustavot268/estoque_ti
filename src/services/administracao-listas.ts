@@ -9,6 +9,10 @@
  * e a mesma normalização de nome (ADR 0004) já usados pelo fluxo "Outro" de
  * fabricante — a diferença é que aqui a criação/edição é direta, sempre
  * revisada (nunca `pendenteRevisao`), e há exclusão (guardada por uso).
+ *
+ * Marca (tipo `fabricante`): a criação e a edição também gravam as categorias
+ * em que ela aparece no cadastro (ADR 0010), na mesma transação e na mesma
+ * auditoria.
  */
 
 import type { AtorAutenticado } from "../domain/ator";
@@ -34,8 +38,17 @@ import {
   type ValorDeLista,
 } from "../infrastructure/repositorios/administracao-listas";
 import { registrar } from "../infrastructure/repositorios/auditoria";
+import {
+  type AtribuicoesDaMarca,
+  contarCategoriasExistentes,
+  definirCategoriasDaMarca,
+  listarMarcasAtribuidasACategoria,
+  obterCategoriasDaMarca,
+  resumoDasCategoriasPorMarca,
+} from "../infrastructure/repositorios/marcas-por-categoria";
 import { errosPorCampo } from "../validation/comum";
 import { esquemaValorDeListaControlada } from "../validation/equipamento";
+import { esquemaAtribuicoesDaMarca } from "../validation/marcas-por-categoria";
 
 const TIPOS_VALIDOS: readonly string[] = TIPOS_DE_LISTA;
 
@@ -64,14 +77,51 @@ function isPrismaForeignKeyConstraintError(erro: unknown): boolean {
   );
 }
 
-function paraAuditoria(tipo: TipoDeLista, valor: ValorDeLista) {
+function paraAuditoria(tipo: TipoDeLista, valor: ValorDeLista, atribuicoes?: AtribuicoesDaMarca) {
   return {
     tipo,
     id: valor.id,
     nome: valor.nome,
     ativo: valor.ativo,
     ordemExibicao: valor.ordemExibicao,
+    // Só marcas, e só quando a tela mandou as categorias.
+    ...(atribuicoes !== undefined
+      ? {
+          categoriaIds: [...atribuicoes.categoriaIds],
+          categoriaMaterialIds: [...atribuicoes.categoriaMaterialIds],
+        }
+      : {}),
   };
+}
+
+/**
+ * Valida as categorias enviadas para uma marca. Outros tipos de lista não
+ * têm categorias: o valor é ignorado. `undefined` = a tela não mandou (não
+ * mexe nas atribuições).
+ */
+async function validarAtribuicoes(
+  prisma: PrismaClient,
+  tipo: TipoDeLista,
+  atribuicoesBrutas: unknown,
+): Promise<AtribuicoesDaMarca | undefined> {
+  if (tipo !== "fabricante" || atribuicoesBrutas === undefined) {
+    return undefined;
+  }
+  const resultado = esquemaAtribuicoesDaMarca.safeParse(atribuicoesBrutas);
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const atribuicoes = resultado.data;
+  const existentes = await contarCategoriasExistentes(prisma, atribuicoes);
+  if (
+    existentes.categorias !== atribuicoes.categoriaIds.length ||
+    existentes.categoriasDeMaterial !== atribuicoes.categoriaMaterialIds.length
+  ) {
+    throw new EntradaInvalidaError({
+      categoriaIds: ["Uma das categorias escolhidas não existe mais. Atualize a página."],
+    });
+  }
+  return atribuicoes;
 }
 
 /** Lista todos os valores (ativos e inativos) de um tipo — só a tela de administração usa isto. */
@@ -106,6 +156,8 @@ export async function criarValorDeLista(
   ator: AtorAutenticado,
   tipoBruto: unknown,
   entradaBruta: unknown,
+  /** Só para marca: `{ categoriaIds, categoriaMaterialIds }` (ADR 0010). */
+  atribuicoesBrutas?: unknown,
 ): Promise<ValorDeLista> {
   exigirPermissao(ator, "GERENCIAR_LISTAS");
   const tipo = validarTipo(tipoBruto);
@@ -121,6 +173,7 @@ export async function criarValorDeLista(
   if (jaExiste) {
     throw new ConflitoDeUnicidadeError("nome", "Já existe um valor com este nome nesta lista.");
   }
+  const atribuicoes = await validarAtribuicoes(prisma, tipo, atribuicoesBrutas);
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -130,10 +183,13 @@ export async function criarValorDeLista(
         ativo: entrada.ativo,
         ordemExibicao: entrada.ordemExibicao,
       });
+      if (atribuicoes !== undefined) {
+        await definirCategoriasDaMarca(tx, valor.id, atribuicoes);
+      }
 
       await registrar(tx, {
         tipoAcao: "LISTA_CRIACAO",
-        dadosPosteriores: paraAuditoria(tipo, valor),
+        dadosPosteriores: paraAuditoria(tipo, valor, atribuicoes),
         usuarioId: ator.usuarioId,
         usuarioNome: ator.nome,
         usuarioEmail: ator.email,
@@ -157,6 +213,8 @@ export async function atualizarValorDeLista(
   tipoBruto: unknown,
   id: string,
   entradaBruta: unknown,
+  /** Só para marca: `{ categoriaIds, categoriaMaterialIds }` (ADR 0010). */
+  atribuicoesBrutas?: unknown,
 ): Promise<ValorDeLista> {
   exigirPermissao(ator, "GERENCIAR_LISTAS");
   const tipo = validarTipo(tipoBruto);
@@ -179,6 +237,9 @@ export async function atualizarValorDeLista(
       throw new ConflitoDeUnicidadeError("nome", "Já existe um valor com este nome nesta lista.");
     }
   }
+  const atribuicoes = await validarAtribuicoes(prisma, tipo, atribuicoesBrutas);
+  const atribuicoesAnteriores =
+    atribuicoes !== undefined ? await obterCategoriasDaMarca(prisma, id) : undefined;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -188,11 +249,14 @@ export async function atualizarValorDeLista(
         ativo: entrada.ativo,
         ordemExibicao: entrada.ordemExibicao,
       });
+      if (atribuicoes !== undefined) {
+        await definirCategoriasDaMarca(tx, id, atribuicoes);
+      }
 
       await registrar(tx, {
         tipoAcao: "LISTA_EDICAO",
-        dadosAnteriores: paraAuditoria(tipo, atual),
-        dadosPosteriores: paraAuditoria(tipo, valorAtualizado),
+        dadosAnteriores: paraAuditoria(tipo, atual, atribuicoesAnteriores),
+        dadosPosteriores: paraAuditoria(tipo, valorAtualizado, atribuicoes),
         usuarioId: ator.usuarioId,
         usuarioNome: ator.nome,
         usuarioEmail: ator.email,
@@ -256,4 +320,41 @@ export async function excluirValorDeLista(
     }
     throw erro;
   }
+}
+
+/** Categorias atribuídas a uma marca — para marcar as caixinhas na edição. */
+export async function obterCategoriasAtribuidasDaMarca(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  fabricanteId: string,
+): Promise<AtribuicoesDaMarca> {
+  exigirPermissao(ator, "GERENCIAR_LISTAS");
+  return obterCategoriasDaMarca(prisma, fabricanteId);
+}
+
+/** Resumo "marca → nomes das categorias", para a coluna da tabela de marcas. */
+export async function resumirCategoriasDasMarcas(prisma: PrismaClient, ator: AtorAutenticado) {
+  exigirPermissao(ator, "GERENCIAR_LISTAS");
+  return resumoDasCategoriasPorMarca(prisma);
+}
+
+/**
+ * Visão inversa: marcas atribuídas a uma categoria (de equipamento ou de
+ * material). Para outros tipos de lista, nada.
+ */
+export async function listarMarcasDaCategoria(
+  prisma: PrismaClient,
+  ator: AtorAutenticado,
+  tipoBruto: unknown,
+  categoriaId: string,
+): Promise<string[] | null> {
+  exigirPermissao(ator, "GERENCIAR_LISTAS");
+  const tipo = validarTipo(tipoBruto);
+  if (tipo === "categoria") {
+    return listarMarcasAtribuidasACategoria(prisma, "equipamento", categoriaId);
+  }
+  if (tipo === "categoria-material") {
+    return listarMarcasAtribuidasACategoria(prisma, "material", categoriaId);
+  }
+  return null;
 }

@@ -86,6 +86,7 @@ export function FormularioEdicaoDeMaterial({
           hoje={hoje}
           errosPorCampo={comErro?.errosPorCampo ?? {}}
           fotoAtual={temFoto ? { url: `/api/materiais/${materialId}/foto`, descricao } : null}
+          marcaAtualId={valoresAtuais.fabricanteId === "" ? null : valoresAtuais.fabricanteId}
         />
       </fieldset>
 
