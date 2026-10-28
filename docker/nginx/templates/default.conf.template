@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# Proxy reverso leve entre o IIS (que termina o HTTPS) e a aplicação.
+#
+#   navegador --HTTPS--> IIS --HTTP--> nginx (esta VM, porta NGINX_PORTA) --> app:3000
+#
+# Este arquivo é um TEMPLATE: a imagem oficial do nginx troca ${VARIAVEL} pelo
+# valor do ambiente ao iniciar (só as variáveis definidas; as do próprio nginx,
+# como $host, ficam intactas). Valores vêm do docker-compose.producao.yml.
+#
+# Por que forçar Host / X-Forwarded-*:
+# - O Next.js compara o cabeçalho Origin das Server Actions com o host
+#   recebido; se o IIS repassar o host interno (172.18.0.12:8080), todo
+#   formulário é recusado.
+# - Os redirecionamentos do proxy.ts (ex.: para /entrar) usam o host e o
+#   protocolo da requisição; sem isto voltariam como http://172.18.0.12.
+# Por isso o host público (PUBLICO_HOST, o mesmo que compõe APP_BASE_URL) e o
+# protocolo HTTPS são fixados aqui, independentemente do que o IIS repassar.
+# ---------------------------------------------------------------------------
+
+# DNS interno do Docker. Com `resolve`, o nginx reconsulta o IP de `app` e
+# continua funcionando quando o contêiner da aplicação é recriado (novo IP)
+# sem precisar reiniciar o nginx.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+upstream estoque_app {
+    zone estoque_app 64k;
+    server app:3000 resolve;
+    keepalive 16;
+}
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    # Não anunciar versão do nginx.
+    server_tokens off;
+
+    # Fotos de até 5 MB pelas Server Actions (next.config.ts: bodySizeLimit 6mb).
+    client_max_body_size 10m;
+
+    # Exportação para Excel e login podem demorar um pouco mais.
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+
+    location / {
+        proxy_pass http://estoque_app;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+
+        proxy_set_header Host ${PUBLICO_HOST};
+        proxy_set_header X-Forwarded-Host ${PUBLICO_HOST};
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Saúde do próprio nginx (não passa pela aplicação). Útil para o IIS/ARR.
+    location = /nginx-saude {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+}

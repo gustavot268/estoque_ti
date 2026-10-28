@@ -1,0 +1,120 @@
+# ---------------------------------------------------------------------------
+# Ambiente de PRODUÇÃO em VM própria com Docker Compose.
+#
+# Topologia (ver docs/implantacao-vm.md):
+#
+#   navegador --HTTPS--> IIS --HTTP--> [esta VM] nginx :NGINX_PORTA --> app:3000
+#                                              app --> PostgreSQL (outra VM)
+#
+# O PostgreSQL NÃO roda aqui: fica em outra VM e é preparado uma única vez com
+# docker/postgres/producao/criar-banco.sql.
+#
+# Uso (sempre com o arquivo de variáveis de produção):
+#   cp .env.producao.example .env.producao   # e preencha
+#   docker compose --env-file .env.producao -f docker-compose.producao.yml build
+#   docker compose --env-file .env.producao -f docker-compose.producao.yml run --rm migracoes
+#   docker compose --env-file .env.producao -f docker-compose.producao.yml up -d
+#
+# As migrações NÃO rodam no `up`: o serviço `migracoes` está no perfil
+# `migracoes` e só executa quando chamado com `run` (sem migração automática
+# a cada restart — ver docs/implantacao-docker.md).
+# ---------------------------------------------------------------------------
+
+name: estoque-ti-producao
+
+x-variaveis-da-aplicacao: &variaveis-da-aplicacao
+  NODE_ENV: production
+  APP_ENV: production
+  NEXT_PUBLIC_APP_ENV: production
+  # O Entra ID exige HTTPS no endereço de retorno; o TLS termina no IIS.
+  APP_BASE_URL: https://${PUBLICO_HOST:?defina PUBLICO_HOST no .env.producao}
+  DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL no .env.producao}
+  AUTH_SECRET: ${AUTH_SECRET:?defina AUTH_SECRET no .env.producao}
+  ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:?defina ENTRA_TENANT_ID no .env.producao}
+  ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:?defina ENTRA_CLIENT_ID no .env.producao}
+  ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:?defina ENTRA_CLIENT_SECRET no .env.producao}
+  ADMIN_INICIAL_EMAIL: ${ADMIN_INICIAL_EMAIL:?defina ADMIN_INICIAL_EMAIL no .env.producao}
+  DEV_AUTH_ENABLED: "false"
+  EXPORT_MAX_ROWS: ${EXPORT_MAX_ROWS:-10000}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  TZ: America/Sao_Paulo
+
+services:
+  # Job único: `prisma migrate deploy` + seed idempotente das listas.
+  migracoes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migracoes
+    image: estoque-ti-migracoes:latest
+    profiles: ["migracoes"]
+    environment:
+      <<: *variaveis-da-aplicacao
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?defina MIGRATION_DATABASE_URL no .env.producao}
+    networks: [estoque]
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: producao
+    image: estoque-ti:latest
+    container_name: estoque-ti-app
+    restart: unless-stopped
+    environment: *variaveis-da-aplicacao
+    # Sem `ports`: só o nginx fala com a aplicação, pela rede interna.
+    expose: ["3000"]
+    networks: [estoque]
+    # Filesystem somente leitura; o Next só escreve no cache e em /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=10001,gid=10001,mode=0750
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    logging: &logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  nginx:
+    # Tag + digest imutável (requisito 14.16).
+    image: nginx:1.31.8-alpine@sha256:1ef7ca94d7879df82421428ce13bd1eaa412404953859cf7a5b6512c25e67a60
+    container_name: estoque-ti-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      PUBLICO_HOST: ${PUBLICO_HOST}
+      # Só estas variáveis são substituídas no template.
+      NGINX_ENVSUBST_FILTER: ^PUBLICO_
+    ports:
+      # Porta que o IIS usa como destino (ex.: http://172.18.0.12:8080).
+      - "${NGINX_PORTA:-8080}:80"
+    volumes:
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+    networks: [estoque]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-saude"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    logging: *logs
+
+networks:
+  estoque:
+    name: estoque-ti-producao
+    ipam:
+      config:
+        # Faixa fixa e fora de 172.16.0.0/12: o Docker escolheria 172.18.0.0/16
+        # para esta rede, a mesma faixa das VMs (172.18.0.10 = PostgreSQL), e a
+        # aplicação deixaria de alcançar o banco. Troque se colidir com a rede.
+        - subnet: ${DOCKER_SUBNET:-10.250.0.0/24}

@@ -42,17 +42,30 @@ RUN pnpm exec prisma generate --config=prisma/prisma7.config.ts \
   && NEXT_PUBLIC_APP_ENV=production pnpm exec next build
 
 # ---------------------------------------------------------------------------
-# Alvo auxiliar: aplicar migrações como job separado, com a conta de migração.
+# Alvo auxiliar: aplicar migrações (e o seed idempotente) como job separado.
 #   docker build --target migracoes -t estoque-ti-migracoes .
-#   docker run --rm -e MIGRATION_DATABASE_URL=... estoque-ti-migracoes
+#   docker run --rm --env-file .env.producao estoque-ti-migracoes [implantar|migrar|seed|status]
+# Ver docker/migracoes/executar.sh e docs/implantacao-vm.md.
+#
+# `src/` e `tsconfig.json` entram só porque o seed reaproveita a validação de
+# ambiente e a fábrica do Prisma Client da aplicação. Esta imagem nunca serve
+# tráfego.
 FROM base AS migracoes
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY prisma ./prisma
-RUN addgroup -g 10001 -S estoque && adduser -u 10001 -S estoque -G estoque \
+COPY src ./src
+COPY --chmod=0755 docker/migracoes/executar.sh /usr/local/bin/executar-migracoes
+# O cliente gerado precisa existir para o seed (`@prisma/client`).
+RUN node_modules/.bin/prisma generate --config=prisma/prisma7.config.ts \
+  && addgroup -g 10001 -S estoque && adduser -u 10001 -S estoque -G estoque \
   && chown -R estoque:estoque /app
 USER estoque
-ENTRYPOINT ["pnpm", "exec", "prisma", "migrate", "deploy", "--config=prisma/prisma7.config.ts"]
+# Chama os binários de `node_modules/.bin` direto, sem `pnpm`: o corepack
+# tentaria baixar o pnpm de novo em tempo de execução (o cache do build é do
+# root), o que falha em servidor sem saída para a internet.
+ENTRYPOINT ["executar-migracoes"]
+CMD ["implantar"]
 
 # ---------------------------------------------------------------------------
 FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS producao
