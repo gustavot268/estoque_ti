@@ -40,9 +40,13 @@ export async function GET(request: NextRequest): Promise<Response> {
   const nomeDaTransacao = nomeDoCookie("transacao", https);
   const nomeDaSessao = nomeDoCookie("sessao", https);
 
-  /** Redireciona dentro do app e apaga o comprovante (é de uso único). */
+  /**
+   * Redireciona dentro do app e apaga o comprovante (é de uso único). Parte de
+   * APP_BASE_URL, e não do `request.url`: atrás de proxy reverso o
+   * `request.url` é o endereço interno do contêiner.
+   */
   function ir(caminho: string): NextResponse {
-    const resposta = NextResponse.redirect(new URL(caminho, request.url));
+    const resposta = NextResponse.redirect(new URL(caminho, configuracao.APP_BASE_URL));
     resposta.headers.set("Cache-Control", "no-store");
     resposta.cookies.set(nomeDaTransacao, "", { ...opcoes, maxAge: 0 });
     return resposta;

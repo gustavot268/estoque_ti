@@ -25,8 +25,13 @@ import { logger } from "../../../../infrastructure/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-function redirecionarNoApp(request: NextRequest, caminho: string): NextResponse {
-  const resposta = NextResponse.redirect(new URL(caminho, request.url));
+/**
+ * Redireciona dentro do app a partir de APP_BASE_URL, e não do `request.url`:
+ * no servidor standalone atrás de proxy reverso o `request.url` é o endereço
+ * interno (`https://0.0.0.0:3000/...`), inalcançável pelo navegador.
+ */
+function redirecionarNoApp(appBaseUrl: string, caminho: string): NextResponse {
+  const resposta = NextResponse.redirect(new URL(caminho, appBaseUrl));
   resposta.headers.set("Cache-Control", "no-store");
   return resposta;
 }
@@ -35,7 +40,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const configuracao = obterConfiguracao();
   // Modo de desenvolvimento: não há login, o usuário é fixo.
   if (configuracao.DEV_AUTH_ENABLED) {
-    return redirecionarNoApp(request, "/");
+    return redirecionarNoApp(configuracao.APP_BASE_URL, "/");
   }
 
   const retorno = destinoAposEntrar(request.nextUrl.searchParams.get("retorno"));
@@ -54,9 +59,9 @@ export async function GET(request: NextRequest): Promise<Response> {
   } catch (erro) {
     if (erro instanceof LoginNaoConfiguradoError) {
       logger.error(erro.message);
-      return redirecionarNoApp(request, "/entrar?erro=configuracao");
+      return redirecionarNoApp(configuracao.APP_BASE_URL, "/entrar?erro=configuracao");
     }
     logger.error("Falha ao iniciar o login com a conta Microsoft.", { erro });
-    return redirecionarNoApp(request, "/entrar?erro=indisponivel");
+    return redirecionarNoApp(configuracao.APP_BASE_URL, "/entrar?erro=indisponivel");
   }
 }

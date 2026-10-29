@@ -1,0 +1,9 @@
+# Scripts de shell e arquivos de configuração lidos dentro de contêineres Linux
+# precisam de LF mesmo quando o repositório é clonado no Windows
+# (core.autocrlf=true converteria para CRLF e o `sh` falharia com `\r`).
+*.sh text eol=lf
+*.template text eol=lf
+*.conf text eol=lf
+*.sql text eol=lf
+Dockerfile* text eol=lf
+docker-compose*.yml text eol=lf

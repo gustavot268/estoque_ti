@@ -1,0 +1,125 @@
+# ---------------------------------------------------------------------------
+# Stack de PRODUÇÃO — VM 172.18.0.12, gerenciada pelo Dockhand.
+#
+# Topologia (ver docs/implantacao-vm.md):
+#
+#   navegador --HTTPS--> IIS --HTTP--> [VM] nginx :NGINX_PORTA --> app:3000
+#                                            app --> PostgreSQL (172.18.0.10)
+#
+# Todos os contêineres ficam nesta stack. Arquivos na VM, um diretório por
+# contêiner em /storage/opt-docker/<nome do contêiner>:
+#   estoque-ti-app/     código-fonte (git clone) de onde as imagens são geradas
+#   estoque-ti-nginx/   templates/default.conf.template
+#
+# As imagens NÃO são construídas pela stack: gere-as antes, na VM, com
+#   /storage/opt-docker/estoque-ti-app/docker/construir-imagens.sh
+# e só então faça o deploy (ou redeploy) da stack no Dockhand.
+#
+# Variáveis: cadastradas no Dockhand (ou em um .env ao lado deste arquivo).
+# Modelo e explicação de cada uma em .env.producao.example.
+#
+# Ordem de subida: `migracoes` (migrate deploy + seed, idempotentes) roda e
+# termina; só depois sobe `app`; o `nginx` espera o `app` ficar saudável.
+# Um restart de contêiner ou da VM NÃO reexecuta as migrações — só um novo
+# deploy da stack.
+# ---------------------------------------------------------------------------
+
+name: estoque-ti-producao
+
+x-variaveis-da-aplicacao: &variaveis-da-aplicacao
+  NODE_ENV: production
+  APP_ENV: production
+  NEXT_PUBLIC_APP_ENV: production
+  # O Entra ID exige HTTPS no endereço de retorno; o TLS termina no IIS.
+  APP_BASE_URL: https://${PUBLICO_HOST:?defina PUBLICO_HOST}
+  DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL}
+  AUTH_SECRET: ${AUTH_SECRET:?defina AUTH_SECRET}
+  ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:?defina ENTRA_TENANT_ID}
+  ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:?defina ENTRA_CLIENT_ID}
+  ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:?defina ENTRA_CLIENT_SECRET}
+  ADMIN_INICIAL_EMAIL: ${ADMIN_INICIAL_EMAIL:?defina ADMIN_INICIAL_EMAIL}
+  DEV_AUTH_ENABLED: "false"
+  EXPORT_MAX_ROWS: ${EXPORT_MAX_ROWS:-10000}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  TZ: America/Sao_Paulo
+
+x-logs: &logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # Job de implantação: `prisma migrate deploy` + seed das listas. Termina
+  # com código 0 e fica parado ("exited") — é o esperado.
+  migracoes:
+    image: estoque-ti-migracoes:${ESTOQUE_VERSAO:-latest}
+    pull_policy: never
+    container_name: estoque-ti-migracoes
+    environment:
+      <<: *variaveis-da-aplicacao
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?defina MIGRATION_DATABASE_URL}
+    networks: [estoque]
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    logging: *logs
+
+  app:
+    image: estoque-ti-app:${ESTOQUE_VERSAO:-latest}
+    pull_policy: never
+    container_name: estoque-ti-app
+    restart: unless-stopped
+    depends_on:
+      migracoes:
+        condition: service_completed_successfully
+    environment: *variaveis-da-aplicacao
+    # Sem `ports`: só o nginx fala com a aplicação, pela rede interna.
+    expose: ["3000"]
+    networks: [estoque]
+    # Filesystem somente leitura; o Next só escreve no cache e em /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=10001,gid=10001,mode=0750
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    logging: *logs
+
+  nginx:
+    # Tag + digest imutável (requisito 14.16).
+    image: nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    container_name: estoque-ti-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      PUBLICO_HOST: ${PUBLICO_HOST}
+      # Só estas variáveis são substituídas no template.
+      NGINX_ENVSUBST_FILTER: ^PUBLICO_
+    ports:
+      # Porta que o IIS usa como destino (ex.: http://172.18.0.12:8080).
+      - "${NGINX_PORTA:-8080}:80"
+    volumes:
+      - ${NGINX_TEMPLATES:-/storage/opt-docker/estoque-ti-nginx/templates}:/etc/nginx/templates:ro
+    networks: [estoque]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-saude"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    logging: *logs
+
+networks:
+  estoque:
+    name: estoque-ti
+    ipam:
+      config:
+        # Faixa fixa e fora de 172.16.0.0/12: o Docker escolheria 172.18.0.0/16
+        # para esta rede, a mesma faixa das VMs (172.18.0.10 = PostgreSQL), e a
+        # aplicação deixaria de alcançar o banco. Troque se colidir com a rede.
+        - subnet: ${DOCKER_SUBNET:-10.250.0.0/24}
