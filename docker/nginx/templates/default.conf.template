@@ -6,6 +6,7 @@
 # Este arquivo é um TEMPLATE: a imagem oficial do nginx troca ${VARIAVEL} pelo
 # valor do ambiente ao iniciar (só as variáveis definidas; as do próprio nginx,
 # como $host, ficam intactas). Valores vêm do docker-compose.producao.yml.
+# Na VM, este arquivo fica em /storage/opt-docker/estoque-ti-nginx/templates/.
 #
 # Por que forçar Host / X-Forwarded-*:
 # - O Next.js compara o cabeçalho Origin das Server Actions com o host

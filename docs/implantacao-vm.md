@@ -1,4 +1,4 @@
-# Implantação em VMs: Docker Compose + PostgreSQL externo + IIS
+# Implantação em VMs: stack no Dockhand + PostgreSQL externo + IIS
 
 - Complementa [`docs/implantacao-docker.md`](implantacao-docker.md) (contrato genérico
   da imagem) com o roteiro concreto da implantação interna.
@@ -6,6 +6,7 @@
   [`.env.producao.example`](../.env.producao.example),
   [`docker/nginx/templates/default.conf.template`](../docker/nginx/templates/default.conf.template),
   [`docker/migracoes/executar.sh`](../docker/migracoes/executar.sh),
+  [`docker/construir-imagens.sh`](../docker/construir-imagens.sh),
   [`docker/postgres/producao/criar-banco.sql`](../docker/postgres/producao/criar-banco.sql).
 
 ## Topologia
@@ -14,11 +15,11 @@
 navegador ──HTTPS──▶ IIS (termina o TLS, certificado do nome público)
                        │ HTTP
                        ▼
-          VM 172.18.0.12 — Docker Compose
+          VM 172.18.0.12 — stack `estoque-ti` no Dockhand
           ┌────────────────────────────────────────────┐
-          │ nginx (porta NGINX_PORTA, padrão 8080)     │
-          │   └─▶ app (Next.js standalone, porta 3000) │
-          │ migracoes (job sob demanda)                │
+          │ estoque-ti-nginx (porta NGINX_PORTA, 8080) │
+          │   └─▶ estoque-ti-app (Next.js, porta 3000) │
+          │ estoque-ti-migracoes (roda a cada deploy)  │
           └────────────────────────────────────────────┘
                        │ 5432/TCP
                        ▼
@@ -68,65 +69,80 @@ PostgreSQL 17 recomendado (mesma versão do ambiente de desenvolvimento).
 
 5. Inclua o banco na rotina de backup. Ver [`docs/backup-e-restauracao.md`](backup-e-restauracao.md).
 
-## 2. Docker (VM 172.18.0.12)
+## 2. Docker + Dockhand (VM 172.18.0.12)
 
-Pré-requisitos: Docker Engine com o plugin Compose v2, `git`, saída HTTPS para
-`login.microsoftonline.com` (a aplicação consulta a Microsoft no login) e, no momento do
-build, para os registros de imagens e pacotes (Docker Hub e registry do npm).
+Pré-requisitos: Docker Engine, `git`, Dockhand gerenciando o Docker local, saída HTTPS
+para `login.microsoftonline.com` (a aplicação consulta a Microsoft no login) e, no
+momento de gerar as imagens, para o Docker Hub e o registry do npm.
+
+Cada contêiner tem seu diretório em `/storage/opt-docker/<nome do contêiner>`:
+
+| Diretório                             | Conteúdo                                                  |
+| ------------------------------------- | --------------------------------------------------------- |
+| `/storage/opt-docker/estoque-ti-app`   | código-fonte (clone do repositório), de onde saem as imagens |
+| `/storage/opt-docker/estoque-ti-nginx` | `templates/default.conf.template` (montado no nginx)      |
+
+`estoque-ti-migracoes` não tem arquivos próprios: usa a imagem gerada do mesmo código.
+
+### 2.1 Código e imagens
 
 ```bash
-git clone https://github.com/gustavot268/estoque_ti.git
-cd estoque_ti
+git clone https://github.com/gustavot268/estoque_ti.git /storage/opt-docker/estoque-ti-app
+cd /storage/opt-docker/estoque-ti-app
 git checkout feature/docker-postgresql   # até ser integrada à main
 
-cp .env.producao.example .env.producao
-chmod 600 .env.producao
-# preencha .env.producao (ver seção 4 para os dados do Entra ID)
+mkdir -p /storage/opt-docker/estoque-ti-nginx/templates
+cp docker/nginx/templates/default.conf.template /storage/opt-docker/estoque-ti-nginx/templates/
+
+sh docker/construir-imagens.sh           # gera estoque-ti-app e estoque-ti-migracoes
 ```
 
-Como os comandos ficam longos, vale um alias:
+As imagens não são construídas pela stack. A stack só usa as imagens locais
+(`pull_policy: never`), o que não depende de o Dockhand saber fazer `build`.
 
-```bash
-alias estoque='docker compose --env-file .env.producao -f docker-compose.producao.yml'
-```
+### 2.2 Stack no Dockhand
 
-Primeira subida:
-
-```bash
-estoque build                       # imagens da aplicação e do job de migrações
-estoque run --rm migracoes          # migrações + seed das listas (idempotente)
-estoque up -d                       # aplicação + nginx
-estoque ps                          # app e nginx devem ficar "healthy"
-curl http://127.0.0.1:8080/api/saude
-# {"status":"ok","dependencias":{"banco":"ok"},...}
-```
+1. **Stacks → criar stack** com o nome `estoque-ti`.
+2. Cole o conteúdo de `docker-compose.producao.yml`.
+3. Cadastre as variáveis da stack conforme `.env.producao.example`. Marque como
+   secretas `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `AUTH_SECRET` e
+   `ENTRA_CLIENT_SECRET`. A seção 4 explica de onde vêm os dados do Entra ID.
+4. Faça o deploy. A ordem de subida é automática:
+   - `estoque-ti-migracoes` aplica as migrações e o seed e termina com `exited (0)`;
+   - `estoque-ti-app` sobe e fica `healthy`;
+   - `estoque-ti-nginx` sobe por último.
+5. Teste na VM: `curl http://127.0.0.1:8080/api/saude` deve devolver
+   `{"status":"ok","dependencias":{"banco":"ok"},...}`.
 
 Libere a porta do nginx (`NGINX_PORTA`, padrão 8080) no firewall **apenas** para o
 servidor IIS.
 
 ### Rede interna do Docker
 
-O Compose cria a rede `estoque-ti-producao` com a faixa `10.250.0.0/24`
-(`DOCKER_SUBNET`). Ela é fixa porque, por padrão, o Docker escolheria `172.18.0.0/16`,
-a mesma faixa das VMs. A aplicação passaria a procurar 172.18.0.10 dentro do próprio
-Docker e não chegaria ao banco. Se `10.250.0.0/24` já for usada na empresa, troque em
-`.env.producao`.
+A stack cria a rede `estoque-ti` com a faixa `10.250.0.0/24` (`DOCKER_SUBNET`). Ela é
+fixa porque, por padrão, o Docker escolheria `172.18.0.0/16`, a mesma faixa das VMs. A
+aplicação passaria a procurar 172.18.0.10 dentro do próprio Docker e não chegaria ao
+banco. Se `10.250.0.0/24` já for usada na empresa, troque a variável na stack.
 
 A ponte padrão do Docker (`docker0`) usa `172.17.0.0/16`. Se essa faixa também existir
 na rede da empresa, ajuste `"bip"` em `/etc/docker/daemon.json`.
 
 ### Job de migrações
 
-`estoque run --rm migracoes [comando]`:
+`estoque-ti-migracoes` roda a cada deploy da stack, sempre antes da aplicação. Ele
+executa `prisma migrate deploy`, que só aplica migrações versionadas ainda pendentes e
+nunca é destrutivo por conta própria, e depois o seed, que é idempotente. Reiniciar um
+contêiner ou a VM **não** roda as migrações de novo. Só um novo deploy faz isso.
 
-| Comando              | O que faz                                                      |
-| -------------------- | -------------------------------------------------------------- |
-| `implantar` (padrão) | `prisma migrate deploy` + seed das listas controladas           |
-| `migrar`             | só `prisma migrate deploy`                                      |
-| `seed`               | só o seed (idempotente: não duplica nem sobrescreve edições)    |
-| `status`             | `prisma migrate status`                                         |
+Se ele falhar, o `estoque-ti-app` não sobe. Veja o log do `estoque-ti-migracoes` no
+Dockhand.
 
-As migrações **não** rodam no `up`. O job só executa quando chamado.
+Para rodar só um dos passos, na VM:
+
+```bash
+docker run --rm --network estoque-ti --env-file <arquivo com as variáveis> \
+  estoque-ti-migracoes:latest status    # implantar | migrar | seed | status
+```
 
 ## 3. IIS (proxy reverso com HTTPS)
 
@@ -170,25 +186,36 @@ Registro do app conforme [`docs/configuracao-entra-id.md`](configuracao-entra-id
 - `ADMIN_INICIAL_EMAIL`: o e-mail Microsoft de quem fará os primeiros convites.
 - `AUTH_SECRET`: `openssl rand -base64 32`.
 
-Depois de alterar o `.env.producao`: `estoque up -d` (recria só o que mudou).
+Depois de alterar as variáveis no Dockhand, faça o redeploy da stack.
 
 ## 5. Atualizar a versão
 
+Na VM:
+
 ```bash
+cd /storage/opt-docker/estoque-ti-app
 git pull
-estoque build
-estoque run --rm migracoes      # aplica migrações novas, se houver
-estoque up -d
-docker image prune -f           # remove imagens antigas
+sh docker/construir-imagens.sh
+# se o template do nginx mudou:
+cp docker/nginx/templates/default.conf.template /storage/opt-docker/estoque-ti-nginx/templates/
 ```
+
+Depois faça o **redeploy da stack** no Dockhand. As migrações novas são aplicadas
+antes de a aplicação subir.
+
+Para voltar a uma versão anterior, coloque em `ESTOQUE_VERSAO` o hash do commit
+(cada build gera essa tag) e faça o redeploy. Atenção: as migrações não são desfeitas.
+Remova imagens antigas com `docker image prune` quando não precisar mais delas.
 
 ## Diagnóstico
 
 | Sintoma                                   | Onde olhar                                                                 |
 | ----------------------------------------- | -------------------------------------------------------------------------- |
-| `app` não fica `healthy`                  | `estoque logs app`. A aplicação lista todas as variáveis faltando ao iniciar. |
+| `estoque-ti-app` não sobe                 | Log do `estoque-ti-migracoes`: se ele falhou, o app não sobe. |
+| `app` não fica `healthy`                  | Log do `estoque-ti-app`. A aplicação lista todas as variáveis faltando ao iniciar. |
+| Deploy falha com "image not found"        | Rode `docker/construir-imagens.sh` na VM antes do deploy |
 | `/api/saude` com `"banco":"indisponivel"` | `pg_hba.conf`, firewall da 5432, senha na URL (caracteres especiais codificados), colisão de faixa da rede Docker |
 | Login volta com `erro=indisponivel`       | saída da VM para `login.microsoftonline.com`, `ENTRA_TENANT_ID`              |
 | Login volta com erro da Microsoft (AADSTS50011) | URI de redirecionamento no Entra ID diferente de `https://<PUBLICO_HOST>/api/auth/retorno` |
 | Formulários falham ao salvar              | `PUBLICO_HOST` diferente do nome usado no navegador                         |
-| 502 no IIS                                | `estoque ps`, firewall da porta do nginx, `curl http://172.18.0.12:8080/nginx-saude` a partir do IIS |
+| 502 no IIS                                | Estado da stack no Dockhand, firewall da porta do nginx, `curl http://172.18.0.12:8080/nginx-saude` a partir do IIS |

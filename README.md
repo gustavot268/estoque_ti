@@ -141,7 +141,7 @@ roda com usuário não privilegiado e não inclui arquivos de desenvolvimento ne
 detalhes completos em
 [`docs/implantacao-docker.md`](docs/implantacao-docker.md).
 
-**Produção em VM** (Docker Compose com nginx, PostgreSQL em outra VM e IIS na frente
+**Produção em VM** (stack no Dockhand com nginx, PostgreSQL em outra VM e IIS na frente
 terminando o HTTPS): `docker-compose.producao.yml` + `.env.producao.example`, roteiro
 completo em [`docs/implantacao-vm.md`](docs/implantacao-vm.md).
 
