@@ -9,7 +9,12 @@
  * São links (navegação) estilizados como cartões, para funcionarem com teclado
  * e leitor de tela. Os ícones são decorativos (`aria-hidden`): o nome de cada
  * link é o próprio texto.
+ *
+ * O mascote também é decorativo (`alt=""`): o título já diz o que é a página.
+ * O arquivo já sai otimizado (WebP de ~40 KB com transparência e borda inferior
+ * em degradê), por isso `unoptimized` — sem passar pelo otimizador do Next.
  */
+import Image from "next/image";
 import Link from "next/link";
 
 const CLASSE_DO_CARTAO =
@@ -24,6 +29,16 @@ export default function PaginaInicial() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-4 py-12 sm:py-20">
       <div className="flex flex-col items-center gap-3 text-center">
+        <Image
+          src="/mascote-prancheta.webp"
+          alt=""
+          width={400}
+          height={515}
+          unoptimized
+          preload
+          className="-mb-2 h-auto w-36 select-none sm:w-44"
+          draggable={false}
+        />
         <h1 className="text-4xl font-bold tracking-tight text-texto sm:text-5xl">Estoque de TI</h1>
         <p className="max-w-md text-base text-texto-suave">
           Cadastro, consulta, histórico de alterações e exportação do estoque de TI.

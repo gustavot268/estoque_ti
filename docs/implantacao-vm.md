@@ -144,37 +144,64 @@ docker run --rm --network estoque-ti --env-file <arquivo com as variáveis> \
   estoque-ti-migracoes:latest status    # implantar | migrar | seed | status
 ```
 
-## 3. IIS (proxy reverso com HTTPS)
+## 3. IIS, certificado e DNS (servidor 172.18.0.33)
 
-Requer os módulos **URL Rewrite** e **Application Request Routing (ARR)**.
+Nome público em produção: **`estoqueti.sferamultifranquias.com`**.
 
-1. Em ARR → *Server Proxy Settings*, marque **Enable proxy**.
-2. Crie um site com binding **HTTPS** para o nome público (ex.: `estoque.empresa.local`)
-   com certificado válido para esse nome. Crie um registro DNS interno apontando o nome
-   para o servidor IIS.
-3. Regra de reverse proxy no `web.config` do site:
+### 3.1 Site no IIS
 
-   ```xml
-   <configuration>
-     <system.webServer>
-       <rewrite>
-         <rules>
-           <rule name="estoque-ti" stopProcessing="true">
-             <match url="(.*)" />
-             <action type="Rewrite" url="http://172.18.0.12:8080/{R:1}" />
-           </rule>
-         </rules>
-       </rewrite>
-     </system.webServer>
-   </configuration>
-   ```
+Requer os módulos **URL Rewrite** e **Application Request Routing (ARR)**, com o proxy
+do ARR ligado.
 
-4. Opcional: um binding HTTP só com redirecionamento para HTTPS.
-5. O nginx aceita uploads de até 10 MB, e as fotos têm limite de 5 MB. O limite padrão
-   do IIS (`maxAllowedContentLength`, 30 MB) já comporta.
+O script [`scripts/iis/configurar-site-estoqueti.ps1`](../scripts/iis/configurar-site-estoqueti.ps1)
+deve ser rodado no servidor IIS, em um PowerShell como Administrador. Ele pode ser
+rodado de novo sem duplicar nada, e não mexe nos outros sites. O que ele faz:
+
+- confere os módulos e liga o proxy do ARR, se ainda estiver desligado;
+- cria o pool e o site `estoqueti` em `C:\inetpub\estoqueti`, com binding HTTP só para
+  o nome público;
+- grava o `web.config`, que:
+  - redireciona HTTP para HTTPS;
+  - repassa tudo para `http://172.18.0.12:8080`;
+  - aceita uploads de até 10 MB;
+  - corrige o redirecionamento do login da Microsoft (ver abaixo);
+- associa o certificado ao binding HTTPS (SNI), se ele já existir;
+- testa o nginx e o `/api/saude` pelo próprio IIS, e mostra o ID do site.
+
+**Redirecionamento do login e o ARR.** A opção do ARR *Reverse rewrite host in response
+headers* vale para o servidor inteiro e troca o host de **todo** cabeçalho `Location`,
+inclusive o redirecionamento para `login.microsoftonline.com`. Sem correção, o login
+quebra. O `web.config` do site tem uma regra de saída que devolve o host da Microsoft
+nesses redirecionamentos. A opção global não foi alterada, porque outros sites podem
+depender dela.
+
+### 3.2 Certificado (Let's Encrypt via win-acme)
+
+O certificado é emitido pelo win-acme, em
+`C:\AdminScripts\ACME\win-acme.v2.2.9.1701.x64.pluggable`, com validação por DNS na
+GoDaddy, igual ao `painel`. As credenciais da API ficam no cofre do win-acme. O site
+precisa existir antes (passo 3.1), porque o win-acme cria o binding HTTPS nele e o
+atualiza a cada renovação. Rodando no mesmo PowerShell, com o `<ID>` mostrado pelo
+script de 3.1:
+
+```powershell
+$r = Get-Content 'C:\ProgramData\win-acme\acme-v02.api.letsencrypt.org\-BrrTBtcDkeRsXY2vGdWIQ.renewal.json' -Raw | ConvertFrom-Json
+& 'C:\AdminScripts\ACME\win-acme.v2.2.9.1701.x64.pluggable\wacs.exe' --source manual --host estoqueti.sferamultifranquias.com --validationmode dns-01 --validation godaddy --apikey $r.ValidationPluginOptions.SecretSafe --apisecret $r.ValidationPluginOptions.ApiSecret --installation iis --installationsiteid <ID>
+```
+
+A renovação entra na tarefa agendada `win-acme renew` e não precisa de nenhuma ação.
+
+### 3.3 DNS interno
+
+O DNS do domínio (`admservidor2.sfera.wan`) não hospeda a zona `sferamultifranquias.com`
+inteira, que fica na GoDaddy. Cada sistema interno tem uma zona própria com o nome
+completo, como `painel.sferamultifranquias.com`. O script
+[`scripts/dns/adicionar-dns-estoqueti.ps1`](../scripts/dns/adicionar-dns-estoqueti.ps1)
+cria a zona `estoqueti.sferamultifranquias.com` com a mesma replicação da zona do
+`painel`, e um registro A apontando para o IIS (172.18.0.33).
 
 Para testar o caminho IIS → nginx sem passar pela aplicação, use
-`https://<PUBLICO_HOST>/nginx-saude` (responde `ok`).
+`https://estoqueti.sferamultifranquias.com/nginx-saude` (responde `ok`).
 
 ## 4. Microsoft Entra ID
 
