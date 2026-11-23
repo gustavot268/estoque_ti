@@ -27,6 +27,7 @@ const PARAMETROS_PRESERVADOS = [
   "andarId",
   "ordenarPor",
   "direcao",
+  "itensPorPagina",
 ] as const;
 
 export async function arquivarEquipamentoDaListaAction(

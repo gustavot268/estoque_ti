@@ -129,12 +129,47 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
     );
   });
 
-  it("o tamanho de página é fixo em 20, mesmo os 5 itens de teste cabem numa página só", async () => {
+  it("sem escolha, o tamanho de página é o padrão, 20: os 5 itens de teste cabem numa página só", async () => {
     const resultado = await listarEquipamentos(prisma, ator, { busca: prefixo });
     expect(resultado.total).toBe(5);
     expect(resultado.tamanhoPagina).toBe(20);
     expect(resultado.itens).toHaveLength(5);
     expect(resultado.totalPaginas).toBe(1);
+  });
+
+  it("itens por página: o tamanho escolhido corta a lista; fora da lista fechada, vale o padrão", async () => {
+    // Termo próprio, fora do prefixo, para não mudar a contagem dos outros testes.
+    const termo = `ipp-${randomUUID()}`;
+    for (let indice = 0; indice < 11; indice++) {
+      const equipamento = await cadastrarEquipamento(
+        prisma,
+        ator,
+        entrada({ modelo: `${termo} ${indice}`, numeroSerie: `${termo}-sn-${indice}` }),
+      );
+      equipamentosCriados.push(equipamento.id);
+    }
+
+    const primeira = await listarEquipamentos(prisma, ator, { busca: termo, itensPorPagina: "10" });
+    expect(primeira.tamanhoPagina).toBe(10);
+    expect(primeira.itens).toHaveLength(10);
+    expect(primeira.totalPaginas).toBe(2);
+
+    const segunda = await listarEquipamentos(prisma, ator, {
+      busca: termo,
+      itensPorPagina: "10",
+      pagina: "2",
+    });
+    expect(segunda.itens).toHaveLength(1);
+
+    for (const foraDaLista of ["1000", "5", "abc"]) {
+      const resultado = await listarEquipamentos(prisma, ator, {
+        busca: termo,
+        itensPorPagina: foraDaLista,
+      });
+      expect(resultado.tamanhoPagina).toBe(20);
+      expect(resultado.itens).toHaveLength(11);
+      expect(resultado.totalPaginas).toBe(1);
+    }
   });
 
   it("perfil Consulta também pode listar — é uma ação de leitura", async () => {

@@ -148,6 +148,7 @@ describe("esquemaConsultaEquipamentos (Etapa 4)", () => {
       statusId: undefined,
       andarId: undefined,
       pagina: 1,
+      itensPorPagina: 20,
       ordenarPor: "criadoEm",
       direcao: "desc",
     });
@@ -156,6 +157,29 @@ describe("esquemaConsultaEquipamentos (Etapa 4)", () => {
   it("converte a página de string para número", () => {
     expect(esquemaConsultaEquipamentos.parse({ pagina: "3" }).pagina).toBe(3);
   });
+
+  it.each([
+    ["10", 10],
+    ["20", 20],
+    ["50", 50],
+    ["100", 100],
+    [" 50 ", 50],
+  ])("aceita %j itens por página, da lista fechada", (valor, esperado) => {
+    expect(esquemaConsultaEquipamentos.parse({ itensPorPagina: valor }).itensPorPagina).toBe(
+      esperado,
+    );
+  });
+
+  // Fora da lista, o tamanho volta ao padrão em vez de virar erro: é só uma
+  // preferência de exibição, e o teto (100) nunca é ultrapassado pela URL.
+  it.each([undefined, "", "0", "15", "101", "1000", "999999999", "-20", "20.5", "1e2", "abc"])(
+    "trata %j itens por página como o padrão, 20",
+    (valor) => {
+      const resultado = esquemaConsultaEquipamentos.safeParse({ itensPorPagina: valor });
+      expect(resultado.success).toBe(true);
+      expect(resultado.data?.itensPorPagina).toBe(20);
+    },
+  );
 
   it("rejeita página não numérica, negativa ou acima do limite", () => {
     expect(esquemaConsultaEquipamentos.safeParse({ pagina: "abc" }).success).toBe(false);
