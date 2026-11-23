@@ -17,8 +17,11 @@
 FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
-# openssl é exigido pelos binários do Prisma em Alpine.
-RUN apk add --no-cache openssl \
+# openssl é exigido pelos binários do Prisma em Alpine. `apk upgrade` aplica as
+# correções de segurança do Alpine publicadas depois do digest fixado acima —
+# achado real do Trivy (musl e zlib, CVE-2026-107891 e CVE-2026-85091).
+RUN apk upgrade --no-cache \
+  && apk add --no-cache openssl \
   && corepack enable pnpm
 WORKDIR /app
 
@@ -69,7 +72,9 @@ CMD ["implantar"]
 
 # ---------------------------------------------------------------------------
 FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS producao
-RUN apk add --no-cache openssl
+# Mesmo `apk upgrade` do estágio base (correções do Alpine posteriores ao digest).
+RUN apk upgrade --no-cache \
+  && apk add --no-cache openssl
 # O runtime só executa `node server.js` — nunca precisa do npm/corepack que a
 # imagem base do Node traz por padrão. Removê-los reduz a superfície de
 # ataque e elimina vulnerabilidades relatadas nas dependências do próprio
