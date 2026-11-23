@@ -275,7 +275,8 @@ export function dataDoCalendarioOpcional(rotulo: string) {
 
 /**
  * Página de uma consulta paginada, vinda da querystring. Tem limite superior
- * (regra 14.8); o tamanho de página nunca vem do cliente (regra 14.21).
+ * (regra 14.8); o tamanho de página só vem de uma lista fechada
+ * (`itensPorPaginaDeConsulta`, regra 14.21).
  */
 export const paginaDeConsulta = z
   .string()
@@ -284,6 +285,34 @@ export const paginaDeConsulta = z
   .refine((valor) => /^\d+$/.test(valor), { error: () => "Página inválida." })
   .transform((valor) => Number.parseInt(valor, 10))
   .refine((valor) => valor >= 1 && valor <= 100_000, { error: () => "Página inválida." });
+
+/** Opções do seletor "Itens por página" das listas do estoque; a maior é o teto. */
+export const OPCOES_DE_ITENS_POR_PAGINA = [10, 20, 50, 100] as const;
+export type ItensPorPagina = (typeof OPCOES_DE_ITENS_POR_PAGINA)[number];
+export const ITENS_POR_PAGINA_PADRAO: ItensPorPagina = 20;
+
+function ehOpcaoDeItensPorPagina(valor: number): valor is ItensPorPagina {
+  return (OPCOES_DE_ITENS_POR_PAGINA as readonly number[]).includes(valor);
+}
+
+/**
+ * Itens por página de uma consulta, vindo da querystring. Só valores da lista
+ * fechada `OPCOES_DE_ITENS_POR_PAGINA` — a URL nunca consegue pedir o estoque
+ * inteiro de uma vez (regra 14.21). Qualquer outro valor (ausente, texto, fora
+ * da lista) vira o padrão, sem erro: é só uma preferência de exibição, e um
+ * link antigo ou editado à mão continua abrindo a lista.
+ */
+export const itensPorPaginaDeConsulta = z
+  .string()
+  .optional()
+  .transform((valor): ItensPorPagina => {
+    const aparado = valor?.trim() ?? "";
+    if (!/^\d{1,3}$/.test(aparado)) {
+      return ITENS_POR_PAGINA_PADRAO;
+    }
+    const numero = Number.parseInt(aparado, 10);
+    return ehOpcaoDeItensPorPagina(numero) ? numero : ITENS_POR_PAGINA_PADRAO;
+  });
 
 /** Token de concorrência otimista. */
 export const versaoDeConcorrencia = z

@@ -14,6 +14,7 @@ import { BotaoArquivarDaLista } from "../../components/botao-arquivar-da-lista";
 import { MensagemDeAcesso } from "../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../components/mensagem-simples";
 import { MolduraDeAbas } from "../../components/moldura-de-abas";
+import { SeletorDeItensPorPagina } from "../../components/seletor-de-itens-por-pagina";
 import { SeloDeStatus } from "../../components/selo-de-status";
 import { SeloTrillogo } from "../../components/selo-trillogo";
 import { formatarData } from "../../domain/data-e-hora";
@@ -78,6 +79,7 @@ function construirHref(
     ordenarPor: parametros.ordenarPor,
     direcao: parametros.direcao,
     pagina: parametros.pagina,
+    itensPorPagina: parametros.itensPorPagina,
     ...sobrescritas,
   };
   const query = new URLSearchParams();
@@ -213,6 +215,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
       statusId: primeiroValor(brutos.statusId),
       andarId: primeiroValor(brutos.andarId),
       pagina: primeiroValor(brutos.pagina),
+      itensPorPagina: primeiroValor(brutos.itensPorPagina),
       ordenarPor: primeiroValor(brutos.ordenarPor),
       direcao: primeiroValor(brutos.direcao),
     });
@@ -329,6 +332,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
           <form method="get" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <input type="hidden" name="ordenarPor" value={parametros.ordenarPor} />
             <input type="hidden" name="direcao" value={parametros.direcao} />
+            <input type="hidden" name="itensPorPagina" value={parametros.itensPorPagina} />
 
             <div className="flex flex-col gap-1 lg:col-span-2">
               <label htmlFor="busca" className="text-sm font-medium text-texto">
@@ -436,11 +440,28 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
             </div>
           </form>
 
-          <p className="text-sm text-texto-suave">
-            {total === 0
-              ? "Nenhum equipamento encontrado com os filtros atuais."
-              : `${total} equipamento${total === 1 ? "" : "s"} encontrado${total === 1 ? "" : "s"}.`}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-texto-suave">
+              {total === 0
+                ? "Nenhum equipamento encontrado com os filtros atuais."
+                : `${total} equipamento${total === 1 ? "" : "s"} encontrado${total === 1 ? "" : "s"}.`}
+            </p>
+            {total > 0 && (
+              <SeletorDeItensPorPagina
+                rota="/equipamentos"
+                valorAtual={parametros.itensPorPagina}
+                preservar={{
+                  busca: parametros.busca ?? undefined,
+                  categoriaId: parametros.categoriaId,
+                  fabricanteId: parametros.fabricanteId,
+                  statusId: parametros.statusId,
+                  andarId: parametros.andarId,
+                  ordenarPor: parametros.ordenarPor,
+                  direcao: parametros.direcao,
+                }}
+              />
+            )}
+          </div>
 
           {itens.length > 0 && (
             <>

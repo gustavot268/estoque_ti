@@ -14,6 +14,7 @@
 import { z } from "zod";
 import {
   identificadorPatrimonialOpcional,
+  itensPorPaginaDeConsulta,
   nomeDeFabricanteOutro,
   ordemDeExibicao,
   paginaDeConsulta,
@@ -90,8 +91,8 @@ export const esquemaValorDeListaControlada = z.strictObject({
 /**
  * Consulta de equipamentos (Etapa 4). Parâmetros vêm da querystring — nunca
  * confiáveis por padrão (regra 14.8): página tem limite superior, e o
- * tamanho de página NÃO é controlável pelo cliente (fica fixo no serviço),
- * de propósito, para impedir paginação abusiva (regra 14.21).
+ * tamanho de página só aceita as opções fechadas do seletor "Itens por
+ * página" (teto de 100), para impedir paginação abusiva (regra 14.21).
  *
  * Não é `strictObject`: parâmetros de busca desconhecidos (ex.: de uma
  * extensão do navegador) são apenas ignorados, não é um caso de mass
@@ -107,6 +108,7 @@ export const esquemaConsultaEquipamentos = z.object({
   statusId: uuidOpcional("o status de funcionamento"),
   andarId: uuidOpcional("o andar"),
   pagina: paginaDeConsulta,
+  itensPorPagina: itensPorPaginaDeConsulta,
   ordenarPor: z
     .enum(CAMPOS_ORDENAVEIS_DE_EQUIPAMENTO, { error: () => "Campo de ordenação inválido." })
     .optional()

@@ -14,6 +14,7 @@ import { BotaoArquivarDaLista } from "../../components/botao-arquivar-da-lista";
 import { MensagemDeAcesso } from "../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../components/mensagem-simples";
 import { MolduraDeAbas } from "../../components/moldura-de-abas";
+import { SeletorDeItensPorPagina } from "../../components/seletor-de-itens-por-pagina";
 import { SeloDeEstoque } from "../../components/selo-de-estoque";
 import { SeloTrillogo } from "../../components/selo-trillogo";
 import { formatarDataDoCalendario } from "../../domain/data-e-hora";
@@ -72,6 +73,7 @@ function construirHref(parametros: EntradaConsultaMateriais, sobrescritas: Sobre
     ordenarPor: parametros.ordenarPor,
     direcao: parametros.direcao,
     pagina: parametros.pagina,
+    itensPorPagina: parametros.itensPorPagina,
     ...sobrescritas,
   });
   return texto === "" ? "/materiais" : `/materiais?${texto}`;
@@ -183,6 +185,7 @@ export default async function PaginaDeConsultaDeMateriais({
       categoriaId: primeiroValor(brutos.categoriaId),
       andarId: primeiroValor(brutos.andarId),
       pagina: primeiroValor(brutos.pagina),
+      itensPorPagina: primeiroValor(brutos.itensPorPagina),
       ordenarPor: primeiroValor(brutos.ordenarPor),
       direcao: primeiroValor(brutos.direcao),
     });
@@ -289,6 +292,7 @@ export default async function PaginaDeConsultaDeMateriais({
           <form method="get" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <input type="hidden" name="ordenarPor" value={parametros.ordenarPor} />
             <input type="hidden" name="direcao" value={parametros.direcao} />
+            <input type="hidden" name="itensPorPagina" value={parametros.itensPorPagina} />
 
             <div className="flex flex-col gap-1 lg:col-span-2">
               <label htmlFor="busca" className="text-sm font-medium text-texto">
@@ -355,11 +359,26 @@ export default async function PaginaDeConsultaDeMateriais({
             </div>
           </form>
 
-          <p className="text-sm text-texto-suave">
-            {total === 0
-              ? "Nenhum material encontrado com os filtros atuais."
-              : `${total} ${total === 1 ? "material encontrado" : "materiais encontrados"}.`}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-texto-suave">
+              {total === 0
+                ? "Nenhum material encontrado com os filtros atuais."
+                : `${total} ${total === 1 ? "material encontrado" : "materiais encontrados"}.`}
+            </p>
+            {total > 0 && (
+              <SeletorDeItensPorPagina
+                rota="/materiais"
+                valorAtual={parametros.itensPorPagina}
+                preservar={{
+                  busca: parametros.busca ?? undefined,
+                  categoriaId: parametros.categoriaId,
+                  andarId: parametros.andarId,
+                  ordenarPor: parametros.ordenarPor,
+                  direcao: parametros.direcao,
+                }}
+              />
+            )}
+          </div>
 
           {itens.length > 0 && (
             <>

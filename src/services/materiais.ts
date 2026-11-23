@@ -333,7 +333,10 @@ export async function obterHistoricoDoMaterial(
   return listarPorMaterial(prisma, materialId);
 }
 
-/** Tamanho de página FIXO, não controlável pelo cliente (requisito 14.21). */
+/**
+ * Tamanho de página da tela de arquivados: FIXO, não controlável pelo cliente
+ * (requisito 14.21). Na lista principal, vale o seletor "Itens por página".
+ */
 const TAMANHO_PAGINA = 20;
 
 /** Consulta paginada: busca, filtros, ordenação e paginação processados no banco (requisito 7). */
@@ -358,15 +361,15 @@ export async function listarMateriais(
     },
     ordenacao: { campo: parametros.ordenarPor, direcao: parametros.direcao },
     pagina: parametros.pagina,
-    tamanhoPagina: TAMANHO_PAGINA,
+    tamanhoPagina: parametros.itensPorPagina,
   });
 
   return {
     itens,
     total,
-    totalPaginas: Math.max(1, Math.ceil(total / TAMANHO_PAGINA)),
+    totalPaginas: Math.max(1, Math.ceil(total / parametros.itensPorPagina)),
     pagina: parametros.pagina,
-    tamanhoPagina: TAMANHO_PAGINA,
+    tamanhoPagina: parametros.itensPorPagina,
     parametros,
   };
 }

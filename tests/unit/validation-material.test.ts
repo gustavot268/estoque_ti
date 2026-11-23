@@ -198,9 +198,17 @@ describe("esquemaConsultaMateriais", () => {
       categoriaId: undefined,
       andarId: undefined,
       pagina: 1,
+      itensPorPagina: 20,
       ordenarPor: "categoria",
       direcao: "asc",
     });
+  });
+
+  it("aceita só os itens por página da lista fechada; o resto vira o padrão, 20", () => {
+    expect(esquemaConsultaMateriais.parse({ itensPorPagina: "100" }).itensPorPagina).toBe(100);
+    expect(esquemaConsultaMateriais.parse({ itensPorPagina: "10" }).itensPorPagina).toBe(10);
+    expect(esquemaConsultaMateriais.parse({ itensPorPagina: "1000" }).itensPorPagina).toBe(20);
+    expect(esquemaConsultaMateriais.parse({ itensPorPagina: "abc" }).itensPorPagina).toBe(20);
   });
 
   it("só ordena pelos campos da lista permitida", () => {

@@ -14,6 +14,7 @@ import {
   identificadorPatrimonialOpcional,
   inteiroObrigatorio,
   inteiroOpcional,
+  itensPorPaginaDeConsulta,
   nomeDeFabricanteOutro,
   paginaDeConsulta,
   TAMANHOS,
@@ -74,8 +75,8 @@ export const esquemaRestaurarMaterial = esquemaArquivarMaterial;
 
 /**
  * Consulta de materiais. Mesmas regras da consulta de equipamentos: tudo vem
- * da querystring, a página tem limite e o tamanho da página fica fixo no
- * serviço. Por padrão a lista sai em ordem alfabética de categoria (e, dentro
+ * da querystring, a página tem limite e o tamanho da página só aceita as
+ * opções fechadas do seletor "Itens por página". Por padrão a lista sai em ordem alfabética de categoria (e, dentro
  * dela, de tipo e especificação).
  */
 export const CAMPOS_ORDENAVEIS_DE_MATERIAL = [
@@ -91,6 +92,7 @@ export const esquemaConsultaMateriais = z.object({
   categoriaId: uuidOpcional("a categoria"),
   andarId: uuidOpcional("o andar"),
   pagina: paginaDeConsulta,
+  itensPorPagina: itensPorPaginaDeConsulta,
   ordenarPor: z
     .enum(CAMPOS_ORDENAVEIS_DE_MATERIAL, { error: () => "Campo de ordenação inválido." })
     .optional()

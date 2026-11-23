@@ -312,6 +312,35 @@ describe("materiais (casos de uso — controle por quantidade)", () => {
   });
 
   describe("consulta", () => {
+    it("itens por página: o tamanho escolhido corta a lista; fora da lista fechada, vale o padrão", async () => {
+      const termo = `${prefixo}-ipp`;
+      for (let indice = 0; indice < 11; indice++) {
+        await cadastrar({ especificacao: `${termo} ${indice}` });
+      }
+
+      const primeira = await listarMateriais(prisma, consulta, {
+        busca: termo,
+        itensPorPagina: "10",
+      });
+      expect(primeira.tamanhoPagina).toBe(10);
+      expect(primeira.itens).toHaveLength(10);
+      expect(primeira.totalPaginas).toBe(2);
+
+      const segunda = await listarMateriais(prisma, consulta, {
+        busca: termo,
+        itensPorPagina: "10",
+        pagina: "2",
+      });
+      expect(segunda.itens).toHaveLength(1);
+
+      const foraDaLista = await listarMateriais(prisma, consulta, {
+        busca: termo,
+        itensPorPagina: "1000",
+      });
+      expect(foraDaLista.tamanhoPagina).toBe(20);
+      expect(foraDaLista.itens).toHaveLength(11);
+    });
+
     it("busca por tipo, especificação e código Trillogo, filtra por categoria e ordena", async () => {
       const marca = `${prefixo}-busca`;
       const pouco = await cadastrar({ especificacao: `${marca} B pouco`, quantidade: "2" });
