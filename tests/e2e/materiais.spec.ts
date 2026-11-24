@@ -75,7 +75,7 @@ test.describe("materiais de TI (perfil Operação — o padrão do ambiente)", (
     // O 15º andar tem uma sala só: ela já vem escolhida.
     await expect(page.getByLabel("Sala").locator("option:checked")).toHaveText("Estoque");
     await page.getByLabel("Móvel").selectOption({ label: "1º armário" });
-    await page.getByLabel("Prateleira").selectOption({ label: "Prateleira 1 (parte superior)" });
+    await page.getByLabel("Prateleira").selectOption({ label: "Prateleira 1 (de cima)" });
     await page.getByRole("button", { name: "Cadastrar" }).click();
 
     await expect(page.getByText("Material cadastrado com sucesso.")).toBeVisible();
@@ -96,7 +96,7 @@ test.describe("materiais de TI (perfil Operação — o padrão do ambiente)", (
     await linha.getByRole("link", { name: "Detalhes" }).click();
     await expect(page.getByRole("heading", { name: `Cabo HDMI ${especificacao}` })).toBeVisible();
     await expect(page.getByText("1º armário")).toBeVisible();
-    await expect(page.getByText("Prateleira 1 (parte superior)")).toBeVisible();
+    await expect(page.getByText("Prateleira 1 (de cima)")).toBeVisible();
 
     await page.getByRole("link", { name: "Editar" }).click();
     await page.getByLabel("Quantidade").fill("8");

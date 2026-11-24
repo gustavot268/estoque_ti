@@ -26,6 +26,7 @@ Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline
 - [Microsoft Entra ID](#microsoft-entra-id)
 - [Como funciona a autorização](#como-funciona-a-autorização)
 - [Ativos e materiais de TI](#ativos-e-materiais-de-ti)
+- [Pesquisar patrimônio](#pesquisar-patrimônio)
 - [Exportação para Excel](#exportação-para-excel)
 - [Foto do equipamento](#foto-do-equipamento)
 - [PostgreSQL é a fonte única e oficial dos dados](#postgresql-é-a-fonte-única-e-oficial-dos-dados)
@@ -299,8 +300,9 @@ consulta e de cadastro) e da mesma planilha exportada:
 
 Nos dois tipos de item, a localização é uma hierarquia (ADR 0011): **Unidade → Andar →
 Sala → Móvel → Prateleira**. Unidade, andar e sala são obrigatórios (escolhidos em cascata
-no formulário; o item guarda a sala); móvel (armário ou estante) e prateleira (1 = parte
-superior … 6 = a mais baixa) são opcionais. Só o andar aparece na lista; o resto aparece
+no formulário; o item guarda a sala); móvel (armário ou estante) e prateleira são opcionais.
+O armário tem 2 prateleiras (1 = de cima, 2 = de baixo); a estante tem 6 (1 = parte
+superior, em cima dela, … 6 = a mais baixa). Só o andar aparece na lista; o resto aparece
 nos detalhes e na planilha. Os móveis são criados no mapa da tela "Pesquisar patrimônio".
 Nenhum dos dois tem campo "Nome": o
 título exibido é montado na hora — "Categoria Marca Modelo" no equipamento e
@@ -323,6 +325,23 @@ Regras dos materiais:
 
 Nos dois tipos, o código Trillogo aparece em destaque (selo lilás) nas listas e nos
 detalhes.
+
+## Pesquisar patrimônio
+
+Tela `/patrimonio`, aberta pelo botão "Pesquisar patrimônio" da página inicial (ADR 0011):
+
+- Mostra o **mapa** de uma sala de estoque: os armários e estantes numa fileira, na ordem
+  em que estão. As salas da unidade aparecem como abas ("15º andar · Estoque"…).
+- A **busca** (a mesma das listas: categoria, marca, modelo, número de série, código
+  Trillogo; nos materiais, tipo e especificação) procura na unidade inteira. Os móveis
+  com resultado ficam em **destaque**, e cada sala mostra quantos resultados tem.
+- Ao **clicar num móvel**, ele se abre com as prateleiras numeradas (armário: 1 e 2;
+  estante: 1 a 6); as prateleiras dos itens encontrados ficam em destaque e por escrito, e
+  aparece a lista do que há no móvel.
+- Só consulta, para todos os perfis; itens arquivados não aparecem. Funciona sem
+  JavaScript: todo o estado fica na URL.
+- O **modo edição** do mapa (adicionar, reordenar e excluir móveis, só Administração) é
+  a próxima etapa ([#35](https://github.com/gustavot268/estoque_ti/issues/35)).
 
 ## Exportação para Excel
 

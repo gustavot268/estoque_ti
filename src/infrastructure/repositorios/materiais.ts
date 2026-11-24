@@ -172,6 +172,14 @@ function construirFiltro(
 }
 
 /**
+ * Itens ativos que casam com a busca — a mesma regra da lista, reaproveitada
+ * pela pesquisa de patrimônio (ADR 0011).
+ */
+export function filtroDeBuscaDeMateriais(busca: string): Prisma.MaterialWhereInput {
+  return construirFiltro({ busca });
+}
+
+/**
  * Ordenação com desempate: muitos materiais têm a mesma categoria, quantidade
  * ou data, e sem um critério final a paginação poderia repetir ou pular itens.
  * O desempate segue a descrição do material (categoria, tipo, especificação).

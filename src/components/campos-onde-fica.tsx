@@ -13,7 +13,8 @@
 
 import { useState } from "react";
 import {
-  PRATELEIRAS,
+  prateleirasDoMovel,
+  prateleiraValida,
   rotuloDaPrateleira,
   rotuloDaSala,
   rotuloDoMovel,
@@ -80,6 +81,7 @@ export function CamposOndeFica({ opcoes, valores, errosDoCampo }: Props) {
   const andaresDaUnidade = opcoes.andares.filter((andar) => andar.unidadeId === unidadeId);
   const salasDoAndar = opcoes.salas.filter((sala) => sala.andarId === andarId);
   const moveisDaSala = opcoes.moveis.filter((movel) => movel.salaId === salaId);
+  const movelEscolhido = moveisDaSala.find((movel) => movel.id === movelId);
 
   function escolherSala(novaSalaId: string) {
     setSalaId(novaSalaId);
@@ -99,7 +101,12 @@ export function CamposOndeFica({ opcoes, valores, errosDoCampo }: Props) {
 
   function escolherMovel(novoMovelId: string) {
     setMovelId(novoMovelId);
-    if (novoMovelId === "") {
+    // Armário tem 2 prateleiras e estante 6: limpa a que não existe no móvel novo.
+    const novo = opcoes.moveis.find((movel) => movel.id === novoMovelId);
+    if (
+      novo === undefined ||
+      (prateleira !== "" && !prateleiraValida(novo.tipo, Number(prateleira)))
+    ) {
       setPrateleira("");
     }
   }
@@ -161,11 +168,15 @@ export function CamposOndeFica({ opcoes, valores, errosDoCampo }: Props) {
         rotulo="Prateleira"
         valor={prateleira}
         aoMudar={setPrateleira}
-        desativado={movelId === ""}
-        opcoes={PRATELEIRAS.map((numero) => ({
-          valor: String(numero),
-          texto: rotuloDaPrateleira(numero),
-        }))}
+        desativado={movelEscolhido === undefined}
+        opcoes={
+          movelEscolhido === undefined
+            ? []
+            : prateleirasDoMovel(movelEscolhido.tipo).map((numero) => ({
+                valor: String(numero),
+                texto: rotuloDaPrateleira(movelEscolhido.tipo, numero),
+              }))
+        }
         erros={errosDoCampo("prateleira")}
       />
     </>

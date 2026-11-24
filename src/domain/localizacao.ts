@@ -7,13 +7,33 @@
 export const TIPOS_DE_MOVEL = ["ARMARIO", "ESTANTE"] as const;
 export type TipoDeMovel = (typeof TIPOS_DE_MOVEL)[number];
 
-/** Prateleira 1 é a parte superior do móvel; 6 é a mais baixa. */
+/**
+ * Prateleiras de cada tipo de móvel (ADR 0011):
+ * - armário: 2 — uma prateleira divide o interior em dois: 1 = a de cima, 2 = a de baixo;
+ * - estante: 6 — 1 = a parte superior (em cima da estante), 2 a 6 = as cinco
+ *   prateleiras de dentro, de cima para baixo.
+ * O banco aceita de 1 a 6 em qualquer caso (`CHECK`) e confere o limite de cada
+ * tipo num gatilho; o serviço confere antes, com mensagem por campo.
+ */
 export const PRATELEIRA_MINIMA = 1;
 export const PRATELEIRA_MAXIMA = 6;
-export const PRATELEIRAS: readonly number[] = Array.from(
-  { length: PRATELEIRA_MAXIMA - PRATELEIRA_MINIMA + 1 },
-  (_, indice) => PRATELEIRA_MINIMA + indice,
-);
+export const PRATELEIRAS_POR_TIPO: Readonly<Record<TipoDeMovel, number>> = {
+  ARMARIO: 2,
+  ESTANTE: 6,
+};
+
+/** As prateleiras que um móvel tem, de cima para baixo. */
+export function prateleirasDoMovel(tipo: TipoDeMovel): readonly number[] {
+  return Array.from({ length: PRATELEIRAS_POR_TIPO[tipo] }, (_, indice) => indice + 1);
+}
+
+export function prateleiraValida(tipo: TipoDeMovel, prateleira: number): boolean {
+  return (
+    Number.isInteger(prateleira) &&
+    prateleira >= PRATELEIRA_MINIMA &&
+    prateleira <= PRATELEIRAS_POR_TIPO[tipo]
+  );
+}
 
 /**
  * Nome da sala. Salas não têm nome (todas são de estoque): quando o andar tem
@@ -28,11 +48,20 @@ export function rotuloDoMovel(tipo: TipoDeMovel, numero: number): string {
   return tipo === "ARMARIO" ? `${numero}º armário` : `${numero}ª estante`;
 }
 
-export function rotuloDaPrateleira(prateleira: number): string {
+export function rotuloDaPrateleira(tipo: TipoDeMovel, prateleira: number): string {
+  if (tipo === "ARMARIO") {
+    if (prateleira === 1) {
+      return "Prateleira 1 (de cima)";
+    }
+    if (prateleira === 2) {
+      return "Prateleira 2 (de baixo)";
+    }
+    return `Prateleira ${prateleira}`;
+  }
   if (prateleira === PRATELEIRA_MINIMA) {
     return `Prateleira ${prateleira} (parte superior)`;
   }
-  if (prateleira === PRATELEIRA_MAXIMA) {
+  if (prateleira === PRATELEIRAS_POR_TIPO.ESTANTE) {
     return `Prateleira ${prateleira} (a mais baixa)`;
   }
   return `Prateleira ${prateleira}`;
@@ -67,6 +96,10 @@ export function rotulosDeLocalizacao(item: LocalizacaoDoItem): RotulosDeLocaliza
     andar: item.sala.andar.nome,
     sala: rotuloDaSala(item.sala.numero, item.sala.andar._count.salas),
     movel: item.movel === null ? null : rotuloDoMovel(item.movel.tipo, item.movel.numero),
-    prateleira: item.prateleira === null ? null : rotuloDaPrateleira(item.prateleira),
+    // A prateleira só existe com móvel (restrição no banco).
+    prateleira:
+      item.prateleira === null || item.movel === null
+        ? null
+        : rotuloDaPrateleira(item.movel.tipo, item.prateleira),
   };
 }

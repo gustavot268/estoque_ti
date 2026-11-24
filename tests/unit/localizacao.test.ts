@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  PRATELEIRAS,
+  prateleirasDoMovel,
+  prateleiraValida,
   rotuloDaPrateleira,
   rotuloDaSala,
   rotuloDoMovel,
@@ -19,11 +20,22 @@ describe("localização em hierarquia (ADR 0011)", () => {
     expect(rotuloDoMovel("ESTANTE", 1)).toBe("1ª estante");
   });
 
-  it("prateleiras de 1 (parte superior) a 6 (a mais baixa)", () => {
-    expect(PRATELEIRAS).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(rotuloDaPrateleira(1)).toBe("Prateleira 1 (parte superior)");
-    expect(rotuloDaPrateleira(3)).toBe("Prateleira 3");
-    expect(rotuloDaPrateleira(6)).toBe("Prateleira 6 (a mais baixa)");
+  it("armário tem 2 prateleiras (de cima e de baixo); estante tem 6", () => {
+    expect(prateleirasDoMovel("ARMARIO")).toEqual([1, 2]);
+    expect(prateleirasDoMovel("ESTANTE")).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(prateleiraValida("ARMARIO", 2)).toBe(true);
+    expect(prateleiraValida("ARMARIO", 3)).toBe(false);
+    expect(prateleiraValida("ESTANTE", 6)).toBe(true);
+    expect(prateleiraValida("ESTANTE", 7)).toBe(false);
+    expect(prateleiraValida("ESTANTE", 0)).toBe(false);
+  });
+
+  it("nomes das prateleiras de cada tipo", () => {
+    expect(rotuloDaPrateleira("ARMARIO", 1)).toBe("Prateleira 1 (de cima)");
+    expect(rotuloDaPrateleira("ARMARIO", 2)).toBe("Prateleira 2 (de baixo)");
+    expect(rotuloDaPrateleira("ESTANTE", 1)).toBe("Prateleira 1 (parte superior)");
+    expect(rotuloDaPrateleira("ESTANTE", 3)).toBe("Prateleira 3");
+    expect(rotuloDaPrateleira("ESTANTE", 6)).toBe("Prateleira 6 (a mais baixa)");
   });
 
   it("monta os rótulos de onde o item fica; móvel e prateleira podem faltar", () => {

@@ -42,7 +42,7 @@ const MATERIAL: LinhaDeMaterial = {
   andar: "15º andar",
   sala: "Estoque",
   movel: "1º armário",
-  prateleira: "Prateleira 1 (parte superior)",
+  prateleira: "Prateleira 1 (de cima)",
   dataUltimaContagem: new Date("2026-10-08T00:00:00.000Z"),
   observacoes: null,
   criadoPor: "Fulano",

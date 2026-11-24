@@ -8,13 +8,15 @@
  *   Exceção da regra 4.2: numa edição, a sala que o item JÁ tinha pode
  *   continuar mesmo que algum desses níveis tenha sido desativado;
  * - o móvel, se informado, precisa ser da sala escolhida;
- * - a prateleira (1 a 6) só pode ser informada junto com um móvel.
+ * - a prateleira só pode ser informada junto com um móvel, e precisa existir
+ *   nele: armário tem 2 (1 = de cima, 2 = de baixo), estante tem 6.
  *
  * O banco confere as duas últimas de novo (gatilho e `CHECK` da migração
  * 20261124120000) — aqui elas viram mensagens por campo.
  */
 
 import { ValorDeListaInvalidoError } from "../domain/erros";
+import { PRATELEIRAS_POR_TIPO, prateleiraValida } from "../domain/localizacao";
 import type { ClientePrisma } from "../infrastructure/prisma/criar-cliente";
 import {
   obterMovelPorId,
@@ -54,6 +56,18 @@ export async function validarOndeFica(
     throw new ValorDeListaInvalidoError(
       "prateleira",
       "Escolha o móvel antes de informar a prateleira.",
+    );
+  }
+
+  // Armário tem 2 prateleiras; estante, 6 (ADR 0011).
+  if (
+    entrada.prateleira !== null &&
+    movel !== null &&
+    !prateleiraValida(movel.tipo, entrada.prateleira)
+  ) {
+    throw new ValorDeListaInvalidoError(
+      "prateleira",
+      `Este móvel tem só as prateleiras de 1 a ${PRATELEIRAS_POR_TIPO[movel.tipo]}.`,
     );
   }
 }

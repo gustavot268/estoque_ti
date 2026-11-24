@@ -59,7 +59,7 @@ describe("esquemaCriarEquipamento", () => {
     ).toBe(false);
   });
 
-  it("prateleira vai de 1 (parte superior) a 6 (a mais baixa), só números inteiros", () => {
+  it("prateleira é um número de 1 a 6 (o limite de cada tipo de móvel é conferido no serviço)", () => {
     for (const valida of ["1", "6", 3]) {
       expect(
         esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, prateleira: valida }).success,

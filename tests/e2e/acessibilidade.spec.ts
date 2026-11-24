@@ -11,6 +11,7 @@ import {
   idDaCategoriaDeMaterial,
   idDaSala,
   idDaUnidadeDeMedida,
+  idDoArmarioDo15,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -84,6 +85,16 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
 
   test("página inicial não tem violação WCAG A/AA", async ({ page }) => {
     await page.goto("/");
+    expect(await auditar(page)).toEqual([]);
+  });
+
+  test("pesquisa de patrimônio (mapa, destaque e móvel aberto) não tem violação WCAG A/AA", async ({
+    page,
+  }) => {
+    const prisma = obterClienteDeTeste();
+    const salaId = await idDaSala(prisma, "15º andar");
+    const movelId = await idDoArmarioDo15(prisma, 1);
+    await page.goto(`/patrimonio?busca=${prefixo}&salaId=${salaId}&movelId=${movelId}`);
     expect(await auditar(page)).toEqual([]);
   });
 

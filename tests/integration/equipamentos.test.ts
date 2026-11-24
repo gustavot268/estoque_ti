@@ -168,6 +168,14 @@ describe("cadastrarEquipamento (caso de uso)", () => {
         entradaBase({ numeroSerie: `sn-${randomUUID()}`, prateleira: "3" }),
       ),
     ).rejects.toMatchObject({ campo: "prateleira" });
+    // Armário tem só as prateleiras 1 e 2.
+    await expect(
+      cadastrarEquipamento(
+        prisma,
+        ator,
+        entradaBase({ numeroSerie: `sn-${randomUUID()}`, movelId: armarioDo15, prateleira: "3" }),
+      ),
+    ).rejects.toMatchObject({ campo: "prateleira" });
     for (const prateleira of ["0", "7"]) {
       await expect(
         cadastrarEquipamento(

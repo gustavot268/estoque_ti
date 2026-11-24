@@ -205,6 +205,14 @@ function construirFiltro(
   return filtro;
 }
 
+/**
+ * Itens ativos que casam com a busca — a mesma regra da lista, reaproveitada
+ * pela pesquisa de patrimônio (ADR 0011).
+ */
+export function filtroDeBuscaDeEquipamentos(busca: string): Prisma.EquipamentoWhereInput {
+  return construirFiltro({ busca });
+}
+
 /** Listagem paginada, filtrada e ordenada — processada inteiramente no banco. */
 export async function listarPaginado(prisma: ClientePrisma, opcoes: OpcoesDeListagem) {
   const where = construirFiltro(opcoes.filtros);

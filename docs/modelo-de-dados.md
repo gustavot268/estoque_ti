@@ -40,7 +40,7 @@
 | `statusId` | UUID (FK → `StatusFuncionamento`) | sim | |
 | `salaId` | UUID (FK → `Sala`) | sim | Onde o item fica (ADR 0011). Andar e unidade vêm da sala; o andar é a única parte da localização que aparece na lista |
 | `movelId` | UUID (FK → `Movel`) | não | Armário ou estante da mesma sala (gatilho `conferir_movel_da_sala`). Aparece nos detalhes e na planilha |
-| `prateleira` | inteiro | não | 1 (parte superior) a 6 (a mais baixa); só com móvel (`CHECK`). Aparece nos detalhes e na planilha |
+| `prateleira` | inteiro | não | Só com móvel. Armário: 1 (de cima) ou 2 (de baixo); estante: 1 (parte superior) a 6 (a mais baixa). `CHECK` de 1 a 6 e gatilho com o limite de cada tipo. Aparece nos detalhes e na planilha |
 | `observacoes` | texto | não | Ver limite de tamanho e orientação anti-dado-sensível em [`docs/inventario-de-dados.md`](inventario-de-dados.md) |
 | `criadoEm` | timestamptz | sim | Automático |
 | `atualizadoEm` | timestamptz | sim | Automático |
@@ -96,7 +96,7 @@ Controle por Quantidade".
 | `estoqueMinimo` | inteiro | não | `CHECK (estoque_minimo >= 0)`. `null` = sem mínimo |
 | `salaId` | UUID (FK → `Sala`) | sim | Mesma localização dos equipamentos (ADR 0011); o andar é a única parte mostrada na lista |
 | `movelId` | UUID (FK → `Movel`) | não | Mesmas regras do equipamento |
-| `prateleira` | inteiro | não | Mesmas regras do equipamento (1 a 6, só com móvel) |
+| `prateleira` | inteiro | não | Mesmas regras do equipamento (só com móvel; armário 1–2, estante 1–6) |
 | `dataUltimaContagem` | `date` | não | Só o dia, sem hora nem fuso — por isso é exibido sem conversão para Brasília (ver `formatarDataDoCalendario` em `src/domain/data-e-hora.ts`). Não aceita dia depois de hoje |
 | `observacoes` | texto | não | Mesma orientação anti-dado-sensível do equipamento |
 | `foto`, `fotoTipoMime`, `fotoNomeArquivo`, `fotoTamanho` | binário + metadados | não | Foto opcional, mesmas regras da foto do equipamento: JPEG, PNG ou WEBP até 5 MB, conferidos pela assinatura dos bytes (`src/domain/imagem.ts`). O binário nunca entra na listagem, nos detalhes, na exportação nem na auditoria (que guarda só `temFoto`); só a rota autenticada `GET /api/materiais/[id]/foto` o lê |
@@ -125,7 +125,8 @@ Decisões completas em [ADR 0011](adr/0011-localizacao-em-hierarquia-e-mapa.md).
 | `moveis` | `salaId`, `tipo` (`ARMARIO`/`ESTANTE`), `numero`, `posicao` | Nome "Nº armário"/"Nª estante" pelo número fixo, contado por tipo na sala. `posicao` é a ordem na fileira do mapa. Criados só pelo mapa da tela "Pesquisar patrimônio" |
 
 Integridade garantida no banco, além do serviço: `CHECK` da prateleira (1 a 6, só com
-móvel), gatilho `conferir_movel_da_sala` (o móvel do item é da sala do item) e gatilho
+móvel), gatilho `conferir_movel_da_sala` (o móvel do item é da sala do item e, num armário,
+a prateleira é 1 ou 2 — migração `20261124140000_prateleiras_por_tipo_de_movel`) e gatilho
 `conferir_mudanca_de_sala_do_movel` (móvel com itens não muda de sala).
 
 Histórico: até a migração `20261124120000_localizacao_em_hierarquia`, a localização era

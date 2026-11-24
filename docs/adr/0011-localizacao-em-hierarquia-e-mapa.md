@@ -1,6 +1,6 @@
 # ADR 0011 — Localização em hierarquia e mapa de móveis ("Pesquisar patrimônio")
 
-- Status: aceito — parte 1 (localização em hierarquia, #33) implementada; partes 2 e 3 (#34, #35) pendentes
+- Status: aceito — partes 1 e 2 (localização em hierarquia, #33; tela de pesquisa, #34) implementadas; parte 3 (modo edição, #35) pendente
 - Relacionado: issue #28 (Pesquisar patrimônio), [ADR 0005](0005-concorrencia-otimista.md)
   (concorrência otimista), [ADR 0008](0008-auditoria-append-only.md) (auditoria),
   [`docs/modelo-de-dados.md`](../modelo-de-dados.md),
@@ -24,7 +24,7 @@ no futuro, uma "sala principal" com gavetas). O 16º tem dois estoques com estan
 ### Hierarquia
 
 ```
-Unidade → Andar → Sala → Móvel (armário ou estante) → Prateleira (1 a 6)
+Unidade → Andar → Sala → Móvel (armário ou estante) → Prateleira
 ```
 
 - **Unidade** — nova lista controlada (Escritório, lojas…). Os dados atuais vão para a unidade
@@ -38,8 +38,15 @@ Unidade → Andar → Sala → Móvel (armário ou estante) → Prateleira (1 a 
 - **Móvel** — pertence a uma sala. Tipos: **armário** e **estante** (a estrutura deve permitir
   tipos novos depois, como as gavetas da "sala principal"). Os móveis ficam numa **fileira
   única**; a ordem na fileira é guardada no banco.
-- **Prateleira** — número de **1 a 6**: 1 é a parte superior do móvel e 6 a prateleira mais
-  baixa. Armário e estante têm 6 posições. Substitui a lista "Orientação".
+- **Prateleira** — depende do tipo de móvel (correção do responsável, com os desenhos de
+  cada um):
+  - **armário**: **2** — uma prateleira divide o interior em dois: **1 = de cima**,
+    **2 = de baixo**;
+  - **estante**: **6** — **1 = parte superior** (em cima dela), **2 a 6** = os cinco
+    espaços de dentro, de cima para baixo.
+
+  Substitui a lista "Orientação". O banco aceita de 1 a 6 (`CHECK`) e confere o limite de
+  cada tipo num gatilho (migração `20261124140000_prateleiras_por_tipo_de_movel`).
 
 ### Nome dos móveis: número fixo
 

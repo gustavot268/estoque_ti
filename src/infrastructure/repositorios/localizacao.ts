@@ -57,8 +57,8 @@ export async function obterSalaParaValidacao(
 export async function obterMovelPorId(
   prisma: ClientePrisma,
   id: string,
-): Promise<{ readonly id: string; readonly salaId: string } | null> {
-  return prisma.movel.findUnique({ where: { id }, select: { id: true, salaId: true } });
+): Promise<{ readonly id: string; readonly salaId: string; readonly tipo: TipoMovel } | null> {
+  return prisma.movel.findUnique({ where: { id }, select: { id: true, salaId: true, tipo: true } });
 }
 
 export type OpcaoDeUnidade = { readonly id: string; readonly nome: string };
