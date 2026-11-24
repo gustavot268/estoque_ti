@@ -56,4 +56,6 @@ next-env.d.ts
 *.sql.gz
 
 # Estado local de ferramentas de agente (não é parte do projeto)
-/.claude/
+/.claude/*
+# Exceção: os subagentes do projeto são versionados
+!/.claude/agents/

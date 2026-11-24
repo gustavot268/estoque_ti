@@ -54,6 +54,7 @@ docs
 README.md
 AGENTS.md
 CLAUDE.md
+.claude
 Dockerfile*
 docker-compose*.yml
 .dockerignore
