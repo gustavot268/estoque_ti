@@ -254,9 +254,9 @@ export function CamposDoMaterial({
       <CamposOndeFica
         opcoes={listas.ondeFica}
         valores={{
-          andarId: valores.andarId,
-          localArmazenamentoId: valores.localArmazenamentoId,
-          orientacaoId: valores.orientacaoId,
+          salaId: valores.salaId === "" ? null : valores.salaId,
+          movelId: valores.movelId === "" ? null : valores.movelId,
+          prateleira: valores.prateleira === "" ? null : Number(valores.prateleira),
         }}
         errosDoCampo={erros}
       />

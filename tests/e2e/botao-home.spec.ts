@@ -6,7 +6,7 @@ import {
   criarAtorDeTeste,
   criarUsuarioDeTeste,
   idDaCategoria,
-  idDoAndar,
+  idDaSala,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -40,7 +40,7 @@ test.beforeAll(async () => {
     numeroSerie: `${prefixo}-sn`,
     codigoTrillogo: null,
     statusId: await idDoStatus(prisma, "Operacional"),
-    andarId: await idDoAndar(prisma, "15º andar"),
+    salaId: await idDaSala(prisma, "15º andar"),
     observacoes: null,
   });
   equipamentoId = equipamento.id;

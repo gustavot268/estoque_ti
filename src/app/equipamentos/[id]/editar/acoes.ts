@@ -39,9 +39,9 @@ function extrairEntradaDoFormulario(dados: FormData): Record<string, unknown> {
     numeroSerie: dados.get("numeroSerie"),
     codigoTrillogo: dados.get("codigoTrillogo"),
     statusId: dados.get("statusId"),
-    andarId: dados.get("andarId"),
-    localArmazenamentoId: dados.get("localArmazenamentoId"),
-    orientacaoId: dados.get("orientacaoId"),
+    salaId: dados.get("salaId"),
+    movelId: dados.get("movelId"),
+    prateleira: dados.get("prateleira"),
     observacoes: dados.get("observacoes"),
     versao,
   };

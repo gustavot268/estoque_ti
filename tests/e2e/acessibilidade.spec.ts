@@ -9,8 +9,8 @@ import {
   criarUsuarioDeTeste,
   idDaCategoria,
   idDaCategoriaDeMaterial,
+  idDaSala,
   idDaUnidadeDeMedida,
-  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -50,7 +50,7 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
       // Com código, para o selo lilás do Trillogo entrar na auditoria de contraste.
       codigoTrillogo: `${prefixo}-tr`,
       statusId: await idDoStatus(prisma, "Operacional"),
-      andarId: await idDoAndar(prisma, "15º andar"),
+      salaId: await idDaSala(prisma, "15º andar"),
       observacoes: null,
     });
     equipamentoId = equipamento.id;
@@ -66,7 +66,7 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
       unidadeMedidaId: await idDaUnidadeDeMedida(prisma, "Unidade"),
       quantidade: "1",
       estoqueMinimo: "5",
-      andarId: await idDoAndar(prisma, "15º andar"),
+      salaId: await idDaSala(prisma, "15º andar"),
       dataUltimaContagem: "",
       observacoes: "",
     });

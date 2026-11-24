@@ -263,7 +263,7 @@ export function FormularioCadastroDeEquipamento({
 
         <CamposOndeFica
           opcoes={ondeFica}
-          valores={{ andarId: "", localArmazenamentoId: "", orientacaoId: "" }}
+          valores={{ salaId: null, movelId: null, prateleira: null }}
           errosDoCampo={errosDoCampo}
         />
 

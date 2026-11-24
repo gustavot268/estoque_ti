@@ -53,6 +53,8 @@ export async function criarValorDeListaAction(
       tipo,
       extrairEntradaDoFormulario(dadosDoFormulario),
       extrairAtribuicoesDoFormulario(dadosDoFormulario),
+      // Só andar tem unidade (ADR 0011); nos demais tipos o serviço ignora.
+      tipo === "andar" ? dadosDoFormulario.get("unidadeId") : undefined,
     );
   } catch (erro) {
     if (erro instanceof EntradaInvalidaError) {

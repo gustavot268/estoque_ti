@@ -191,7 +191,8 @@ pnpm db:seed
 ```
 
 Popula as listas controladas com os valores iniciais do cliente (Categoria, Marca,
-Status de funcionamento, Andar, Local de armazenamento, Orientação) e um ponto de partida para as listas dos materiais
+Status de funcionamento; a unidade Escritório com o 15º e o 16º andar, uma sala de estoque em
+cada e o 1º armário do 15º) e um ponto de partida para as listas dos materiais
 (Categoria de material, Unidade de medida). O seed é **idempotente**: executá-lo mais de
 uma vez não duplica registros (usa `upsert` por `nomeNormalizado`) e não desfaz o que a
 Administração já tiver editado. Detalhes do modelo e dos valores semente em
@@ -293,12 +294,15 @@ consulta e de cadastro) e da mesma planilha exportada:
   individual e numerosos (cabos, conectores, adaptadores…), um registro por peça em cada
   lugar, com a quantidade contada. Os campos são as colunas da planilha de controle:
   código Trillogo, categoria, tipo, especificação, marca (opcional), unidade de
-  medida, quantidade, estoque mínimo, andar, local de armazenamento, orientação, data da
-  última contagem, observações e quem cadastrou.
+  medida, quantidade, estoque mínimo, onde fica (unidade, andar, sala, móvel e prateleira),
+  data da última contagem, observações e quem cadastrou.
 
-Nos dois tipos de item, a localização é dividida em três listas controladas: **Andar**
-(obrigatório e a única que aparece na lista), **Local de armazenamento** e **Orientação**
-(opcionais; aparecem nos detalhes e na planilha). Nenhum dos dois tem campo "Nome": o
+Nos dois tipos de item, a localização é uma hierarquia (ADR 0011): **Unidade → Andar →
+Sala → Móvel → Prateleira**. Unidade, andar e sala são obrigatórios (escolhidos em cascata
+no formulário; o item guarda a sala); móvel (armário ou estante) e prateleira (1 = parte
+superior … 6 = a mais baixa) são opcionais. Só o andar aparece na lista; o resto aparece
+nos detalhes e na planilha. Os móveis são criados no mapa da tela "Pesquisar patrimônio".
+Nenhum dos dois tem campo "Nome": o
 título exibido é montado na hora — "Categoria Marca Modelo" no equipamento e
 "Categoria Tipo Especificação" no material.
 
@@ -312,7 +316,7 @@ Regras dos materiais:
   abaixo dele ("Abaixo do mínimo"); a planilha destaca a célula da quantidade com a mesma
   cor.
 - Categoria de material e Unidade de medida são listas controladas próprias, em
-  "Gerenciar listas"; Marca, Andar, Local de armazenamento e Orientação são as mesmas dos
+  "Gerenciar listas"; Marca, Unidade, Andar e as salas de cada andar são as mesmas dos
   equipamentos.
 - Mesmas regras de acesso dos equipamentos, com ações próprias (`*_MATERIAL`) — ver
   [`docs/permissoes.md`](docs/permissoes.md).

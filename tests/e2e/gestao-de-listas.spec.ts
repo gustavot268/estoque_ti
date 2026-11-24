@@ -5,7 +5,7 @@ import {
   CABECALHO_DE_PERFIL_DE_TESTE,
   criarAtorDeTeste,
   criarUsuarioDeTeste,
-  idDoAndar,
+  idDaSala,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -76,7 +76,7 @@ test.describe("gestão de listas controladas (perfil Administração)", () => {
       numeroSerie: `${prefixo}-em-uso-sn`,
       codigoTrillogo: null,
       statusId: await idDoStatus(prisma, "Operacional"),
-      andarId: await idDoAndar(prisma, "15º andar"),
+      salaId: await idDaSala(prisma, "15º andar"),
       observacoes: null,
     });
 

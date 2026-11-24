@@ -9,9 +9,8 @@ export const ROTULOS_DE_TIPO_DE_LISTA: Readonly<Record<TipoDeLista, string>> = {
   categoria: "Categoria",
   fabricante: "Marca",
   status: "Status de funcionamento",
+  unidade: "Unidade",
   andar: "Andar",
-  "local-armazenamento": "Local de armazenamento",
-  orientacao: "Orientação",
   "categoria-material": "Categoria de material",
   "unidade-medida": "Unidade de medida",
 };

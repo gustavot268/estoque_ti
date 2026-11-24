@@ -19,12 +19,10 @@ import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../infrastructure/prisma/cliente";
 import {
-  listarAndaresAtivos,
   listarCategoriasAtivas,
-  listarLocaisDeArmazenamentoAtivos,
-  listarOrientacoesAtivas,
   listarStatusFuncionamentoAtivos,
 } from "../../../infrastructure/repositorios/listas-controladas";
+import { listarOpcoesDeLocalizacao } from "../../../infrastructure/repositorios/localizacao";
 import { listarMarcasAtivasComCategorias } from "../../../infrastructure/repositorios/marcas-por-categoria";
 
 export const metadata: Metadata = { title: "Cadastrar equipamento" };
@@ -57,26 +55,20 @@ export default async function PaginaDeCadastro() {
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
-  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
-  let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
-  let orientacoes: Awaited<ReturnType<typeof listarOrientacoesAtivas>>;
+  let ondeFica: Awaited<ReturnType<typeof listarOpcoesDeLocalizacao>>;
   try {
     const prisma = obterPrisma();
-    [categorias, fabricantes, statusFuncionamento, andares, locaisDeArmazenamento, orientacoes] =
-      await Promise.all([
-        listarCategoriasAtivas(prisma),
-        listarMarcasAtivasComCategorias(prisma),
-        listarStatusFuncionamentoAtivos(prisma),
-        listarAndaresAtivos(prisma),
-        listarLocaisDeArmazenamentoAtivos(prisma),
-        listarOrientacoesAtivas(prisma),
-      ]);
+    [categorias, fabricantes, statusFuncionamento, ondeFica] = await Promise.all([
+      listarCategoriasAtivas(prisma),
+      listarMarcasAtivasComCategorias(prisma),
+      listarStatusFuncionamentoAtivos(prisma),
+      listarOpcoesDeLocalizacao(prisma),
+    ]);
   } catch (erro) {
     logger.error("Falha ao carregar as listas controladas na tela de cadastro.", { erro });
     return <MensagemDeIndisponibilidade />;
   }
 
-  const paraOpcao = (valor: { id: string; nome: string }) => ({ id: valor.id, nome: valor.nome });
   const fabricanteOutro = fabricantes.find((fabricante) => fabricante.nomeNormalizado === "outro");
 
   return (
@@ -96,11 +88,7 @@ export default async function PaginaDeCadastro() {
             id: status.id,
             nome: status.nome,
           }))}
-          ondeFica={{
-            andares: andares.map(paraOpcao),
-            locaisDeArmazenamento: locaisDeArmazenamento.map(paraOpcao),
-            orientacoes: orientacoes.map(paraOpcao),
-          }}
+          ondeFica={ondeFica}
           fabricanteOutroId={fabricanteOutro?.id ?? null}
         />
       </MolduraDeAbas>

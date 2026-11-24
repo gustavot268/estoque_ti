@@ -24,10 +24,8 @@ import { acoesPermitidas, exigirPermissao } from "../../domain/permissoes";
 import { obterAtorAtual } from "../../infrastructure/auth/ator-atual";
 import { logger } from "../../infrastructure/observability/logger";
 import { obterPrisma } from "../../infrastructure/prisma/cliente";
-import {
-  listarAndaresAtivos,
-  listarCategoriasDeMaterialAtivas,
-} from "../../infrastructure/repositorios/listas-controladas";
+import { listarCategoriasDeMaterialAtivas } from "../../infrastructure/repositorios/listas-controladas";
+import { listarAndaresParaFiltro } from "../../infrastructure/repositorios/localizacao";
 import { listarMateriais } from "../../services/materiais";
 import type { CampoOrdenavelDeMaterial, EntradaConsultaMateriais } from "../../validation/material";
 import { arquivarMaterialDaListaAction } from "./acoes";
@@ -167,11 +165,11 @@ export default async function PaginaDeConsultaDeMateriais({
 
   const prisma = obterPrisma();
   let categorias: Awaited<ReturnType<typeof listarCategoriasDeMaterialAtivas>>;
-  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
+  let andares: Awaited<ReturnType<typeof listarAndaresParaFiltro>>;
   try {
     [categorias, andares] = await Promise.all([
       listarCategoriasDeMaterialAtivas(prisma),
-      listarAndaresAtivos(prisma),
+      listarAndaresParaFiltro(prisma),
     ]);
   } catch (erro) {
     logger.error("Falha ao carregar as listas controladas na consulta de materiais.", { erro });
@@ -222,6 +220,9 @@ export default async function PaginaDeConsultaDeMateriais({
   const erroBruto = primeiroValor(brutos.erro);
   const mensagemDeErro =
     erroBruto !== undefined ? (MENSAGENS_DE_ERRO_DO_ARQUIVAMENTO[erroBruto] ?? null) : null;
+
+  // O nome do andar só é único dentro da unidade: com mais de uma, o filtro mostra as duas.
+  const variasUnidades = new Set(andares.map((andar) => andar.unidade)).size > 1;
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8">
@@ -340,7 +341,7 @@ export default async function PaginaDeConsultaDeMateriais({
                 <option value="">Todos</option>
                 {andares.map((andar) => (
                   <option key={andar.id} value={andar.id}>
-                    {andar.nome}
+                    {variasUnidades ? `${andar.unidade} · ${andar.nome}` : andar.nome}
                   </option>
                 ))}
               </select>
@@ -473,7 +474,9 @@ export default async function PaginaDeConsultaDeMateriais({
                         <td className="border-b border-borda px-3 py-3 tabular-nums">
                           {material.estoqueMinimo ?? "—"}
                         </td>
-                        <td className="border-b border-borda px-3 py-3">{material.andar.nome}</td>
+                        <td className="border-b border-borda px-3 py-3">
+                          {material.sala.andar.nome}
+                        </td>
                         <td className="border-b border-borda px-3 py-3">
                           {material.dataUltimaContagem === null
                             ? "—"
@@ -538,7 +541,7 @@ export default async function PaginaDeConsultaDeMateriais({
                       )}
                     </span>
                     <span className="text-sm text-texto-suave">
-                      {material.andar.nome}
+                      {material.sala.andar.nome}
                       {material.dataUltimaContagem !== null &&
                         ` · contado em ${formatarDataDoCalendario(material.dataUltimaContagem)}`}
                     </span>

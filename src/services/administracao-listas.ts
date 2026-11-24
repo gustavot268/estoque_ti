@@ -1,9 +1,11 @@
 /**
  * Casos de uso de administração das listas controladas (Categoria,
- * Fabricante, Status de funcionamento, Andar, Local de armazenamento, Orientação e as
- * listas dos materiais:
- * Categoria de material e Unidade de medida) — Etapa 7, restrito ao perfil
- * Administração (`GERENCIAR_LISTAS`).
+ * Fabricante, Status de funcionamento, Unidade, Andar e as listas dos
+ * materiais: Categoria de material e Unidade de medida) — Etapa 7, restrito
+ * ao perfil Administração (`GERENCIAR_LISTAS`).
+ *
+ * Andar (ADR 0011): pertence a uma unidade, e o nome é único dentro dela. As
+ * salas de cada andar ficam em `src/services/salas.ts`.
  *
  * Reaproveita o mesmo esquema de validação (`esquemaValorDeListaControlada`)
  * e a mesma normalização de nome (ADR 0004) já usados pelo fluxo "Outro" de
@@ -15,6 +17,7 @@
  * auditoria.
  */
 
+import { z } from "zod";
 import type { AtorAutenticado } from "../domain/ator";
 import {
   ConflitoDeUnicidadeError,
@@ -46,7 +49,7 @@ import {
   obterCategoriasDaMarca,
   resumoDasCategoriasPorMarca,
 } from "../infrastructure/repositorios/marcas-por-categoria";
-import { errosPorCampo } from "../validation/comum";
+import { errosPorCampo, uuidObrigatorio } from "../validation/comum";
 import { esquemaValorDeListaControlada } from "../validation/equipamento";
 import { esquemaAtribuicoesDaMarca } from "../validation/marcas-por-categoria";
 
@@ -84,6 +87,8 @@ function paraAuditoria(tipo: TipoDeLista, valor: ValorDeLista, atribuicoes?: Atr
     nome: valor.nome,
     ativo: valor.ativo,
     ordemExibicao: valor.ordemExibicao,
+    // Só andar tem unidade.
+    ...(valor.unidadeId !== null ? { unidadeId: valor.unidadeId } : {}),
     // Só marcas, e só quando a tela mandou as categorias.
     ...(atribuicoes !== undefined
       ? {
@@ -124,6 +129,54 @@ async function validarAtribuicoes(
   return atribuicoes;
 }
 
+const MENSAGEM_DE_NOME_REPETIDO = "Já existe um valor com este nome nesta lista.";
+const MENSAGEM_DE_ANDAR_REPETIDO = "Esta unidade já tem um andar com este nome.";
+
+/** Mensagem de "em uso" de cada tipo: unidade e andar dependem do nível de baixo, não de itens. */
+function mensagemDeEmUso(tipo: TipoDeLista): string | undefined {
+  if (tipo === "unidade") {
+    return "Esta unidade tem andares cadastrados. Exclua ou mude os andares de unidade antes.";
+  }
+  if (tipo === "andar") {
+    return "Este andar tem salas cadastradas. Exclua as salas (vazias) antes.";
+  }
+  return undefined;
+}
+
+/**
+ * A unidade de um andar (ADR 0011): obrigatória, precisa existir e estar
+ * ativa — exceto, na edição, a unidade que o andar JÁ tinha (regra 4.2).
+ * Outros tipos não têm unidade: devolve `undefined`.
+ */
+async function validarUnidadeDoAndar(
+  prisma: PrismaClient,
+  tipo: TipoDeLista,
+  unidadeIdBruto: unknown,
+  unidadeAtualId?: string | null,
+): Promise<string | undefined> {
+  if (tipo !== "andar") {
+    return undefined;
+  }
+  // Dentro de um objeto, para o erro sair no campo `unidadeId` do formulário.
+  const resultado = z
+    .object({ unidadeId: uuidObrigatorio("a unidade") })
+    .safeParse({ unidadeId: unidadeIdBruto });
+  if (!resultado.success) {
+    throw new EntradaInvalidaError(errosPorCampo(resultado.error));
+  }
+  const unidadeId = resultado.data.unidadeId;
+  const unidade = await prisma.unidade.findUnique({
+    where: { id: unidadeId },
+    select: { ativo: true },
+  });
+  if (unidade === null || (!unidade.ativo && unidadeAtualId !== unidadeId)) {
+    throw new EntradaInvalidaError({
+      unidadeId: ["A unidade escolhida não está disponível. Escolha outra."],
+    });
+  }
+  return unidadeId;
+}
+
 /** Lista todos os valores (ativos e inativos) de um tipo — só a tela de administração usa isto. */
 export async function listarValoresDeLista(
   prisma: PrismaClient,
@@ -158,6 +211,8 @@ export async function criarValorDeLista(
   entradaBruta: unknown,
   /** Só para marca: `{ categoriaIds, categoriaMaterialIds }` (ADR 0010). */
   atribuicoesBrutas?: unknown,
+  /** Só para andar: a unidade a que ele pertence (ADR 0011). */
+  unidadeIdBruto?: unknown,
 ): Promise<ValorDeLista> {
   exigirPermissao(ator, "GERENCIAR_LISTAS");
   const tipo = validarTipo(tipoBruto);
@@ -168,10 +223,13 @@ export async function criarValorDeLista(
   }
   const entrada = resultado.data;
   const { exibicao, normalizado } = normalizarParDeNomeDeLista(entrada.nome);
+  const unidadeId = await validarUnidadeDoAndar(prisma, tipo, unidadeIdBruto);
+  const mensagemDeRepetido =
+    tipo === "andar" ? MENSAGEM_DE_ANDAR_REPETIDO : MENSAGEM_DE_NOME_REPETIDO;
 
-  const jaExiste = await existeNomeNormalizado(prisma, tipo, normalizado);
+  const jaExiste = await existeNomeNormalizado(prisma, tipo, normalizado, undefined, unidadeId);
   if (jaExiste) {
-    throw new ConflitoDeUnicidadeError("nome", "Já existe um valor com este nome nesta lista.");
+    throw new ConflitoDeUnicidadeError("nome", mensagemDeRepetido);
   }
   const atribuicoes = await validarAtribuicoes(prisma, tipo, atribuicoesBrutas);
 
@@ -182,6 +240,7 @@ export async function criarValorDeLista(
         nomeNormalizado: normalizado,
         ativo: entrada.ativo,
         ordemExibicao: entrada.ordemExibicao,
+        ...(unidadeId !== undefined ? { unidadeId } : {}),
       });
       if (atribuicoes !== undefined) {
         await definirCategoriasDaMarca(tx, valor.id, atribuicoes);
@@ -201,7 +260,7 @@ export async function criarValorDeLista(
     });
   } catch (erro) {
     if (isPrismaUniqueConstraintError(erro)) {
-      throw new ConflitoDeUnicidadeError("nome", "Já existe um valor com este nome nesta lista.");
+      throw new ConflitoDeUnicidadeError("nome", mensagemDeRepetido);
     }
     throw erro;
   }
@@ -215,6 +274,8 @@ export async function atualizarValorDeLista(
   entradaBruta: unknown,
   /** Só para marca: `{ categoriaIds, categoriaMaterialIds }` (ADR 0010). */
   atribuicoesBrutas?: unknown,
+  /** Só para andar: a unidade a que ele pertence (ADR 0011). */
+  unidadeIdBruto?: unknown,
 ): Promise<ValorDeLista> {
   exigirPermissao(ator, "GERENCIAR_LISTAS");
   const tipo = validarTipo(tipoBruto);
@@ -231,10 +292,13 @@ export async function atualizarValorDeLista(
   }
 
   const { exibicao, normalizado } = normalizarParDeNomeDeLista(entrada.nome);
-  if (normalizado !== atual.nomeNormalizado) {
-    const jaExiste = await existeNomeNormalizado(prisma, tipo, normalizado, id);
+  const unidadeId = await validarUnidadeDoAndar(prisma, tipo, unidadeIdBruto, atual.unidadeId);
+  const mensagemDeRepetido =
+    tipo === "andar" ? MENSAGEM_DE_ANDAR_REPETIDO : MENSAGEM_DE_NOME_REPETIDO;
+  if (normalizado !== atual.nomeNormalizado || unidadeId !== (atual.unidadeId ?? undefined)) {
+    const jaExiste = await existeNomeNormalizado(prisma, tipo, normalizado, id, unidadeId);
     if (jaExiste) {
-      throw new ConflitoDeUnicidadeError("nome", "Já existe um valor com este nome nesta lista.");
+      throw new ConflitoDeUnicidadeError("nome", mensagemDeRepetido);
     }
   }
   const atribuicoes = await validarAtribuicoes(prisma, tipo, atribuicoesBrutas);
@@ -248,6 +312,7 @@ export async function atualizarValorDeLista(
         nomeNormalizado: normalizado,
         ativo: entrada.ativo,
         ordemExibicao: entrada.ordemExibicao,
+        ...(unidadeId !== undefined ? { unidadeId } : {}),
       });
       if (atribuicoes !== undefined) {
         await definirCategoriasDaMarca(tx, id, atribuicoes);
@@ -268,7 +333,7 @@ export async function atualizarValorDeLista(
     });
   } catch (erro) {
     if (isPrismaUniqueConstraintError(erro)) {
-      throw new ConflitoDeUnicidadeError("nome", "Já existe um valor com este nome nesta lista.");
+      throw new ConflitoDeUnicidadeError("nome", mensagemDeRepetido);
     }
     throw erro;
   }
@@ -298,7 +363,7 @@ export async function excluirValorDeLista(
 
   const vinculados = await contarItensVinculados(prisma, tipo, id);
   if (vinculados > 0) {
-    throw new ValorDeListaEmUsoError();
+    throw new ValorDeListaEmUsoError(mensagemDeEmUso(tipo));
   }
 
   try {
@@ -316,7 +381,7 @@ export async function excluirValorDeLista(
     });
   } catch (erro) {
     if (isPrismaForeignKeyConstraintError(erro)) {
-      throw new ValorDeListaEmUsoError();
+      throw new ValorDeListaEmUsoError(mensagemDeEmUso(tipo));
     }
     throw erro;
   }

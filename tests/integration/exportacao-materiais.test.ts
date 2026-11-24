@@ -6,7 +6,7 @@ import { AcessoNegadoError, ExportacaoExcedeLimiteError } from "../../src/domain
 import { exportarEquipamentos, exportarMateriais } from "../../src/services/exportacao";
 import { cadastrarMaterial } from "../../src/services/materiais";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoriaDeMaterial, idDaUnidadeDeMedida, idDoAndar } from "./suporte/listas";
+import { idDaCategoriaDeMaterial, idDaSala, idDaUnidadeDeMedida } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -55,7 +55,7 @@ describe("exportação pela tela de materiais (planilha com as duas abas)", () =
       fabricanteOutroNome: "",
       unidadeMedidaId: await idDaUnidadeDeMedida(prisma, "Metro"),
       estoqueMinimo: "",
-      andarId: await idDoAndar(prisma, "16º andar"),
+      salaId: await idDaSala(prisma, "16º andar"),
       dataUltimaContagem: "",
       observacoes: "",
     };

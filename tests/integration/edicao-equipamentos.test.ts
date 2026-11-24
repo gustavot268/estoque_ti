@@ -18,10 +18,9 @@ import {
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
 import {
   idDaCategoria,
-  idDaOrientacao,
-  idDoAndar,
+  idDaSala,
+  idDoArmarioDo15,
   idDoFabricante,
-  idDoLocalDeArmazenamento,
   idDoStatus,
 } from "./suporte/listas";
 
@@ -33,7 +32,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
   let atorAdministracao: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -50,9 +49,9 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      andarId,
-      localArmazenamentoId: null,
-      orientacaoId: null,
+      salaId,
+      movelId: null,
+      prateleira: null,
       observacoes: null,
       ...sobrescritas,
     };
@@ -72,9 +71,9 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
       numeroSerie: string | null;
       codigoTrillogo: string | null;
       statusId: string;
-      andarId: string;
-      localArmazenamentoId: string | null;
-      orientacaoId: string | null;
+      salaId: string;
+      movelId: string | null;
+      prateleira: number | null;
       observacoes: string | null;
       versao: number;
     },
@@ -88,9 +87,9 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
       numeroSerie: equipamento.numeroSerie,
       codigoTrillogo: equipamento.codigoTrillogo,
       statusId: equipamento.statusId,
-      andarId: equipamento.andarId,
-      localArmazenamentoId: equipamento.localArmazenamentoId,
-      orientacaoId: equipamento.orientacaoId,
+      salaId: equipamento.salaId,
+      movelId: equipamento.movelId,
+      prateleira: equipamento.prateleira,
       observacoes: equipamento.observacoes,
       versao: equipamento.versao,
       ...sobrescritas,
@@ -108,7 +107,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -129,9 +128,7 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
 
   it("edita com sucesso: aplica as alterações, incrementa a versão e grava a auditoria", async () => {
     const original = await criar({ modelo: `${prefixo} Modelo A` });
-    const outroAndarId = await idDoAndar(prisma, "16º andar");
-    const localId = await idDoLocalDeArmazenamento(prisma, "1º armário");
-    const orientacaoId = await idDaOrientacao(prisma, "Prateleira de cima");
+    const armarioId = await idDoArmarioDo15(prisma, 1);
 
     const editado = await editarEquipamento(
       prisma,
@@ -139,16 +136,15 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
       original.id,
       entradaEdicaoDe(original, {
         modelo: `${prefixo} Modelo B`,
-        andarId: outroAndarId,
-        localArmazenamentoId: localId,
-        orientacaoId,
+        movelId: armarioId,
+        prateleira: 1,
       }),
     );
 
     expect(editado.modelo).toBe(`${prefixo} Modelo B`);
-    expect(editado.andar.nome).toBe("16º andar");
-    expect(editado.localArmazenamento?.nome).toBe("1º armário");
-    expect(editado.orientacao?.nome).toBe("Prateleira de cima");
+    expect(editado.sala.andar.nome).toBe("15º andar");
+    expect(editado.movel).toMatchObject({ tipo: "ARMARIO", numero: 1 });
+    expect(editado.prateleira).toBe(1);
     expect(editado.versao).toBe(original.versao + 1);
     expect(editado.atualizadoPorId).toBe(usuarioId);
 
@@ -158,15 +154,39 @@ describe("editarEquipamento / arquivarEquipamento / restaurarEquipamento (Etapa 
     expect(auditoria).toHaveLength(1);
     expect(auditoria[0]?.dadosAnteriores).toMatchObject({
       modelo: `${prefixo} Modelo A`,
-      andarId,
-      localArmazenamentoId: null,
+      salaId,
+      movelId: null,
+      prateleira: null,
     });
     expect(auditoria[0]?.dadosPosteriores).toMatchObject({
       modelo: `${prefixo} Modelo B`,
-      andarId: outroAndarId,
-      localArmazenamentoId: localId,
-      orientacaoId,
+      salaId,
+      movelId: armarioId,
+      prateleira: 1,
     });
+  });
+
+  it("muda o item de sala (e de andar) e recusa um móvel de outra sala", async () => {
+    const original = await criar({ modelo: `${prefixo} muda de sala` });
+    const salaDo16 = await idDaSala(prisma, "16º andar");
+    const armarioDo15 = await idDoArmarioDo15(prisma, 1);
+
+    const movido = await editarEquipamento(
+      prisma,
+      atorOperacao,
+      original.id,
+      entradaEdicaoDe(original, { salaId: salaDo16 }),
+    );
+    expect(movido.sala.andar.nome).toBe("16º andar");
+
+    await expect(
+      editarEquipamento(
+        prisma,
+        atorOperacao,
+        original.id,
+        entradaEdicaoDe(movido, { movelId: armarioDo15, prateleira: 2 }),
+      ),
+    ).rejects.toMatchObject({ campo: "movelId" });
   });
 
   it("duas edições concorrentes com a mesma versão: só uma aplica", async () => {

@@ -35,9 +35,9 @@ type DadosDoEquipamento = {
   readonly numeroSerie: string | null;
   readonly codigoTrillogo: string | null;
   readonly statusId: string;
-  readonly andarId: string;
-  readonly localArmazenamentoId: string | null;
-  readonly orientacaoId: string | null;
+  readonly salaId: string;
+  readonly movelId: string | null;
+  readonly prateleira: number | null;
   readonly observacoes: string | null;
   readonly temFoto: boolean;
   readonly versao: number;
@@ -257,9 +257,9 @@ export function FormularioEdicaoDeEquipamento({
         <CamposOndeFica
           opcoes={ondeFica}
           valores={{
-            andarId: equipamento.andarId,
-            localArmazenamentoId: equipamento.localArmazenamentoId ?? "",
-            orientacaoId: equipamento.orientacaoId ?? "",
+            salaId: equipamento.salaId,
+            movelId: equipamento.movelId,
+            prateleira: equipamento.prateleira,
           }}
           errosDoCampo={errosDoCampo}
         />

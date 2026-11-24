@@ -1,12 +1,11 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   ANDARES_SEMENTE,
+  ARMARIOS_DO_15_SEMENTE,
   CATEGORIAS_DE_MATERIAL_SEMENTE,
   CATEGORIAS_SEMENTE,
   executarSeed,
   FABRICANTES_SEMENTE,
-  LOCAIS_DE_ARMAZENAMENTO_SEMENTE,
-  ORIENTACOES_SEMENTE,
   STATUS_FUNCIONAMENTO_SEMENTE,
   UNIDADES_DE_MEDIDA_SEMENTE,
 } from "../../prisma/seed";
@@ -35,20 +34,34 @@ describe("seed das listas controladas (regra 4.3)", () => {
         await prisma.statusFuncionamento.count({ where: { nomeNormalizado: normalizado } }),
       ).toBe(1);
     }
+    // Localização (ADR 0011): o Escritório, seus andares, uma sala em cada um e os armários do 15º.
+    const escritorio = await prisma.unidade.findUniqueOrThrow({
+      where: { nomeNormalizado: "escritorio" },
+    });
     for (const nome of ANDARES_SEMENTE) {
       const { normalizado } = normalizarParDeNomeDeLista(nome);
-      expect(await prisma.andar.count({ where: { nomeNormalizado: normalizado } })).toBe(1);
+      const andar = await prisma.andar.findUniqueOrThrow({
+        where: {
+          unidadeId_nomeNormalizado: { unidadeId: escritorio.id, nomeNormalizado: normalizado },
+        },
+        include: { salas: true },
+      });
+      expect(andar.salas.length).toBeGreaterThanOrEqual(1);
     }
-    for (const nome of LOCAIS_DE_ARMAZENAMENTO_SEMENTE) {
-      const { normalizado } = normalizarParDeNomeDeLista(nome);
+    const andarDo15 = await prisma.andar.findUniqueOrThrow({
+      where: {
+        unidadeId_nomeNormalizado: { unidadeId: escritorio.id, nomeNormalizado: "15º andar" },
+      },
+    });
+    const salaDo15 = await prisma.sala.findUniqueOrThrow({
+      where: { andarId_numero: { andarId: andarDo15.id, numero: 1 } },
+    });
+    for (const numero of ARMARIOS_DO_15_SEMENTE) {
       expect(
-        await prisma.localArmazenamento.count({ where: { nomeNormalizado: normalizado } }),
+        await prisma.movel.count({ where: { salaId: salaDo15.id, tipo: "ARMARIO", numero } }),
       ).toBe(1);
     }
-    for (const nome of ORIENTACOES_SEMENTE) {
-      const { normalizado } = normalizarParDeNomeDeLista(nome);
-      expect(await prisma.orientacao.count({ where: { nomeNormalizado: normalizado } })).toBe(1);
-    }
+    expect(salaDo15.proximoNumeroArmario).toBeGreaterThan(Math.max(...ARMARIOS_DO_15_SEMENTE));
     for (const nome of CATEGORIAS_DE_MATERIAL_SEMENTE) {
       const { normalizado } = normalizarParDeNomeDeLista(nome);
       expect(
@@ -67,9 +80,10 @@ describe("seed das listas controladas (regra 4.3)", () => {
         prisma.categoria.count(),
         prisma.fabricante.count(),
         prisma.statusFuncionamento.count(),
+        prisma.unidade.count(),
         prisma.andar.count(),
-        prisma.localArmazenamento.count(),
-        prisma.orientacao.count(),
+        prisma.sala.count(),
+        prisma.movel.count(),
         prisma.categoriaMaterial.count(),
         prisma.unidadeMedida.count(),
       ]);

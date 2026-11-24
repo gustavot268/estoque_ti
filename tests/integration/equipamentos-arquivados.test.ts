@@ -10,7 +10,7 @@ import {
   restaurarEquipamento,
 } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDaSala, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -24,7 +24,7 @@ describe("equipamentos arquivados (tela de arquivados)", () => {
   let atorConsulta: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let fabricanteId: string;
 
   // O modelo carrega o prefixo: é por ele que os testes encontram os seus equipamentos.
@@ -37,7 +37,7 @@ describe("equipamentos arquivados (tela de arquivados)", () => {
       numeroSerie: `${prefixo}-${sufixo}`,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
     });
     equipamentosCriados.push(equipamento.id);
@@ -61,7 +61,7 @@ describe("equipamentos arquivados (tela de arquivados)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 

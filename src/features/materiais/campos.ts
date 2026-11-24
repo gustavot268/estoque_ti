@@ -19,9 +19,9 @@ export const CAMPOS_DO_MATERIAL = [
   "unidadeMedidaId",
   "quantidade",
   "estoqueMinimo",
-  "andarId",
-  "localArmazenamentoId",
-  "orientacaoId",
+  "salaId",
+  "movelId",
+  "prateleira",
   "dataUltimaContagem",
   "observacoes",
 ] as const;

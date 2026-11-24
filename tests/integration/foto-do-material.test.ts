@@ -8,7 +8,7 @@ import {
   obterFotoDoMaterial,
 } from "../../src/services/materiais";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoriaDeMaterial, idDaUnidadeDeMedida, idDoAndar } from "./suporte/listas";
+import { idDaCategoriaDeMaterial, idDaSala, idDaUnidadeDeMedida } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -24,7 +24,7 @@ describe("foto do material (cadastro, edição e download)", () => {
   let ator: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let unidadeId: string;
-  let andarId: string;
+  let salaId: string;
 
   const materiaisCriados: string[] = [];
   const usuariosCriados: string[] = [];
@@ -41,7 +41,7 @@ describe("foto do material (cadastro, edição e download)", () => {
       unidadeMedidaId: unidadeId,
       quantidade: "10",
       estoqueMinimo: "",
-      andarId,
+      salaId,
       dataUltimaContagem: "2026-10-01",
       observacoes: "",
       ...sobrescritas,
@@ -63,7 +63,7 @@ describe("foto do material (cadastro, edição e download)", () => {
 
     categoriaId = await idDaCategoriaDeMaterial(prisma, "Cabo");
     unidadeId = await idDaUnidadeDeMedida(prisma, "Unidade");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
   });
 
   afterAll(async () => {

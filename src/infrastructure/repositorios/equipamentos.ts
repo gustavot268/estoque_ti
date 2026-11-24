@@ -14,6 +14,7 @@
 
 import type { Prisma } from "@prisma/client";
 import type { ClientePrisma } from "../prisma/criar-cliente";
+import { SELECAO_DE_LOCALIZACAO } from "./localizacao";
 
 /** Campos aceitos como entrada de escrita — já normalizados pelo serviço. */
 export type DadosParaCriarEquipamento = {
@@ -25,9 +26,9 @@ export type DadosParaCriarEquipamento = {
   readonly codigoTrillogo: string | null;
   readonly codigoTrillogoNormalizado: string | null;
   readonly statusId: string;
-  readonly andarId: string;
-  readonly localArmazenamentoId: string | null;
-  readonly orientacaoId: string | null;
+  readonly salaId: string;
+  readonly movelId: string | null;
+  readonly prateleira: number | null;
   readonly observacoes: string | null;
   readonly foto: Buffer | null;
   readonly fotoTipoMime: string | null;
@@ -53,9 +54,9 @@ const SELECAO_DETALHADA = {
   codigoTrillogo: true,
   codigoTrillogoNormalizado: true,
   statusId: true,
-  andarId: true,
-  localArmazenamentoId: true,
-  orientacaoId: true,
+  salaId: true,
+  movelId: true,
+  prateleira: true,
   observacoes: true,
   fotoTipoMime: true,
   fotoNomeArquivo: true,
@@ -70,9 +71,7 @@ const SELECAO_DETALHADA = {
   categoria: true,
   fabricante: true,
   status: true,
-  andar: true,
-  localArmazenamento: true,
-  orientacao: true,
+  ...SELECAO_DE_LOCALIZACAO,
   criadoPor: true,
   atualizadoPor: true,
   arquivadoPor: true,
@@ -146,7 +145,7 @@ const SELECAO_DE_LISTAGEM = {
   categoria: true,
   fabricante: true,
   status: true,
-  andar: { select: { nome: true } },
+  sala: { select: { andar: { select: { nome: true } } } },
 } as const;
 
 export type FiltrosDeEquipamento = {
@@ -189,7 +188,7 @@ function construirFiltro(
     filtro.statusId = filtros.statusId;
   }
   if (filtros.andarId !== undefined) {
-    filtro.andarId = filtros.andarId;
+    filtro.sala = { andarId: filtros.andarId };
   }
   if (filtros.busca !== undefined) {
     // Sem campo de nome, a busca também olha a categoria e o fabricante — as
@@ -276,9 +275,8 @@ const SELECAO_DE_EXPORTACAO = {
   categoria: true,
   fabricante: true,
   status: true,
-  andar: true,
-  localArmazenamento: true,
-  orientacao: true,
+  prateleira: true,
+  ...SELECAO_DE_LOCALIZACAO,
   criadoPor: true,
   atualizadoPor: true,
 } as const;
@@ -325,9 +323,9 @@ export type DadosParaAtualizarEquipamento = {
   readonly codigoTrillogo: string | null;
   readonly codigoTrillogoNormalizado: string | null;
   readonly statusId: string;
-  readonly andarId: string;
-  readonly localArmazenamentoId: string | null;
-  readonly orientacaoId: string | null;
+  readonly salaId: string;
+  readonly movelId: string | null;
+  readonly prateleira: number | null;
   readonly observacoes: string | null;
   readonly foto?: Buffer | null;
   readonly fotoTipoMime?: string | null;
@@ -372,20 +370,6 @@ export async function alterarStatus(
   return prisma.equipamento.updateMany({
     where: { id, versao: versaoEsperada, arquivadoEm: null },
     data: { statusId, atualizadoPorId, versao: { increment: 1 } },
-  });
-}
-
-/** Mudança isolada de andar — mesma técnica de concorrência otimista. */
-export async function alterarAndar(
-  prisma: ClientePrisma,
-  id: string,
-  versaoEsperada: number,
-  andarId: string,
-  atualizadoPorId: string,
-) {
-  return prisma.equipamento.updateMany({
-    where: { id, versao: versaoEsperada, arquivadoEm: null },
-    data: { andarId, atualizadoPorId, versao: { increment: 1 } },
   });
 }
 

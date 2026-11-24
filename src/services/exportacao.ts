@@ -17,6 +17,7 @@
 import type { AtorAutenticado } from "../domain/ator";
 import { carimboParaNomeDeArquivo, formatarDataEHora } from "../domain/data-e-hora";
 import { EntradaInvalidaError, ExportacaoExcedeLimiteError } from "../domain/erros";
+import { rotulosDeLocalizacao } from "../domain/localizacao";
 import { exigirPermissao } from "../domain/permissoes";
 import {
   type AbaDaPlanilha,
@@ -125,9 +126,7 @@ async function gerarExportacao(
     numeroSerie: equipamento.numeroSerie,
     codigoTrillogo: equipamento.codigoTrillogo,
     status: equipamento.status.nome,
-    andar: equipamento.andar.nome,
-    localArmazenamento: equipamento.localArmazenamento?.nome ?? null,
-    orientacao: equipamento.orientacao?.nome ?? null,
+    ...rotulosDeLocalizacao(equipamento),
     observacoes: equipamento.observacoes,
     criadoEm: formatarDataEHora(equipamento.criadoEm),
     criadoPor: equipamento.criadoPor.nome,
@@ -143,9 +142,7 @@ async function gerarExportacao(
     unidadeDeMedida: material.unidadeMedida.nome,
     quantidade: material.quantidade,
     estoqueMinimo: material.estoqueMinimo,
-    andar: material.andar.nome,
-    localArmazenamento: material.localArmazenamento?.nome ?? null,
-    orientacao: material.orientacao?.nome ?? null,
+    ...rotulosDeLocalizacao(material),
     dataUltimaContagem: material.dataUltimaContagem,
     observacoes: material.observacoes,
     criadoPor: material.criadoPor.nome,

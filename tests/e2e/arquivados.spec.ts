@@ -7,7 +7,7 @@ import {
   criarAtorDeTeste,
   criarUsuarioDeTeste,
   idDaCategoria,
-  idDoAndar,
+  idDaSala,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -37,7 +37,7 @@ async function criarEquipamento(
     numeroSerie: `${prefixo}-${sufixo}`,
     codigoTrillogo: null,
     statusId: await idDoStatus(prisma, "Em manutenção"),
-    andarId: await idDoAndar(prisma, "15º andar"),
+    salaId: await idDaSala(prisma, "15º andar"),
     observacoes: null,
   });
   equipamentosCriados.push(equipamento.id);

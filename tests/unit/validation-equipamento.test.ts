@@ -12,9 +12,9 @@ const ENTRADA_VALIDA = {
   numeroSerie: "abc 123",
   codigoTrillogo: null,
   statusId: "33333333-3333-4333-8333-333333333333",
-  andarId: "44444444-4444-4444-8444-444444444444",
-  localArmazenamentoId: "",
-  orientacaoId: null,
+  salaId: "44444444-4444-4444-8444-444444444444",
+  movelId: "",
+  prateleira: "",
   observacoes: null,
 } as const;
 
@@ -26,8 +26,8 @@ describe("esquemaCriarEquipamento", () => {
   it("rejeita quando falta um campo obrigatório", () => {
     const { modelo: _modelo, ...semModelo } = ENTRADA_VALIDA;
     expect(esquemaCriarEquipamento.safeParse(semModelo).success).toBe(false);
-    const { andarId: _andar, ...semAndar } = ENTRADA_VALIDA;
-    expect(esquemaCriarEquipamento.safeParse(semAndar).success).toBe(false);
+    const { salaId: _sala, ...semSala } = ENTRADA_VALIDA;
+    expect(esquemaCriarEquipamento.safeParse(semSala).success).toBe(false);
   });
 
   it("o equipamento não tem mais nome: um nome enviado é recusado, no cadastro e na edição", () => {
@@ -40,17 +40,36 @@ describe("esquemaCriarEquipamento", () => {
     ).toBe(false);
   });
 
-  it("local de armazenamento e orientação são opcionais: vazio ou null vira null", () => {
+  it("móvel e prateleira são opcionais: vazio ou null vira null", () => {
     const resultado = esquemaCriarEquipamento.parse(ENTRADA_VALIDA);
-    expect(resultado.localArmazenamentoId).toBeNull();
-    expect(resultado.orientacaoId).toBeNull();
+    expect(resultado.movelId).toBeNull();
+    expect(resultado.prateleira).toBeNull();
+    const comNull = esquemaCriarEquipamento.parse({
+      ...ENTRADA_VALIDA,
+      movelId: null,
+      prateleira: null,
+    });
+    expect(comNull.movelId).toBeNull();
+    expect(comNull.prateleira).toBeNull();
   });
 
-  it("local de armazenamento informado precisa ser um identificador válido", () => {
+  it("móvel informado precisa ser um identificador válido", () => {
     expect(
-      esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, localArmazenamentoId: "armario" })
-        .success,
+      esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, movelId: "armario" }).success,
     ).toBe(false);
+  });
+
+  it("prateleira vai de 1 (parte superior) a 6 (a mais baixa), só números inteiros", () => {
+    for (const valida of ["1", "6", 3]) {
+      expect(
+        esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, prateleira: valida }).success,
+      ).toBe(true);
+    }
+    for (const invalida of ["0", "7", "2,5", "cima"]) {
+      expect(
+        esquemaCriarEquipamento.safeParse({ ...ENTRADA_VALIDA, prateleira: invalida }).success,
+      ).toBe(false);
+    }
   });
 
   it("rejeita campo interno não previsto no contrato — proteção contra mass assignment (14.8)", () => {

@@ -1,64 +1,59 @@
 /**
- * Onde um item fica guardado — Andar (obrigatório), Local de armazenamento e
- * Orientação (opcionais) —, com a mesma validação para equipamentos e
- * materiais.
+ * Onde um item fica (ADR 0011) — Sala (obrigatória), Móvel e Prateleira
+ * (opcionais) —, com a mesma validação para equipamentos e materiais. Unidade
+ * e andar não são gravados no item: vêm da sala.
  *
- * Cada valor escolhido precisa existir e estar ativo. Exceção da regra 4.2:
- * numa edição, um valor que o item JÁ tinha pode continuar inativo — a
- * exigência de "ativo" vale para uma escolha nova.
+ * Regras:
+ * - a sala, o andar dela e a unidade do andar precisam existir e estar ativos.
+ *   Exceção da regra 4.2: numa edição, a sala que o item JÁ tinha pode
+ *   continuar mesmo que algum desses níveis tenha sido desativado;
+ * - o móvel, se informado, precisa ser da sala escolhida;
+ * - a prateleira (1 a 6) só pode ser informada junto com um móvel.
+ *
+ * O banco confere as duas últimas de novo (gatilho e `CHECK` da migração
+ * 20261124120000) — aqui elas viram mensagens por campo.
  */
 
 import { ValorDeListaInvalidoError } from "../domain/erros";
-import type { PrismaClient } from "../infrastructure/prisma/criar-cliente";
+import type { ClientePrisma } from "../infrastructure/prisma/criar-cliente";
 import {
-  obterAndarPorId,
-  obterLocalDeArmazenamentoPorId,
-  obterOrientacaoPorId,
-} from "../infrastructure/repositorios/listas-controladas";
+  obterMovelPorId,
+  obterSalaParaValidacao,
+} from "../infrastructure/repositorios/localizacao";
 
 export type OndeFica = {
-  readonly andarId: string;
-  readonly localArmazenamentoId: string | null;
-  readonly orientacaoId: string | null;
+  readonly salaId: string;
+  readonly movelId: string | null;
+  readonly prateleira: number | null;
 };
 
-type ValorDeLista = { readonly ativo: boolean } | null;
-
-/** `null` escolhido é sempre válido (campo opcional); um id precisa apontar para um valor utilizável. */
-function exigirValorUtilizavel(
-  campo: keyof OndeFica,
-  escolhido: string | null,
-  valor: ValorDeLista,
-  atual: OndeFica | undefined,
-): void {
-  if (escolhido === null) {
-    return;
-  }
-  const inalterado = atual?.[campo] === escolhido;
-  if (valor === null || (!valor.ativo && !inalterado)) {
-    throw new ValorDeListaInvalidoError(campo);
-  }
-}
-
 export async function validarOndeFica(
-  prisma: PrismaClient,
+  prisma: ClientePrisma,
   entrada: OndeFica,
   atual?: OndeFica,
 ): Promise<void> {
-  const [andar, localArmazenamento, orientacao] = await Promise.all([
-    obterAndarPorId(prisma, entrada.andarId),
-    entrada.localArmazenamentoId === null
-      ? null
-      : obterLocalDeArmazenamentoPorId(prisma, entrada.localArmazenamentoId),
-    entrada.orientacaoId === null ? null : obterOrientacaoPorId(prisma, entrada.orientacaoId),
+  const [sala, movel] = await Promise.all([
+    obterSalaParaValidacao(prisma, entrada.salaId),
+    entrada.movelId === null ? null : obterMovelPorId(prisma, entrada.movelId),
   ]);
 
-  exigirValorUtilizavel("andarId", entrada.andarId, andar, atual);
-  exigirValorUtilizavel(
-    "localArmazenamentoId",
-    entrada.localArmazenamentoId,
-    localArmazenamento,
-    atual,
-  );
-  exigirValorUtilizavel("orientacaoId", entrada.orientacaoId, orientacao, atual);
+  const salaInalterada = atual?.salaId === entrada.salaId;
+  if (sala === null) {
+    throw new ValorDeListaInvalidoError("salaId");
+  }
+  const salaUtilizavel = sala.ativo && sala.andar.ativo && sala.andar.unidade.ativo;
+  if (!salaUtilizavel && !salaInalterada) {
+    throw new ValorDeListaInvalidoError("salaId");
+  }
+
+  if (entrada.movelId !== null && (movel === null || movel.salaId !== entrada.salaId)) {
+    throw new ValorDeListaInvalidoError("movelId", "Escolha um móvel da sala selecionada.");
+  }
+
+  if (entrada.prateleira !== null && entrada.movelId === null) {
+    throw new ValorDeListaInvalidoError(
+      "prateleira",
+      "Escolha o móvel antes de informar a prateleira.",
+    );
+  }
 }

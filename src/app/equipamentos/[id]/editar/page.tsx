@@ -21,12 +21,10 @@ import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
 import {
-  listarAndaresAtivos,
   listarCategoriasAtivas,
-  listarLocaisDeArmazenamentoAtivos,
-  listarOrientacoesAtivas,
   listarStatusFuncionamentoAtivos,
 } from "../../../../infrastructure/repositorios/listas-controladas";
+import { listarOpcoesDeLocalizacao } from "../../../../infrastructure/repositorios/localizacao";
 import { listarMarcasAtivasComCategorias } from "../../../../infrastructure/repositorios/marcas-por-categoria";
 import { obterEquipamentoPorId } from "../../../../services/equipamentos";
 
@@ -93,20 +91,15 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
-  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
-  let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
-  let orientacoes: Awaited<ReturnType<typeof listarOrientacoesAtivas>>;
+  let ondeFica: Awaited<ReturnType<typeof listarOpcoesDeLocalizacao>>;
   try {
     equipamento = await obterEquipamentoPorId(prisma, ator, id);
-    [categorias, fabricantes, statusFuncionamento, andares, locaisDeArmazenamento, orientacoes] =
-      await Promise.all([
-        listarCategoriasAtivas(prisma),
-        listarMarcasAtivasComCategorias(prisma),
-        listarStatusFuncionamentoAtivos(prisma),
-        listarAndaresAtivos(prisma),
-        listarLocaisDeArmazenamentoAtivos(prisma),
-        listarOrientacoesAtivas(prisma),
-      ]);
+    [categorias, fabricantes, statusFuncionamento, ondeFica] = await Promise.all([
+      listarCategoriasAtivas(prisma),
+      listarMarcasAtivasComCategorias(prisma),
+      listarStatusFuncionamentoAtivos(prisma),
+      listarOpcoesDeLocalizacao(prisma, equipamento.salaId),
+    ]);
   } catch (erro) {
     if (erro instanceof RegistroNaoEncontradoError) {
       return (
@@ -148,9 +141,9 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
         numeroSerie: equipamento.numeroSerie,
         codigoTrillogo: equipamento.codigoTrillogo,
         statusId: equipamento.statusId,
-        andarId: equipamento.andarId,
-        localArmazenamentoId: equipamento.localArmazenamentoId,
-        orientacaoId: equipamento.orientacaoId,
+        salaId: equipamento.salaId,
+        movelId: equipamento.movelId,
+        prateleira: equipamento.prateleira,
         observacoes: equipamento.observacoes,
         temFoto: equipamento.fotoTipoMime !== null,
         versao: equipamento.versao,
@@ -165,11 +158,7 @@ export default async function PaginaDeEdicao({ params }: PageProps<"/equipamento
         equipamento.fabricante,
       )}
       statusFuncionamento={comOpcaoAtual(statusFuncionamento, equipamento.status)}
-      ondeFica={{
-        andares: comOpcaoAtual(andares, equipamento.andar),
-        locaisDeArmazenamento: comOpcaoAtual(locaisDeArmazenamento, equipamento.localArmazenamento),
-        orientacoes: comOpcaoAtual(orientacoes, equipamento.orientacao),
-      }}
+      ondeFica={ondeFica}
       fabricanteOutroId={fabricanteOutro?.id ?? null}
     />
   );

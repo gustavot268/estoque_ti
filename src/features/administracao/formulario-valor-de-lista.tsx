@@ -12,6 +12,8 @@
  * a marca aparece no cadastro (ADR 0010). O campo oculto `atribuirCategorias`
  * diz ao servidor que as caixinhas vieram — sem ele, "nenhuma marcada" seria
  * indistinguível de "a tela não tinha caixinhas".
+ *
+ * Para andar, recebe `unidades`: o andar pertence a uma unidade (ADR 0011).
  */
 
 import { useActionState, useEffect, useRef } from "react";
@@ -21,7 +23,11 @@ type ValorInicial = {
   readonly nome: string;
   readonly ativo: boolean;
   readonly ordemExibicao: number;
+  /** Só andar. */
+  readonly unidadeId?: string | null;
 };
+
+export type OpcaoDeUnidade = { readonly id: string; readonly nome: string };
 
 export type OpcaoDeCategoria = {
   readonly id: string;
@@ -48,6 +54,8 @@ type Props = {
   readonly rotuloDoBotao: string;
   /** Só para marca (ADR 0010). */
   readonly atribuicao?: AtribuicaoDeCategorias;
+  /** Só para andar (ADR 0011): as unidades que podem ser escolhidas. */
+  readonly unidades?: readonly OpcaoDeUnidade[];
 };
 
 const ESTADO_INICIAL: ResultadoValorDeLista | null = null;
@@ -56,7 +64,13 @@ const CLASSE_CAMPO =
   "w-full rounded-lg border border-borda-campo bg-superficie px-3 py-2 text-sm text-texto shadow-xs transition-colors placeholder:text-texto-suave hover:border-foco focus-visible:border-foco focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foco disabled:cursor-not-allowed disabled:opacity-60 file:mr-3 file:rounded-md file:border-0 file:bg-superficie-realce file:px-3 file:py-1 file:text-sm file:font-medium file:text-texto";
 const CLASSE_RASTRO = "text-sm font-medium text-texto";
 
-export function FormularioValorDeLista({ acao, valorInicial, rotuloDoBotao, atribuicao }: Props) {
+export function FormularioValorDeLista({
+  acao,
+  valorInicial,
+  rotuloDoBotao,
+  atribuicao,
+  unidades,
+}: Props) {
   const [resultado, submeter, pendente] = useActionState(acao, ESTADO_INICIAL);
   const formularioRef = useRef<HTMLFormElement>(null);
 
@@ -95,6 +109,34 @@ export function FormularioValorDeLista({ acao, valorInicial, rotuloDoBotao, atri
         }`}
       >
         <legend className="sr-only">Dados do valor de lista</legend>
+
+        {unidades !== undefined && (
+          <div className="flex flex-col gap-1 sm:col-span-full">
+            <label htmlFor="unidadeId" className={CLASSE_RASTRO}>
+              Unidade <span aria-hidden="true">*</span>
+            </label>
+            <select
+              id="unidadeId"
+              name="unidadeId"
+              required
+              defaultValue={
+                valorInicial?.unidadeId ?? (unidades.length === 1 ? unidades[0]?.id : "")
+              }
+              className={CLASSE_CAMPO}
+              aria-describedby="unidadeId-erro"
+            >
+              <option value="" disabled>
+                Selecione
+              </option>
+              {unidades.map((unidade) => (
+                <option key={unidade.id} value={unidade.id}>
+                  {unidade.nome}
+                </option>
+              ))}
+            </select>
+            <ListaDeErros id="unidadeId-erro" erros={errosDoCampo("unidadeId")} />
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label htmlFor="nome" className={CLASSE_RASTRO}>

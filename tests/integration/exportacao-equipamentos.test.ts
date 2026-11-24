@@ -7,16 +7,16 @@ import { ExportacaoExcedeLimiteError } from "../../src/domain/erros";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { exportarEquipamentos } from "../../src/services/exportacao";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDaSala, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
 /** Linha 4 é o cabeçalho (título + aviso + linha em branco antes) — dados começam na linha 5. */
 const PRIMEIRA_LINHA_DE_DADOS = 5;
 const COLUNA_MODELO = 4;
-const COLUNA_OBSERVACOES = 11;
-const COLUNA_CRIADO_EM = 12;
-const COLUNA_ATUALIZADO_EM = 14;
+const COLUNA_OBSERVACOES = 13;
+const COLUNA_CRIADO_EM = 14;
+const COLUNA_ATUALIZADO_EM = 16;
 
 /**
  * O próprio `exceljs` declara uma interface `Buffer` global (`extends
@@ -35,7 +35,7 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
   let ator: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -50,7 +50,7 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -66,7 +66,7 @@ describe("exportarEquipamentos (caso de uso — Etapa 6)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 

@@ -19,12 +19,10 @@ import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../infrastructure/prisma/cliente";
 import {
-  listarAndaresAtivos,
   listarCategoriasDeMaterialAtivas,
-  listarLocaisDeArmazenamentoAtivos,
-  listarOrientacoesAtivas,
   listarUnidadesDeMedidaAtivas,
 } from "../../../infrastructure/repositorios/listas-controladas";
+import { listarOpcoesDeLocalizacao } from "../../../infrastructure/repositorios/localizacao";
 import { listarMarcasAtivasComCategorias } from "../../../infrastructure/repositorios/marcas-por-categoria";
 
 export const metadata: Metadata = { title: "Cadastrar material" };
@@ -57,20 +55,15 @@ export default async function PaginaDeCadastroDeMaterial() {
   let categorias: Awaited<ReturnType<typeof listarCategoriasDeMaterialAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let unidadesDeMedida: Awaited<ReturnType<typeof listarUnidadesDeMedidaAtivas>>;
-  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
-  let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
-  let orientacoes: Awaited<ReturnType<typeof listarOrientacoesAtivas>>;
+  let ondeFica: Awaited<ReturnType<typeof listarOpcoesDeLocalizacao>>;
   try {
     const prisma = obterPrisma();
-    [categorias, fabricantes, unidadesDeMedida, andares, locaisDeArmazenamento, orientacoes] =
-      await Promise.all([
-        listarCategoriasDeMaterialAtivas(prisma),
-        listarMarcasAtivasComCategorias(prisma),
-        listarUnidadesDeMedidaAtivas(prisma),
-        listarAndaresAtivos(prisma),
-        listarLocaisDeArmazenamentoAtivos(prisma),
-        listarOrientacoesAtivas(prisma),
-      ]);
+    [categorias, fabricantes, unidadesDeMedida, ondeFica] = await Promise.all([
+      listarCategoriasDeMaterialAtivas(prisma),
+      listarMarcasAtivasComCategorias(prisma),
+      listarUnidadesDeMedidaAtivas(prisma),
+      listarOpcoesDeLocalizacao(prisma),
+    ]);
   } catch (erro) {
     logger.error("Falha ao carregar as listas controladas no cadastro de material.", { erro });
     return <MensagemDeIndisponibilidade />;
@@ -94,11 +87,7 @@ export default async function PaginaDeCadastroDeMaterial() {
               categoriaIds: marca.categoriaMaterialIds,
             })),
             unidadesDeMedida: unidadesDeMedida.map(paraOpcao),
-            ondeFica: {
-              andares: andares.map(paraOpcao),
-              locaisDeArmazenamento: locaisDeArmazenamento.map(paraOpcao),
-              orientacoes: orientacoes.map(paraOpcao),
-            },
+            ondeFica,
           }}
           fabricanteOutroId={fabricanteOutro?.id ?? null}
           hoje={dataDeHojeEmBrasilia()}

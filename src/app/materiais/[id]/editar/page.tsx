@@ -22,12 +22,10 @@ import { obterAtorAtual } from "../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../infrastructure/prisma/cliente";
 import {
-  listarAndaresAtivos,
   listarCategoriasDeMaterialAtivas,
-  listarLocaisDeArmazenamentoAtivos,
-  listarOrientacoesAtivas,
   listarUnidadesDeMedidaAtivas,
 } from "../../../../infrastructure/repositorios/listas-controladas";
+import { listarOpcoesDeLocalizacao } from "../../../../infrastructure/repositorios/localizacao";
 import { listarMarcasAtivasComCategorias } from "../../../../infrastructure/repositorios/marcas-por-categoria";
 import { obterMaterialPorId } from "../../../../services/materiais";
 
@@ -94,20 +92,15 @@ export default async function PaginaDeEdicaoDeMaterial({
   let categorias: Awaited<ReturnType<typeof listarCategoriasDeMaterialAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarMarcasAtivasComCategorias>>;
   let unidadesDeMedida: Awaited<ReturnType<typeof listarUnidadesDeMedidaAtivas>>;
-  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
-  let locaisDeArmazenamento: Awaited<ReturnType<typeof listarLocaisDeArmazenamentoAtivos>>;
-  let orientacoes: Awaited<ReturnType<typeof listarOrientacoesAtivas>>;
+  let ondeFica: Awaited<ReturnType<typeof listarOpcoesDeLocalizacao>>;
   try {
     material = await obterMaterialPorId(prisma, ator, id);
-    [categorias, fabricantes, unidadesDeMedida, andares, locaisDeArmazenamento, orientacoes] =
-      await Promise.all([
-        listarCategoriasDeMaterialAtivas(prisma),
-        listarMarcasAtivasComCategorias(prisma),
-        listarUnidadesDeMedidaAtivas(prisma),
-        listarAndaresAtivos(prisma),
-        listarLocaisDeArmazenamentoAtivos(prisma),
-        listarOrientacoesAtivas(prisma),
-      ]);
+    [categorias, fabricantes, unidadesDeMedida, ondeFica] = await Promise.all([
+      listarCategoriasDeMaterialAtivas(prisma),
+      listarMarcasAtivasComCategorias(prisma),
+      listarUnidadesDeMedidaAtivas(prisma),
+      listarOpcoesDeLocalizacao(prisma, material.salaId),
+    ]);
   } catch (erro) {
     if (erro instanceof RegistroNaoEncontradoError) {
       return (
@@ -148,9 +141,9 @@ export default async function PaginaDeEdicaoDeMaterial({
         unidadeMedidaId: material.unidadeMedidaId,
         quantidade: String(material.quantidade),
         estoqueMinimo: material.estoqueMinimo === null ? "" : String(material.estoqueMinimo),
-        andarId: material.andarId,
-        localArmazenamentoId: material.localArmazenamentoId ?? "",
-        orientacaoId: material.orientacaoId ?? "",
+        salaId: material.salaId,
+        movelId: material.movelId ?? "",
+        prateleira: material.prateleira === null ? "" : String(material.prateleira),
         dataUltimaContagem:
           material.dataUltimaContagem === null ? "" : paraDataIso(material.dataUltimaContagem),
         observacoes: material.observacoes ?? "",
@@ -166,14 +159,7 @@ export default async function PaginaDeEdicaoDeMaterial({
           material.fabricante,
         ),
         unidadesDeMedida: comOpcaoAtual(unidadesDeMedida.map(paraOpcao), material.unidadeMedida),
-        ondeFica: {
-          andares: comOpcaoAtual(andares.map(paraOpcao), material.andar),
-          locaisDeArmazenamento: comOpcaoAtual(
-            locaisDeArmazenamento.map(paraOpcao),
-            material.localArmazenamento,
-          ),
-          orientacoes: comOpcaoAtual(orientacoes.map(paraOpcao), material.orientacao),
-        },
+        ondeFica,
       }}
       fabricanteOutroId={fabricanteOutro?.id ?? null}
       hoje={dataDeHojeEmBrasilia()}

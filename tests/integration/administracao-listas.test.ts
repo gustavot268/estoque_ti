@@ -17,7 +17,7 @@ import {
 } from "../../src/services/administracao-listas";
 import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaSala, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -26,7 +26,7 @@ describe("administração de listas controladas (caso de uso — Etapa 7)", () =
   let atorAdministracao: ReturnType<typeof criarAtorDeTeste>;
   let atorOperacao: ReturnType<typeof criarAtorDeTeste>;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let fabricanteId: string;
 
   const categoriasCriadas: string[] = [];
@@ -43,7 +43,7 @@ describe("administração de listas controladas (caso de uso — Etapa 7)", () =
     atorOperacao = criarAtorDeTeste(usuario, "OPERACAO");
 
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -229,7 +229,7 @@ describe("administração de listas controladas (caso de uso — Etapa 7)", () =
       numeroSerie: `${prefixo}-sn`,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
     });
 

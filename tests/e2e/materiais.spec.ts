@@ -53,7 +53,7 @@ test.describe("materiais de TI (perfil Operação — o padrão do ambiente)", (
     await expect(page.getByRole("heading", { name: "Cadastrar material" })).toBeVisible();
   });
 
-  test("cadastra sem nome, com andar, local e orientação; a lista mostra só o andar; edita a contagem", async ({
+  test("cadastra sem nome, com andar, sala, móvel e prateleira; a lista mostra só o andar; edita a contagem", async ({
     page,
   }) => {
     const especificacao = `${prefixo} 2 metros`;
@@ -68,9 +68,14 @@ test.describe("materiais de TI (perfil Operação — o padrão do ambiente)", (
     await page.getByLabel("Unidade de medida").selectOption({ label: "Unidade" });
     await page.getByLabel("Quantidade").fill("3");
     await page.getByLabel("Estoque mínimo").fill("5");
+    await page
+      .getByRole("combobox", { name: "Unidade", exact: true })
+      .selectOption({ label: "Escritório" });
     await page.getByLabel("Andar").selectOption({ label: "15º andar" });
-    await page.getByLabel("Local de armazenamento").selectOption({ label: "1º armário" });
-    await page.getByLabel("Orientação").selectOption({ label: "Prateleira de cima" });
+    // O 15º andar tem uma sala só: ela já vem escolhida.
+    await expect(page.getByLabel("Sala").locator("option:checked")).toHaveText("Estoque");
+    await page.getByLabel("Móvel").selectOption({ label: "1º armário" });
+    await page.getByLabel("Prateleira").selectOption({ label: "Prateleira 1 (parte superior)" });
     await page.getByRole("button", { name: "Cadastrar" }).click();
 
     await expect(page.getByText("Material cadastrado com sucesso.")).toBeVisible();
@@ -79,7 +84,7 @@ test.describe("materiais de TI (perfil Operação — o padrão do ambiente)", (
 
     await page.goto(`/materiais?busca=${encodeURIComponent(prefixo)}`);
     await expect(page.getByRole("columnheader", { name: "Andar" })).toBeVisible();
-    await expect(page.getByRole("columnheader", { name: "Local de armazenamento" })).toHaveCount(0);
+    await expect(page.getByRole("columnheader", { name: "Móvel" })).toHaveCount(0);
     await expect(page.getByRole("columnheader", { name: "Nome" })).toHaveCount(0);
     const linha = page.getByRole("row", { name: new RegExp(especificacao) });
     await expect(linha.getByText(codigo, { exact: true })).toBeVisible();
@@ -91,7 +96,7 @@ test.describe("materiais de TI (perfil Operação — o padrão do ambiente)", (
     await linha.getByRole("link", { name: "Detalhes" }).click();
     await expect(page.getByRole("heading", { name: `Cabo HDMI ${especificacao}` })).toBeVisible();
     await expect(page.getByText("1º armário")).toBeVisible();
-    await expect(page.getByText("Prateleira de cima")).toBeVisible();
+    await expect(page.getByText("Prateleira 1 (parte superior)")).toBeVisible();
 
     await page.getByRole("link", { name: "Editar" }).click();
     await page.getByLabel("Quantidade").fill("8");
@@ -111,6 +116,9 @@ test.describe("materiais de TI (perfil Operação — o padrão do ambiente)", (
     await campoTipo(page).fill("Rede");
     await page.getByLabel("Especificação").fill(especificacao);
     await page.getByLabel("Unidade de medida").selectOption({ label: "Metro" });
+    await page
+      .getByRole("combobox", { name: "Unidade", exact: true })
+      .selectOption({ label: "Escritório" });
     await page.getByLabel("Andar").selectOption({ label: "16º andar" });
     await page.getByRole("button", { name: "Cadastrar" }).click();
 

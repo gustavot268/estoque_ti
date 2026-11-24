@@ -38,9 +38,9 @@
 | `codigoTrillogo` | texto | não | Valor de exibição, como digitado |
 | `codigoTrillogoNormalizado` | texto | não | Derivado; vazio ⇒ `null`; ver ADR 0003 |
 | `statusId` | UUID (FK → `StatusFuncionamento`) | sim | |
-| `andarId` | UUID (FK → `Andar`) | sim | Única parte da localização que aparece na lista de equipamentos |
-| `localArmazenamentoId` | UUID (FK → `LocalArmazenamento`) | não | Ex.: 1º armário. Aparece nos detalhes e na planilha |
-| `orientacaoId` | UUID (FK → `Orientacao`) | não | Ex.: Prateleira de cima. Aparece nos detalhes e na planilha |
+| `salaId` | UUID (FK → `Sala`) | sim | Onde o item fica (ADR 0011). Andar e unidade vêm da sala; o andar é a única parte da localização que aparece na lista |
+| `movelId` | UUID (FK → `Movel`) | não | Armário ou estante da mesma sala (gatilho `conferir_movel_da_sala`). Aparece nos detalhes e na planilha |
+| `prateleira` | inteiro | não | 1 (parte superior) a 6 (a mais baixa); só com móvel (`CHECK`). Aparece nos detalhes e na planilha |
 | `observacoes` | texto | não | Ver limite de tamanho e orientação anti-dado-sensível em [`docs/inventario-de-dados.md`](inventario-de-dados.md) |
 | `criadoEm` | timestamptz | sim | Automático |
 | `atualizadoEm` | timestamptz | sim | Automático |
@@ -59,15 +59,15 @@
     constraint. Ver [`docs/adr/0003-normalizacao-de-identificadores.md`](adr/0003-normalizacao-de-identificadores.md).
 - Índices de apoio para os filtros, ordenação e paginação previstos na consulta de
   equipamentos (Etapa 4): tipicamente por `categoriaId`, `fabricanteId`, `statusId`,
-  `andarId`, `localArmazenamentoId`, `orientacaoId` e `arquivadoEm`. A busca textual
+  `salaId`, `movelId` e `arquivadoEm` (o filtro por andar passa pela sala). A busca textual
   procura em modelo, número de série, código Trillogo, categoria e fabricante. O conjunto definitivo de índices de apoio é detalhe de implementação
   do `schema.prisma` e deve ser conferido lá.
 
 ### Regras de negócio associadas
 
-- Referências às listas controladas (`categoriaId`, `fabricanteId`, `statusId`,
-  `andarId`, `localArmazenamentoId`, `orientacaoId`) são validadas no servidor antes de
-  gravar.
+- Referências às listas controladas (`categoriaId`, `fabricanteId`, `statusId`) e a
+  localização (`salaId`, `movelId`, `prateleira` — `src/services/onde-fica.ts`) são
+  validadas no servidor antes de gravar.
 - O equipamento **não tem nome**. Onde a tela precisa de um título (detalhes, cartões,
   lixeira, texto alternativo da foto), ele é montado na hora como "Categoria Fabricante
   Modelo" (`src/domain/descricao-do-item.ts`); nada disso é gravado.
@@ -79,7 +79,7 @@
 ## Entidade `Material` (Materiais de TI — controle por quantidade)
 
 Itens sem etiqueta individual e numerosos (cabos, conectores, adaptadores…). Cada registro
-é uma peça num lugar (andar, local de armazenamento e orientação), com a quantidade contada; a mesma peça guardada em dois
+é uma peça num lugar (sala, móvel e prateleira), com a quantidade contada; a mesma peça guardada em dois
 lugares vira dois registros. Os campos seguem as colunas da planilha "Materiais de TI –
 Controle por Quantidade".
 
@@ -94,9 +94,9 @@ Controle por Quantidade".
 | `unidadeMedidaId` | UUID (FK → `UnidadeMedida`) | sim | |
 | `quantidade` | inteiro | sim | `CHECK (quantidade >= 0)` no banco |
 | `estoqueMinimo` | inteiro | não | `CHECK (estoque_minimo >= 0)`. `null` = sem mínimo |
-| `andarId` | UUID (FK → `Andar`) | sim | Mesma lista dos equipamentos; única parte da localização mostrada na lista |
-| `localArmazenamentoId` | UUID (FK → `LocalArmazenamento`) | não | Mesma lista dos equipamentos |
-| `orientacaoId` | UUID (FK → `Orientacao`) | não | Mesma lista dos equipamentos |
+| `salaId` | UUID (FK → `Sala`) | sim | Mesma localização dos equipamentos (ADR 0011); o andar é a única parte mostrada na lista |
+| `movelId` | UUID (FK → `Movel`) | não | Mesmas regras do equipamento |
+| `prateleira` | inteiro | não | Mesmas regras do equipamento (1 a 6, só com móvel) |
 | `dataUltimaContagem` | `date` | não | Só o dia, sem hora nem fuso — por isso é exibido sem conversão para Brasília (ver `formatarDataDoCalendario` em `src/domain/data-e-hora.ts`). Não aceita dia depois de hoje |
 | `observacoes` | texto | não | Mesma orientação anti-dado-sensível do equipamento |
 | `foto`, `fotoTipoMime`, `fotoNomeArquivo`, `fotoTamanho` | binário + metadados | não | Foto opcional, mesmas regras da foto do equipamento: JPEG, PNG ou WEBP até 5 MB, conferidos pela assinatura dos bytes (`src/domain/imagem.ts`). O binário nunca entra na listagem, nos detalhes, na exportação nem na auditoria (que guarda só `temFoto`); só a rota autenticada `GET /api/materiais/[id]/foto` o lê |
@@ -111,13 +111,35 @@ Regras associadas:
 - Referências às listas controladas são validadas no servidor; como no equipamento, um valor
   que o material já tinha pode continuar inativo numa edição (regra 4.2).
 
-## Listas controladas: `Categoria`, `Fabricante`, `StatusFuncionamento`, `Andar`, `LocalArmazenamento`, `Orientacao`, `CategoriaMaterial`, `UnidadeMedida`
+## Localização em hierarquia: `Unidade`, `Andar`, `Sala`, `Movel` (ADR 0011)
+
+Onde um item fica é uma hierarquia: **Unidade → Andar → Sala → Móvel → Prateleira**. O item
+guarda a sala (obrigatória), o móvel e a prateleira (opcionais); andar e unidade vêm da sala.
+Decisões completas em [ADR 0011](adr/0011-localizacao-em-hierarquia-e-mapa.md).
+
+| Tabela | Campos principais | Regras |
+| --- | --- | --- |
+| `unidades` | nome, ativo, ordem | Lista controlada ("Gerenciar listas"). Nome único |
+| `andares` | `unidadeId`, nome, ativo, ordem, `proximoNumeroSala` | Nome único **dentro da unidade** (`andares_unidade_nome_normalizado_key`) |
+| `salas` | `andarId`, `numero`, ativo, `proximoNumeroArmario`, `proximoNumeroEstante`, `versao` | Sem nome: "Estoque" (uma só no andar) ou "Estoque N". Número fixo, não reaproveitado. Só sala vazia é excluída |
+| `moveis` | `salaId`, `tipo` (`ARMARIO`/`ESTANTE`), `numero`, `posicao` | Nome "Nº armário"/"Nª estante" pelo número fixo, contado por tipo na sala. `posicao` é a ordem na fileira do mapa. Criados só pelo mapa da tela "Pesquisar patrimônio" |
+
+Integridade garantida no banco, além do serviço: `CHECK` da prateleira (1 a 6, só com
+móvel), gatilho `conferir_movel_da_sala` (o móvel do item é da sala do item) e gatilho
+`conferir_mudanca_de_sala_do_movel` (móvel com itens não muda de sala).
+
+Histórico: até a migração `20261124120000_localizacao_em_hierarquia`, a localização era
+feita por três listas independentes — `Andar`, `LocalArmazenamento` e `Orientacao`. A
+migração converteu os dados sem perder nenhum item (verificação prévia, transação única e
+conferência de totais): os locais "Nº armário" viraram armários da sala do 15º andar (com o
+mesmo id) e "Prateleira de cima/de baixo" viraram as prateleiras 1 e 2. A verificação
+somente leitura está em `prisma/verificacoes/0011-localizacao-em-hierarquia.sql`.
+
+## Listas controladas: `Categoria`, `Fabricante`, `StatusFuncionamento`, `Unidade`, `Andar`, `CategoriaMaterial`, `UnidadeMedida`
 
 `Categoria` e `StatusFuncionamento` são só dos equipamentos; `CategoriaMaterial` e
-`UnidadeMedida`, só dos materiais; `Fabricante`, `Andar`, `LocalArmazenamento` e
-`Orientacao` são compartilhadas. As três últimas substituíram a antiga `Localizacao`
-(migração `20261008180000_dividir_localizacao_e_remover_nome`: a tabela `localizacoes`
-foi renomeada para `andares`, preservando os valores e os vínculos).
+`UnidadeMedida`, só dos materiais; `Fabricante`, `Unidade` e `Andar` são compartilhadas. As
+salas de cada andar são geridas na edição do andar, em "Gerenciar listas".
 
 `Fabricante` (exibido como **Marca**) pode ser atribuída a categorias, para o cadastro mostrar
 só as marcas de cada categoria — tabelas de ligação `marcas_categorias` (marca × `Categoria`)
@@ -151,9 +173,9 @@ para "remover" um valor do fluxo de novos cadastros sem quebrar o histórico.
 | Categoria | Notebook, Monitor, Periférico, Desktop, Nobreak, DVR, Câmera |
 | Fabricante | Dell, Logitech, Intelbras, Lenovo, Hikvision, Outro |
 | StatusFuncionamento | Operacional, Com defeito, Em manutenção, Não testado |
-| Andar | 15º andar, 16º andar |
-| LocalArmazenamento | 1º armário |
-| Orientacao | Prateleira de cima, Prateleira de baixo |
+| Unidade | Escritório |
+| Andar | 15º andar, 16º andar (do Escritório), com uma sala de estoque cada |
+| Movel | 1º armário (sala do 15º andar) |
 | CategoriaMaterial | Cabo, Conector, Adaptador, Periférico, Peça de reposição, Suprimento |
 | UnidadeMedida | Unidade, Metro, Caixa, Pacote, Rolo, Par, Kit |
 
@@ -205,21 +227,23 @@ Categoria ─────────┐ (só equipamento)
 Status ────────────┤
                    ├──< Equipamento ──┐
 Fabricante ────────┤ (os dois)        ├──< RegistroAuditoria   (equipamento OU material)
-Andar ─────────────┤                  │
-LocalArmazenamento ┤                  │
-Orientacao ────────┤                  │
+Sala ──────────────┤                  │
+Movel ─────────────┤                  │
                    ├──< Material ─────┘
 CategoriaMaterial ─┤ (só material)
 UnidadeMedida ─────┘
 
+Unidade ──< Andar ──< Sala ──< Movel   (localização em hierarquia — ADR 0011)
+
 Equipamento, Material e RegistroAuditoria ──> Usuario (quem criou / alterou / arquivou / agiu)
 ```
 
-- `Equipamento` referencia seis listas controladas e até três papéis de `Usuario`
-  (criador, último editor, quem arquivou).
-- `Material` referencia `CategoriaMaterial`, `UnidadeMedida`, `Andar` e, opcionalmente,
-  `Fabricante`, `LocalArmazenamento` e `Orientacao` — as quatro últimas compartilhadas com
-  `Equipamento` —, e os mesmos três papéis de `Usuario`.
+- `Equipamento` referencia `Categoria`, `Fabricante`, `StatusFuncionamento`, `Sala` e,
+  opcionalmente, `Movel`, e até três papéis de `Usuario` (criador, último editor, quem
+  arquivou).
+- `Material` referencia `CategoriaMaterial`, `UnidadeMedida`, `Sala` e, opcionalmente,
+  `Fabricante` e `Movel` — compartilhados com `Equipamento` —, e os mesmos três papéis de
+  `Usuario`.
 - `RegistroAuditoria` referencia opcionalmente um `Equipamento` **ou** um `Material` e
   opcionalmente um `Usuario`, mas guarda também `usuarioNome`/`usuarioEmail` capturados
   no momento do evento — para que o histórico continue legível mesmo que o vínculo de FK

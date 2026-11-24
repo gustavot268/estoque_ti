@@ -40,9 +40,11 @@ export type LinhaDeEquipamento = {
   readonly numeroSerie: string | null;
   readonly codigoTrillogo: string | null;
   readonly status: string;
+  readonly unidade: string;
   readonly andar: string;
-  readonly localArmazenamento: string | null;
-  readonly orientacao: string | null;
+  readonly sala: string;
+  readonly movel: string | null;
+  readonly prateleira: string | null;
   readonly observacoes: string | null;
   /** Já formatada como texto (horário de Brasília) — datas não passam por neutralização. */
   readonly criadoEm: string;
@@ -61,9 +63,11 @@ export type LinhaDeMaterial = {
   readonly unidadeDeMedida: string;
   readonly quantidade: number;
   readonly estoqueMinimo: number | null;
+  readonly unidade: string;
   readonly andar: string;
-  readonly localArmazenamento: string | null;
-  readonly orientacao: string | null;
+  readonly sala: string;
+  readonly movel: string | null;
+  readonly prateleira: string | null;
   /** Dia da contagem, como o banco devolve um `date`: meia-noite UTC daquele dia. */
   readonly dataUltimaContagem: Date | null;
   readonly observacoes: string | null;
@@ -103,9 +107,11 @@ const CABECALHOS_DE_EQUIPAMENTOS = [
   "Número de série",
   "Código Trillogo",
   "Status de funcionamento",
+  "Unidade",
   "Andar",
-  "Local de armazenamento",
-  "Orientação",
+  "Sala",
+  "Móvel",
+  "Prateleira",
   "Observações",
   "Criado em (Brasília)",
   "Criado por",
@@ -113,7 +119,9 @@ const CABECALHOS_DE_EQUIPAMENTOS = [
   "Atualizado por",
 ] as const;
 
-const LARGURAS_DE_EQUIPAMENTOS = [38, 16, 16, 20, 20, 18, 20, 12, 22, 18, 40, 22, 22, 26, 22];
+const LARGURAS_DE_EQUIPAMENTOS = [
+  38, 16, 16, 20, 20, 18, 20, 16, 12, 12, 14, 26, 40, 22, 22, 26, 22,
+];
 
 const CABECALHOS_DE_MATERIAIS = [
   "Código Trillogo",
@@ -124,15 +132,17 @@ const CABECALHOS_DE_MATERIAIS = [
   "Unidade de medida",
   "Quantidade",
   "Estoque mínimo",
+  "Unidade",
   "Andar",
-  "Local de armazenamento",
-  "Orientação",
+  "Sala",
+  "Móvel",
+  "Prateleira",
   "Data da última contagem",
   "Observações",
   "Criado por",
 ] as const;
 
-const LARGURAS_DE_MATERIAIS = [18, 16, 16, 28, 16, 18, 12, 15, 12, 22, 18, 22, 40, 22];
+const LARGURAS_DE_MATERIAIS = [18, 16, 16, 28, 16, 18, 12, 15, 16, 12, 12, 14, 26, 22, 40, 22];
 
 /** Posição (1 = coluna A) das colunas de materiais que recebem formato especial. */
 const COLUNA_DE_QUANTIDADE = CABECALHOS_DE_MATERIAIS.indexOf("Quantidade") + 1;
@@ -229,9 +239,11 @@ function preencherEquipamentos(
       celula(linha.numeroSerie),
       celula(linha.codigoTrillogo),
       celula(linha.status),
+      celula(linha.unidade),
       celula(linha.andar),
-      celula(linha.localArmazenamento),
-      celula(linha.orientacao),
+      celula(linha.sala),
+      celula(linha.movel),
+      celula(linha.prateleira),
       celula(linha.observacoes),
       linha.criadoEm,
       celula(linha.criadoPor),
@@ -258,9 +270,11 @@ function preencherMateriais(planilha: ExcelJS.Worksheet, linhas: readonly LinhaD
       celula(linha.unidadeDeMedida),
       linha.quantidade,
       linha.estoqueMinimo,
+      celula(linha.unidade),
       celula(linha.andar),
-      celula(linha.localArmazenamento),
-      celula(linha.orientacao),
+      celula(linha.sala),
+      celula(linha.movel),
+      celula(linha.prateleira),
       linha.dataUltimaContagem,
       celula(linha.observacoes),
       celula(linha.criadoPor),

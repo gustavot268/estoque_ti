@@ -37,7 +37,7 @@ autenticado sem perfil resolvido não executa nenhuma ação protegida.
 | Editar material (inclusive a quantidade, numa recontagem) | ❌ | ✅ | ✅ |
 | Arquivar material | ❌ | ❌ | ✅ |
 | Restaurar material e ver os arquivados (`/materiais/arquivados`) | ❌ | ❌ | ✅ |
-| Gerenciar listas controladas (Categoria, Fabricante, Status, Andar, Local de armazenamento, Orientação, Categoria de material, Unidade de medida) | ❌ | ❌ | ✅ |
+| Gerenciar listas controladas (Categoria, Fabricante, Status, Unidade, Andar e salas, Categoria de material, Unidade de medida) | ❌ | ❌ | ✅ |
 
 Fonte normativa: contrato técnico das Etapas 1–2, seção 7.5, que reflete a seção 6 dos
 requisitos do cliente. As linhas de materiais estendem a matriz para o segundo tipo de

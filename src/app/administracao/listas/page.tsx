@@ -27,10 +27,8 @@ const DESCRICOES_DE_TIPO: Record<TipoDeLista, string> = {
   fabricante:
     'Marcas de equipamentos e materiais, incluindo os pendentes de revisão do fluxo "Outro".',
   status: "Status de funcionamento dos equipamentos (Operacional, Com defeito…).",
-  andar: "Andares onde ficam os itens (15º andar, 16º andar…). Obrigatório no cadastro.",
-  "local-armazenamento":
-    "Onde o item fica guardado no andar (1º armário, rack…). Opcional no cadastro.",
-  orientacao: "Posição dentro do local (prateleira de cima, de baixo…). Opcional no cadastro.",
+  unidade: "Unidades da empresa (Escritório, lojas…). Topo da localização dos itens.",
+  andar: "Andares de cada unidade (15º andar, Térreo…) e as salas de estoque de cada andar.",
   "categoria-material": "Categorias dos materiais controlados por quantidade (Cabo, Conector…).",
   "unidade-medida":
     "Unidades em que a quantidade dos materiais é contada (Unidade, Metro, Caixa…).",
@@ -64,9 +62,9 @@ export default async function PaginaDeGestaoDeListas() {
         <div className="max-w-2xl">
           <h1 className="text-2xl font-bold tracking-tight text-texto">Gestão de listas</h1>
           <p className="mt-1 text-sm text-texto-suave">
-            As listas formam as opções dos cadastros. Marca, Andar, Local de armazenamento e
-            Orientação valem para equipamentos e materiais; as demais, só para um dos dois. Um valor
-            só pode ser excluído se nenhum equipamento ou material o usar.
+            As listas formam as opções dos cadastros. Marca, Unidade e Andar valem para equipamentos
+            e materiais; as demais, só para um dos dois. Um valor só pode ser excluído se nada
+            depender dele. Armários e estantes são criados no mapa da tela "Pesquisar patrimônio".
           </p>
         </div>
         <Link
