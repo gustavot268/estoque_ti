@@ -1,7 +1,8 @@
 /**
- * Repositório das listas controladas (Categoria, Fabricante, StatusFuncionamento,
- * Andar, LocalArmazenamento, Orientacao e, dos materiais, CategoriaMaterial e
- * UnidadeMedida) — acesso a dado puro, sem regra de negócio.
+ * Repositório das listas controladas (Categoria, Fabricante, StatusFuncionamento
+ * e, dos materiais, CategoriaMaterial e UnidadeMedida) — acesso a dado puro,
+ * sem regra de negócio. A localização (unidade, andar, sala e móvel) fica em
+ * `localizacao.ts`.
  *
  * Recebe o cliente Prisma como parâmetro em vez de usar um singleton interno,
  * para que tanto o singleton da aplicação (`obterPrisma()`) quanto o cliente
@@ -10,12 +11,9 @@
  */
 
 import type {
-  Andar,
   Categoria,
   CategoriaMaterial,
   Fabricante,
-  LocalArmazenamento,
-  Orientacao,
   StatusFuncionamento,
   UnidadeMedida,
 } from "@prisma/client";
@@ -85,41 +83,6 @@ export async function obterStatusFuncionamentoPorId(
   id: string,
 ): Promise<StatusFuncionamento | null> {
   return prisma.statusFuncionamento.findUnique({ where: { id } });
-}
-
-export async function listarAndaresAtivos(prisma: ClientePrisma): Promise<Andar[]> {
-  return prisma.andar.findMany({ where: { ativo: true }, orderBy: ORDEM_DE_EXIBICAO });
-}
-
-export async function obterAndarPorId(prisma: ClientePrisma, id: string): Promise<Andar | null> {
-  return prisma.andar.findUnique({ where: { id } });
-}
-
-export async function listarLocaisDeArmazenamentoAtivos(
-  prisma: ClientePrisma,
-): Promise<LocalArmazenamento[]> {
-  return prisma.localArmazenamento.findMany({
-    where: { ativo: true },
-    orderBy: ORDEM_DE_EXIBICAO,
-  });
-}
-
-export async function obterLocalDeArmazenamentoPorId(
-  prisma: ClientePrisma,
-  id: string,
-): Promise<LocalArmazenamento | null> {
-  return prisma.localArmazenamento.findUnique({ where: { id } });
-}
-
-export async function listarOrientacoesAtivas(prisma: ClientePrisma): Promise<Orientacao[]> {
-  return prisma.orientacao.findMany({ where: { ativo: true }, orderBy: ORDEM_DE_EXIBICAO });
-}
-
-export async function obterOrientacaoPorId(
-  prisma: ClientePrisma,
-  id: string,
-): Promise<Orientacao | null> {
-  return prisma.orientacao.findUnique({ where: { id } });
 }
 
 export async function listarCategoriasDeMaterialAtivas(

@@ -8,7 +8,7 @@ import {
   obterFotoDoEquipamento,
 } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDaSala, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -27,7 +27,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
   let ator: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -42,7 +42,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -57,7 +57,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
   });
 
@@ -152,7 +152,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
       numeroSerie: `${prefixo}-sn-5`,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
       versao: original.versao,
     });
@@ -182,7 +182,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
         numeroSerie: `${prefixo}-sn-6`,
         codigoTrillogo: null,
         statusId,
-        andarId,
+        salaId,
         observacoes: null,
         versao: original.versao,
       },
@@ -215,7 +215,7 @@ describe("foto do equipamento (cadastro, edição e download)", () => {
         numeroSerie: `${prefixo}-sn-7`,
         codigoTrillogo: null,
         statusId,
-        andarId,
+        salaId,
         observacoes: null,
         versao: original.versao,
       },

@@ -17,6 +17,7 @@ import { SeloTrillogo } from "../../../components/selo-trillogo";
 import { formatarDataEHora } from "../../../domain/data-e-hora";
 import { descricaoDoEquipamento } from "../../../domain/descricao-do-item";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../domain/erros";
+import { rotulosDeLocalizacao } from "../../../domain/localizacao";
 import { acoesPermitidas, exigirPermissao } from "../../../domain/permissoes";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
@@ -81,6 +82,7 @@ export default async function PaginaDeDetalhes({
     return <MensagemDeIndisponibilidade />;
   }
 
+  const localizacao = rotulosDeLocalizacao(equipamento);
   const descricao = descricaoDoEquipamento({
     categoria: equipamento.categoria.nome,
     fabricante: equipamento.fabricante.nome,
@@ -200,12 +202,11 @@ export default async function PaginaDeDetalhes({
           <Campo rotulo="Marca" valor={equipamento.fabricante.nome} />
           <Campo rotulo="Modelo" valor={equipamento.modelo} />
           <Campo rotulo="Status de funcionamento" valor={equipamento.status.nome} />
-          <Campo rotulo="Andar" valor={equipamento.andar.nome} />
-          <Campo
-            rotulo="Local de armazenamento"
-            valor={equipamento.localArmazenamento?.nome ?? "—"}
-          />
-          <Campo rotulo="Orientação" valor={equipamento.orientacao?.nome ?? "—"} />
+          <Campo rotulo="Unidade" valor={localizacao.unidade} />
+          <Campo rotulo="Andar" valor={localizacao.andar} />
+          <Campo rotulo="Sala" valor={localizacao.sala} />
+          <Campo rotulo="Móvel" valor={localizacao.movel ?? "—"} />
+          <Campo rotulo="Prateleira" valor={localizacao.prateleira ?? "—"} />
           <Campo rotulo="Número de série" valor={equipamento.numeroSerie ?? "—"} />
           <Campo
             rotulo="Código Trillogo"

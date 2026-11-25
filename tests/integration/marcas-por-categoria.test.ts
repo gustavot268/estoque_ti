@@ -14,8 +14,8 @@ import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./su
 import {
   idDaCategoria,
   idDaCategoriaDeMaterial,
+  idDaSala,
   idDaUnidadeDeMedida,
-  idDoAndar,
   idDoFabricante,
   idDoStatus,
 } from "./suporte/listas";
@@ -39,7 +39,7 @@ describe("marcas por categoria", () => {
   let cabo: string;
   let conector: string;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let unidadeId: string;
   let outroId: string;
   const usuariosCriados: string[] = [];
@@ -73,7 +73,7 @@ describe("marcas por categoria", () => {
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
       ...extra,
     };
@@ -106,7 +106,7 @@ describe("marcas por categoria", () => {
     cabo = await idDaCategoriaDeMaterial(prisma, "Cabo");
     conector = await idDaCategoriaDeMaterial(prisma, "Conector");
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     unidadeId = await idDaUnidadeDeMedida(prisma, "Unidade");
     outroId = await idDoFabricante(prisma, "Outro");
   });
@@ -258,7 +258,7 @@ describe("marcas por categoria", () => {
         unidadeMedidaId: unidadeId,
         quantidade: "3",
         estoqueMinimo: "",
-        andarId,
+        salaId,
         dataUltimaContagem: "",
         observacoes: "",
       };

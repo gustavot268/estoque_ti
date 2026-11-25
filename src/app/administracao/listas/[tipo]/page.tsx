@@ -129,6 +129,18 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
     }
   }
 
+  // Andar: a unidade no "Novo valor" e na tabela (ADR 0011).
+  let unidades: { id: string; nome: string; ativo: boolean }[] | undefined;
+  if (tipo === "andar") {
+    try {
+      unidades = await listarValoresDeLista(obterPrisma(), ator, "unidade");
+    } catch (erro) {
+      logger.error("Falha ao carregar as unidades.", { erro });
+      return <MensagemDeIndisponibilidade />;
+    }
+  }
+  const nomeDaUnidade = new Map(unidades?.map((unidade) => [unidade.id, unidade.nome]));
+
   const rotuloDoTipo = rotuloDoTipoDeLista(tipo);
   const acaoDeCriar = criarValorDeListaAction.bind(null, tipo);
 
@@ -183,7 +195,19 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
           acao={acaoDeCriar}
           rotuloDoBotao="Adicionar"
           atribuicao={atribuicao}
+          unidades={unidades
+            ?.filter((unidade) => unidade.ativo)
+            .map((unidade) => ({ id: unidade.id, nome: unidade.nome }))}
         />
+        {unidades !== undefined && unidades.length === 0 && (
+          <p className="text-sm text-texto-suave">
+            Cadastre uma unidade antes, em{" "}
+            <Link href="/administracao/listas/unidade" className="font-medium text-link underline">
+              Unidade
+            </Link>
+            .
+          </p>
+        )}
       </section>
 
       <div className="flex flex-col gap-6 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6">
@@ -194,6 +218,14 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
             <caption className="sr-only">Valores de {rotuloDoTipo}</caption>
             <thead>
               <tr className="bg-superficie-suave text-texto-suave">
+                {unidades !== undefined && (
+                  <th
+                    scope="col"
+                    className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
+                  >
+                    Unidade
+                  </th>
+                )}
                 <th
                   scope="col"
                   className="px-3 py-3 text-xs font-semibold tracking-wide uppercase first:rounded-l-lg last:rounded-r-lg"
@@ -233,6 +265,13 @@ export default async function PaginaDeGestaoDeUmTipoDeLista({
                 const acaoDeExcluir = excluirValorDeListaAction.bind(null, tipo, valor.id);
                 return (
                   <tr key={valor.id} className="transition-colors hover:bg-superficie-suave">
+                    {unidades !== undefined && (
+                      <td className="border-b border-borda px-3 py-3">
+                        {valor.unidadeId === null
+                          ? "—"
+                          : (nomeDaUnidade.get(valor.unidadeId) ?? "—")}
+                      </td>
+                    )}
                     <td className="border-b border-borda px-3 py-3">{valor.nome}</td>
                     <td className="border-b border-borda px-3 py-3">{valor.ordemExibicao}</td>
                     <td className="border-b border-borda px-3 py-3">

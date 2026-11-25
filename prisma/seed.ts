@@ -46,12 +46,18 @@ export const STATUS_FUNCIONAMENTO_SEMENTE = [
   "Não testado",
 ] as const;
 
+/** Unidade dos dados atuais (ADR 0011); as lojas são cadastradas em "Gerenciar listas". */
+export const UNIDADE_SEMENTE = "Escritório";
+
+/** Andares do escritório; cada um ganha uma sala de estoque. */
 export const ANDARES_SEMENTE = ["15º andar", "16º andar"] as const;
 
-/** Tirados das observações já cadastradas ("no primeiro armário… na prateleira de cima"). */
-export const LOCAIS_DE_ARMAZENAMENTO_SEMENTE = ["1º armário"] as const;
-
-export const ORIENTACOES_SEMENTE = ["Prateleira de cima", "Prateleira de baixo"] as const;
+/**
+ * Armários da sala do 15º andar, pelo número ("1º armário"). Tirados das
+ * observações já cadastradas ("no primeiro armário… na prateleira de cima").
+ * Os demais móveis são criados no mapa da tela "Pesquisar patrimônio".
+ */
+export const ARMARIOS_DO_15_SEMENTE = [1] as const;
 
 /** Ponto de partida para os materiais; a Administração ajusta em "Gerenciar listas". */
 export const CATEGORIAS_DE_MATERIAL_SEMENTE = [
@@ -77,9 +83,10 @@ export type ResumoDoSeed = {
   readonly categorias: number;
   readonly fabricantes: number;
   readonly statusFuncionamento: number;
+  readonly unidades: number;
   readonly andares: number;
-  readonly locaisDeArmazenamento: number;
-  readonly orientacoes: number;
+  readonly salas: number;
+  readonly moveis: number;
   readonly categoriasDeMaterial: number;
   readonly unidadesDeMedida: number;
 };
@@ -120,40 +127,64 @@ async function semearStatusFuncionamento(prisma: ClientePrisma): Promise<number>
   return STATUS_FUNCIONAMENTO_SEMENTE.length;
 }
 
-async function semearAndares(prisma: ClientePrisma): Promise<number> {
+async function semearUnidade(prisma: ClientePrisma): Promise<string> {
+  const { exibicao, normalizado } = normalizarParDeNomeDeLista(UNIDADE_SEMENTE);
+  const unidade = await prisma.unidade.upsert({
+    where: { nomeNormalizado: normalizado },
+    update: {},
+    create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: 0 },
+  });
+  return unidade.id;
+}
+
+/** Andares da unidade e uma sala em cada um (só se o andar ainda não tiver sala). */
+async function semearAndaresESalas(
+  prisma: ClientePrisma,
+  unidadeId: string,
+): Promise<Map<string, string>> {
+  const salaPorAndar = new Map<string, string>();
   for (const [indice, nomeSemente] of ANDARES_SEMENTE.entries()) {
     const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
-    await prisma.andar.upsert({
-      where: { nomeNormalizado: normalizado },
+    const andar = await prisma.andar.upsert({
+      where: { unidadeId_nomeNormalizado: { unidadeId, nomeNormalizado: normalizado } },
       update: {},
-      create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
+      create: { unidadeId, nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
     });
+    const salaExistente = await prisma.sala.findFirst({
+      where: { andarId: andar.id },
+      orderBy: { numero: "asc" },
+    });
+    const sala =
+      salaExistente ??
+      (await prisma.$transaction(async (tx) => {
+        const atualizado = await tx.andar.update({
+          where: { id: andar.id },
+          data: { proximoNumeroSala: { increment: 1 } },
+        });
+        return tx.sala.create({
+          data: { andarId: andar.id, numero: atualizado.proximoNumeroSala - 1 },
+        });
+      }));
+    salaPorAndar.set(nomeSemente, sala.id);
   }
-  return ANDARES_SEMENTE.length;
+  return salaPorAndar;
 }
 
-async function semearLocaisDeArmazenamento(prisma: ClientePrisma): Promise<number> {
-  for (const [indice, nomeSemente] of LOCAIS_DE_ARMAZENAMENTO_SEMENTE.entries()) {
-    const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
-    await prisma.localArmazenamento.upsert({
-      where: { nomeNormalizado: normalizado },
+async function semearArmariosDo15(prisma: ClientePrisma, salaId: string): Promise<number> {
+  for (const numero of ARMARIOS_DO_15_SEMENTE) {
+    await prisma.movel.upsert({
+      where: { salaId_tipo_numero: { salaId, tipo: "ARMARIO", numero } },
       update: {},
-      create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
+      create: { salaId, tipo: "ARMARIO", numero, posicao: numero },
     });
   }
-  return LOCAIS_DE_ARMAZENAMENTO_SEMENTE.length;
-}
-
-async function semearOrientacoes(prisma: ClientePrisma): Promise<number> {
-  for (const [indice, nomeSemente] of ORIENTACOES_SEMENTE.entries()) {
-    const { exibicao, normalizado } = normalizarParDeNomeDeLista(nomeSemente);
-    await prisma.orientacao.upsert({
-      where: { nomeNormalizado: normalizado },
-      update: {},
-      create: { nome: exibicao, nomeNormalizado: normalizado, ordemExibicao: indice },
-    });
-  }
-  return ORIENTACOES_SEMENTE.length;
+  // O próximo armário criado no mapa continua a contagem.
+  const maior = Math.max(...ARMARIOS_DO_15_SEMENTE);
+  await prisma.sala.updateMany({
+    where: { id: salaId, proximoNumeroArmario: { lte: maior } },
+    data: { proximoNumeroArmario: maior + 1 },
+  });
+  return ARMARIOS_DO_15_SEMENTE.length;
 }
 
 async function semearCategoriasDeMaterial(prisma: ClientePrisma): Promise<number> {
@@ -180,14 +211,22 @@ async function semearUnidadesDeMedida(prisma: ClientePrisma): Promise<number> {
   return UNIDADES_DE_MEDIDA_SEMENTE.length;
 }
 
+async function semearLocalizacao(
+  prisma: ClientePrisma,
+): Promise<Pick<ResumoDoSeed, "unidades" | "andares" | "salas" | "moveis">> {
+  const unidadeId = await semearUnidade(prisma);
+  const salaPorAndar = await semearAndaresESalas(prisma, unidadeId);
+  const salaDo15 = salaPorAndar.get("15º andar");
+  const moveis = salaDo15 === undefined ? 0 : await semearArmariosDo15(prisma, salaDo15);
+  return { unidades: 1, andares: ANDARES_SEMENTE.length, salas: salaPorAndar.size, moveis };
+}
+
 export async function executarSeed(prisma: ClientePrisma): Promise<ResumoDoSeed> {
   return {
     categorias: await semearCategorias(prisma),
     fabricantes: await semearFabricantes(prisma),
     statusFuncionamento: await semearStatusFuncionamento(prisma),
-    andares: await semearAndares(prisma),
-    locaisDeArmazenamento: await semearLocaisDeArmazenamento(prisma),
-    orientacoes: await semearOrientacoes(prisma),
+    ...(await semearLocalizacao(prisma)),
     categoriasDeMaterial: await semearCategoriasDeMaterial(prisma),
     unidadesDeMedida: await semearUnidadesDeMedida(prisma),
   };
@@ -236,8 +275,8 @@ async function main(): Promise<void> {
     const resumo = await executarSeed(prisma);
     console.log(
       `[seed] concluído — categorias: ${resumo.categorias}, fabricantes: ${resumo.fabricantes}, ` +
-        `status: ${resumo.statusFuncionamento}, andares: ${resumo.andares}, ` +
-        `locais de armazenamento: ${resumo.locaisDeArmazenamento}, orientações: ${resumo.orientacoes}, ` +
+        `status: ${resumo.statusFuncionamento}, unidades: ${resumo.unidades}, ` +
+        `andares: ${resumo.andares}, salas: ${resumo.salas}, móveis: ${resumo.moveis}, ` +
         `categorias de material: ${resumo.categoriasDeMaterial}, ` +
         `unidades de medida: ${resumo.unidadesDeMedida}`,
     );

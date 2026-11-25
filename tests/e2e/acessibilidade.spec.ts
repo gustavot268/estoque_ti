@@ -9,8 +9,9 @@ import {
   criarUsuarioDeTeste,
   idDaCategoria,
   idDaCategoriaDeMaterial,
+  idDaSala,
   idDaUnidadeDeMedida,
-  idDoAndar,
+  idDoArmarioDo15,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -50,7 +51,7 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
       // Com código, para o selo lilás do Trillogo entrar na auditoria de contraste.
       codigoTrillogo: `${prefixo}-tr`,
       statusId: await idDoStatus(prisma, "Operacional"),
-      andarId: await idDoAndar(prisma, "15º andar"),
+      salaId: await idDaSala(prisma, "15º andar"),
       observacoes: null,
     });
     equipamentoId = equipamento.id;
@@ -66,7 +67,7 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
       unidadeMedidaId: await idDaUnidadeDeMedida(prisma, "Unidade"),
       quantidade: "1",
       estoqueMinimo: "5",
-      andarId: await idDoAndar(prisma, "15º andar"),
+      salaId: await idDaSala(prisma, "15º andar"),
       dataUltimaContagem: "",
       observacoes: "",
     });
@@ -84,6 +85,16 @@ test.describe("acessibilidade — telas públicas e de Operação", () => {
 
   test("página inicial não tem violação WCAG A/AA", async ({ page }) => {
     await page.goto("/");
+    expect(await auditar(page)).toEqual([]);
+  });
+
+  test("pesquisa de patrimônio (mapa, destaque e móvel aberto) não tem violação WCAG A/AA", async ({
+    page,
+  }) => {
+    const prisma = obterClienteDeTeste();
+    const salaId = await idDaSala(prisma, "15º andar");
+    const movelId = await idDoArmarioDo15(prisma, 1);
+    await page.goto(`/patrimonio?busca=${prefixo}&salaId=${salaId}&movelId=${movelId}`);
     expect(await auditar(page)).toEqual([]);
   });
 

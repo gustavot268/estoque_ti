@@ -8,8 +8,8 @@ produção.
 
 - Página inicial com dois botões: **Cadastrar** e **Ver estoque**.
 - Cadastro de equipamento pelo formulário (sem campo Nome: o título exibido é
-  "Categoria Marca Modelo"; localização em Andar, Local de armazenamento e
-  Orientação, com só o Andar na lista; com foto opcional e botão **Home** para voltar à página
+  "Categoria Marca Modelo"; localização em Unidade, Andar, Sala, Móvel e
+  Prateleira (ADR 0011), com só o Andar na lista; com foto opcional e botão **Home** para voltar à página
   inicial, que avisa antes de sair se houver dados digitados), consulta, pesquisa,
   filtros, detalhes e histórico de alterações. O cadastro e a edição de material também
   aceitam uma foto opcional, exibida nos detalhes.

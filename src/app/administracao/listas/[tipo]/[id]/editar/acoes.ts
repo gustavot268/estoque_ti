@@ -10,11 +10,18 @@
  */
 
 import { redirect } from "next/navigation";
-import { EntradaInvalidaError, ehErroDeDominio } from "../../../../../../domain/erros";
+import {
+  AcessoNegadoError,
+  EntradaInvalidaError,
+  ehErroDeDominio,
+  RegistroNaoEncontradoError,
+  ValorDeListaEmUsoError,
+} from "../../../../../../domain/erros";
 import { obterAtorAtual } from "../../../../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../../../infrastructure/prisma/cliente";
 import { atualizarValorDeLista } from "../../../../../../services/administracao-listas";
+import { adicionarSala, removerSala } from "../../../../../../services/salas";
 import { extrairAtribuicoesDoFormulario } from "../../../atribuicoes-do-formulario";
 import type { ResultadoValorDeLista } from "../../acoes";
 
@@ -50,6 +57,8 @@ export async function atualizarValorDeListaAction(
       id,
       extrairEntradaDoFormulario(dadosDoFormulario),
       extrairAtribuicoesDoFormulario(dadosDoFormulario),
+      // Só andar tem unidade (ADR 0011); nos demais tipos o serviço ignora.
+      tipo === "andar" ? dadosDoFormulario.get("unidadeId") : undefined,
     );
   } catch (erro) {
     if (erro instanceof EntradaInvalidaError) {
@@ -68,4 +77,68 @@ export async function atualizarValorDeListaAction(
   }
 
   redirect(`/administracao/listas/${tipo}?atualizado=1`);
+}
+
+/** Volta para a edição do andar, com o resultado da operação na sala (só códigos fixos). */
+function destinoDaEdicaoDoAndar(andarId: string, resultado: string): string {
+  return `/administracao/listas/andar/${encodeURIComponent(andarId)}/editar?${resultado}`;
+}
+
+/**
+ * Código do erro que volta pela URL. Só códigos de uma lista fixa (a página
+ * traduz cada um), nunca texto livre: assim um link forjado não consegue
+ * mostrar uma mensagem qualquer na tela.
+ */
+function codigoDoErroDeSala(erro: unknown): string {
+  if (erro instanceof ValorDeListaEmUsoError) {
+    return "em-uso";
+  }
+  if (erro instanceof AcessoNegadoError) {
+    return "permissao";
+  }
+  if (erro instanceof RegistroNaoEncontradoError) {
+    return "nao-encontrado";
+  }
+  return "indisponivel";
+}
+
+/** Salas de um andar (ADR 0011): `andarId` chega pré-vinculado via `.bind`. */
+export async function adicionarSalaAction(andarId: string, _dados: FormData): Promise<void> {
+  const ator = await obterAtorAtual();
+  if (ator === null) {
+    redirect(destinoDaEdicaoDoAndar(andarId, "erroSala=sessao"));
+  }
+
+  let destino = destinoDaEdicaoDoAndar(andarId, "sala=criada");
+  try {
+    await adicionarSala(obterPrisma(), ator, andarId);
+  } catch (erro) {
+    if (!ehErroDeDominio(erro)) {
+      logger.error("Falha inesperada ao adicionar sala.", { erro });
+    }
+    destino = destinoDaEdicaoDoAndar(andarId, `erroSala=${codigoDoErroDeSala(erro)}`);
+  }
+  redirect(destino);
+}
+
+export async function excluirSalaAction(
+  andarId: string,
+  salaId: string,
+  _dados: FormData,
+): Promise<void> {
+  const ator = await obterAtorAtual();
+  if (ator === null) {
+    redirect(destinoDaEdicaoDoAndar(andarId, "erroSala=sessao"));
+  }
+
+  let destino = destinoDaEdicaoDoAndar(andarId, "sala=excluida");
+  try {
+    await removerSala(obterPrisma(), ator, salaId);
+  } catch (erro) {
+    if (!ehErroDeDominio(erro)) {
+      logger.error("Falha inesperada ao excluir sala.", { erro });
+    }
+    destino = destinoDaEdicaoDoAndar(andarId, `erroSala=${codigoDoErroDeSala(erro)}`);
+  }
+  redirect(destino);
 }

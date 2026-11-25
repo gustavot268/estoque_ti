@@ -63,9 +63,9 @@ type DadosDeAuditoriaDoEquipamento = {
   readonly numeroSerie: string | null;
   readonly codigoTrillogo: string | null;
   readonly statusId: string;
-  readonly andarId: string;
-  readonly localArmazenamentoId: string | null;
-  readonly orientacaoId: string | null;
+  readonly salaId: string;
+  readonly movelId: string | null;
+  readonly prateleira: number | null;
   readonly observacoes: string | null;
   readonly fotoTipoMime: string | null;
 };
@@ -79,9 +79,9 @@ function paraAuditoria(equipamento: DadosDeAuditoriaDoEquipamento) {
     numeroSerie: equipamento.numeroSerie,
     codigoTrillogo: equipamento.codigoTrillogo,
     statusId: equipamento.statusId,
-    andarId: equipamento.andarId,
-    localArmazenamentoId: equipamento.localArmazenamentoId,
-    orientacaoId: equipamento.orientacaoId,
+    salaId: equipamento.salaId,
+    movelId: equipamento.movelId,
+    prateleira: equipamento.prateleira,
     observacoes: equipamento.observacoes,
     // Nunca o binário em si na auditoria (mesma regra da exportação) — só se
     // há ou não uma foto anexada.
@@ -291,9 +291,9 @@ export async function cadastrarEquipamento(
         codigoTrillogo: codigoTrillogo.exibicao,
         codigoTrillogoNormalizado: codigoTrillogo.normalizado,
         statusId: entrada.statusId,
-        andarId: entrada.andarId,
-        localArmazenamentoId: entrada.localArmazenamentoId,
-        orientacaoId: entrada.orientacaoId,
+        salaId: entrada.salaId,
+        movelId: entrada.movelId,
+        prateleira: entrada.prateleira,
         observacoes: entrada.observacoes,
         foto: foto?.foto ?? null,
         fotoTipoMime: foto?.fotoTipoMime ?? null,
@@ -524,9 +524,9 @@ export async function editarEquipamento(
     categoriaId: atual.categoriaId,
     statusId: atual.statusId,
     fabricanteId: atual.fabricanteId,
-    andarId: atual.andarId,
-    localArmazenamentoId: atual.localArmazenamentoId,
-    orientacaoId: atual.orientacaoId,
+    salaId: atual.salaId,
+    movelId: atual.movelId,
+    prateleira: atual.prateleira,
   });
 
   const numeroSerie = normalizarParDeIdentificador(entrada.numeroSerie);
@@ -579,9 +579,9 @@ export async function editarEquipamento(
         codigoTrillogo: codigoTrillogo.exibicao,
         codigoTrillogoNormalizado: codigoTrillogo.normalizado,
         statusId: entrada.statusId,
-        andarId: entrada.andarId,
-        localArmazenamentoId: entrada.localArmazenamentoId,
-        orientacaoId: entrada.orientacaoId,
+        salaId: entrada.salaId,
+        movelId: entrada.movelId,
+        prateleira: entrada.prateleira,
         observacoes: entrada.observacoes,
         atualizadoPorId: ator.usuarioId,
         // Substituir, remover ou manter — ver `alteracaoDaFoto`.

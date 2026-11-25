@@ -7,8 +7,8 @@ import {
   criarUsuarioDeTeste,
   idDaCategoria,
   idDaCategoriaDeMaterial,
+  idDaSala,
   idDaUnidadeDeMedida,
-  idDoAndar,
   idDoFabricante,
   idDoStatus,
   obterClienteDeTeste,
@@ -38,7 +38,7 @@ test.beforeAll(async () => {
   const categoriaId = await idDaCategoria(prisma, "Notebook");
   const fabricanteId = await idDoFabricante(prisma, "Dell");
   const statusId = await idDoStatus(prisma, "Operacional");
-  const andarId = await idDoAndar(prisma, "15º andar");
+  const salaId = await idDaSala(prisma, "15º andar");
   // 21 equipamentos: com o padrão (20) ficam duas páginas; com 50, uma só.
   for (let indice = 0; indice < 21; indice++) {
     const equipamento = await cadastrarEquipamento(prisma, ator, {
@@ -48,7 +48,7 @@ test.beforeAll(async () => {
       numeroSerie: `${prefixo}-sn-${indice}`,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
     });
     equipamentosCriados.push(equipamento.id);
@@ -68,7 +68,7 @@ test.beforeAll(async () => {
       unidadeMedidaId: unidadeId,
       quantidade: "10",
       estoqueMinimo: "",
-      andarId,
+      salaId,
       dataUltimaContagem: "",
       observacoes: "",
     });

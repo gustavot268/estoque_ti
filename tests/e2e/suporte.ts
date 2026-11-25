@@ -13,11 +13,11 @@ export {
 export {
   idDaCategoria,
   idDaCategoriaDeMaterial,
-  idDaOrientacao,
+  idDaSala,
   idDaUnidadeDeMedida,
   idDoAndar,
+  idDoArmarioDo15,
   idDoFabricante,
-  idDoLocalDeArmazenamento,
   idDoStatus,
 } from "../integration/suporte/listas";
 

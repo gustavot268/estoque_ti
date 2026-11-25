@@ -25,11 +25,11 @@ import { obterAtorAtual } from "../../infrastructure/auth/ator-atual";
 import { logger } from "../../infrastructure/observability/logger";
 import { obterPrisma } from "../../infrastructure/prisma/cliente";
 import {
-  listarAndaresAtivos,
   listarCategoriasAtivas,
   listarFabricantesAtivos,
   listarStatusFuncionamentoAtivos,
 } from "../../infrastructure/repositorios/listas-controladas";
+import { listarAndaresParaFiltro } from "../../infrastructure/repositorios/localizacao";
 import { listarEquipamentos } from "../../services/equipamentos";
 import type {
   CampoOrdenavelDeEquipamento,
@@ -192,14 +192,14 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
   let categorias: Awaited<ReturnType<typeof listarCategoriasAtivas>>;
   let fabricantes: Awaited<ReturnType<typeof listarFabricantesAtivos>>;
   let statusFuncionamento: Awaited<ReturnType<typeof listarStatusFuncionamentoAtivos>>;
-  let andares: Awaited<ReturnType<typeof listarAndaresAtivos>>;
+  let andares: Awaited<ReturnType<typeof listarAndaresParaFiltro>>;
   const prisma = obterPrisma();
   try {
     [categorias, fabricantes, statusFuncionamento, andares] = await Promise.all([
       listarCategoriasAtivas(prisma),
       listarFabricantesAtivos(prisma),
       listarStatusFuncionamentoAtivos(prisma),
-      listarAndaresAtivos(prisma),
+      listarAndaresParaFiltro(prisma),
     ]);
   } catch (erro) {
     logger.error("Falha ao carregar as listas controladas na consulta de equipamentos.", { erro });
@@ -253,6 +253,9 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
   const erroBruto = primeiroValor(brutos.erro);
   const mensagemDeErro =
     erroBruto !== undefined ? (MENSAGENS_DE_ERRO_DO_ARQUIVAMENTO[erroBruto] ?? null) : null;
+
+  // O nome do andar só é único dentro da unidade: com mais de uma, o filtro mostra as duas.
+  const variasUnidades = new Set(andares.map((andar) => andar.unidade)).size > 1;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
@@ -418,7 +421,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                 <option value="">Todos</option>
                 {andares.map((andar) => (
                   <option key={andar.id} value={andar.id}>
-                    {andar.nome}
+                    {variasUnidades ? `${andar.unidade} · ${andar.nome}` : andar.nome}
                   </option>
                 ))}
               </select>
@@ -527,7 +530,9 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                       <td className="border-b border-borda px-3 py-3">
                         <SeloTrillogo codigo={equipamento.codigoTrillogo} />
                       </td>
-                      <td className="border-b border-borda px-3 py-3">{equipamento.andar.nome}</td>
+                      <td className="border-b border-borda px-3 py-3">
+                        {equipamento.sala.andar.nome}
+                      </td>
                       <td className="border-b border-borda px-3 py-3">
                         <SeloDeStatus
                           nome={equipamento.status.nome}
@@ -582,7 +587,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
                         modelo: equipamento.modelo,
                       })}
                     </span>
-                    <span className="text-sm text-texto-suave">{equipamento.andar.nome}</span>
+                    <span className="text-sm text-texto-suave">{equipamento.sala.andar.nome}</span>
                     <span className="flex flex-wrap items-center gap-2">
                       <SeloDeStatus
                         nome={equipamento.status.nome}

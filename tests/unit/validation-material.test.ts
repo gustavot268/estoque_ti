@@ -17,9 +17,9 @@ const ENTRADA_VALIDA = {
   unidadeMedidaId: "22222222-2222-4222-8222-222222222222",
   quantidade: "12",
   estoqueMinimo: "",
-  andarId: "33333333-3333-4333-8333-333333333333",
-  localArmazenamentoId: "",
-  orientacaoId: "",
+  salaId: "33333333-3333-4333-8333-333333333333",
+  movelId: "",
+  prateleira: "",
   dataUltimaContagem: "2026-10-08",
   observacoes: "",
 } as const;
@@ -161,11 +161,12 @@ describe("esquemaCriarMaterial", () => {
     expect(errosDe({ ...ENTRADA_VALIDA, nome: "Cabo HDMI" })).not.toEqual({});
   });
 
-  it("andar é obrigatório; local de armazenamento e orientação, opcionais", () => {
-    expect(errosDe({ ...ENTRADA_VALIDA, andarId: "" }).andarId).toBeDefined();
+  it("sala é obrigatória; móvel e prateleira, opcionais", () => {
+    expect(errosDe({ ...ENTRADA_VALIDA, salaId: "" }).salaId).toBeDefined();
     const resultado = esquemaCriarMaterial.parse(ENTRADA_VALIDA);
-    expect(resultado.localArmazenamentoId).toBeNull();
-    expect(resultado.orientacaoId).toBeNull();
+    expect(resultado.movelId).toBeNull();
+    expect(resultado.prateleira).toBeNull();
+    expect(errosDe({ ...ENTRADA_VALIDA, prateleira: "7" }).prateleira).toBeDefined();
   });
 
   it("código Trillogo usa a mesma lista de caracteres do equipamento", () => {

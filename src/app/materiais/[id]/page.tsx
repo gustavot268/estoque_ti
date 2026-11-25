@@ -16,6 +16,7 @@ import { SeloTrillogo } from "../../../components/selo-trillogo";
 import { formatarDataDoCalendario, formatarDataEHora } from "../../../domain/data-e-hora";
 import { descricaoDoMaterial } from "../../../domain/descricao-do-item";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../domain/erros";
+import { rotulosDeLocalizacao } from "../../../domain/localizacao";
 import { acoesPermitidas, exigirPermissao } from "../../../domain/permissoes";
 import { obterAtorAtual } from "../../../infrastructure/auth/ator-atual";
 import { logger } from "../../../infrastructure/observability/logger";
@@ -103,6 +104,7 @@ export default async function PaginaDeDetalhesDoMaterial({
   const erroBruto = primeiroValor(parametrosDeBusca.erro);
   const mensagemDeErro = erroBruto !== undefined ? (MENSAGENS_DE_ERRO[erroBruto] ?? null) : null;
 
+  const localizacao = rotulosDeLocalizacao(material);
   const descricao = descricaoDoMaterial({
     categoria: material.categoria.nome,
     tipo: material.tipo,
@@ -219,9 +221,11 @@ export default async function PaginaDeDetalhesDoMaterial({
             }
           />
           <Campo rotulo="Estoque mínimo" valor={material.estoqueMinimo ?? "—"} />
-          <Campo rotulo="Andar" valor={material.andar.nome} />
-          <Campo rotulo="Local de armazenamento" valor={material.localArmazenamento?.nome ?? "—"} />
-          <Campo rotulo="Orientação" valor={material.orientacao?.nome ?? "—"} />
+          <Campo rotulo="Unidade" valor={localizacao.unidade} />
+          <Campo rotulo="Andar" valor={localizacao.andar} />
+          <Campo rotulo="Sala" valor={localizacao.sala} />
+          <Campo rotulo="Móvel" valor={localizacao.movel ?? "—"} />
+          <Campo rotulo="Prateleira" valor={localizacao.prateleira ?? "—"} />
           <Campo
             rotulo="Data da última contagem"
             valor={

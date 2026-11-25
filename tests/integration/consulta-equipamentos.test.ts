@@ -5,7 +5,7 @@ import { EntradaInvalidaError } from "../../src/domain/erros";
 import { listarPaginado } from "../../src/infrastructure/repositorios/equipamentos";
 import { cadastrarEquipamento, listarEquipamentos } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoria, idDoAndar, idDoFabricante, idDoStatus } from "./suporte/listas";
+import { idDaCategoria, idDaSala, idDoFabricante, idDoStatus } from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
@@ -15,7 +15,7 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
   let categoriaNotebookId: string;
   let categoriaMonitorId: string;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let fabricanteId: string;
 
   const equipamentosCriados: string[] = [];
@@ -30,7 +30,7 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -47,7 +47,7 @@ describe("listarEquipamentos (caso de uso — consulta, Etapa 4)", () => {
     categoriaNotebookId = await idDaCategoria(prisma, "Notebook");
     categoriaMonitorId = await idDaCategoria(prisma, "Monitor");
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
 
     // O modelo carrega o prefixo: é por ele que os testes encontram os seus equipamentos.

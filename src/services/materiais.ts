@@ -64,9 +64,9 @@ type DadosDeAuditoriaDoMaterial = {
   readonly unidadeMedidaId: string;
   readonly quantidade: number;
   readonly estoqueMinimo: number | null;
-  readonly andarId: string;
-  readonly localArmazenamentoId: string | null;
-  readonly orientacaoId: string | null;
+  readonly salaId: string;
+  readonly movelId: string | null;
+  readonly prateleira: number | null;
   readonly dataUltimaContagem: Date | null;
   readonly observacoes: string | null;
   readonly fotoTipoMime: string | null;
@@ -83,9 +83,9 @@ function paraAuditoria(material: DadosDeAuditoriaDoMaterial) {
     unidadeMedidaId: material.unidadeMedidaId,
     quantidade: material.quantidade,
     estoqueMinimo: material.estoqueMinimo,
-    andarId: material.andarId,
-    localArmazenamentoId: material.localArmazenamentoId,
-    orientacaoId: material.orientacaoId,
+    salaId: material.salaId,
+    movelId: material.movelId,
+    prateleira: material.prateleira,
     dataUltimaContagem:
       material.dataUltimaContagem === null ? null : paraDataIso(material.dataUltimaContagem),
     observacoes: material.observacoes,
@@ -254,9 +254,9 @@ export async function cadastrarMaterial(
       unidadeMedidaId: entrada.unidadeMedidaId,
       quantidade: entrada.quantidade,
       estoqueMinimo: entrada.estoqueMinimo,
-      andarId: entrada.andarId,
-      localArmazenamentoId: entrada.localArmazenamentoId,
-      orientacaoId: entrada.orientacaoId,
+      salaId: entrada.salaId,
+      movelId: entrada.movelId,
+      prateleira: entrada.prateleira,
       dataUltimaContagem: entrada.dataUltimaContagem,
       observacoes: entrada.observacoes,
       foto: foto?.foto ?? null,
@@ -451,9 +451,9 @@ export async function editarMaterial(
   const fabricanteEscolhido = await validarReferencias(prisma, entrada, {
     categoriaId: atual.categoriaId,
     unidadeMedidaId: atual.unidadeMedidaId,
-    andarId: atual.andarId,
-    localArmazenamentoId: atual.localArmazenamentoId,
-    orientacaoId: atual.orientacaoId,
+    salaId: atual.salaId,
+    movelId: atual.movelId,
+    prateleira: atual.prateleira,
     fabricanteId: atual.fabricanteId,
   });
 
@@ -467,9 +467,9 @@ export async function editarMaterial(
       unidadeMedidaId: entrada.unidadeMedidaId,
       quantidade: entrada.quantidade,
       estoqueMinimo: entrada.estoqueMinimo,
-      andarId: entrada.andarId,
-      localArmazenamentoId: entrada.localArmazenamentoId,
-      orientacaoId: entrada.orientacaoId,
+      salaId: entrada.salaId,
+      movelId: entrada.movelId,
+      prateleira: entrada.prateleira,
       dataUltimaContagem: entrada.dataUltimaContagem,
       observacoes: entrada.observacoes,
       atualizadoPorId: ator.usuarioId,

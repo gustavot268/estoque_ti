@@ -12,10 +12,10 @@ import { cadastrarEquipamento } from "../../src/services/equipamentos";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
 import {
   idDaCategoria,
-  idDaOrientacao,
+  idDaSala,
   idDoAndar,
+  idDoArmarioDo15,
   idDoFabricante,
-  idDoLocalDeArmazenamento,
   idDoStatus,
 } from "./suporte/listas";
 
@@ -26,7 +26,7 @@ describe("cadastrarEquipamento (caso de uso)", () => {
   let ator: ReturnType<typeof criarAtorDeTeste>;
   let categoriaId: string;
   let statusId: string;
-  let andarId: string;
+  let salaId: string;
   let fabricanteDellId: string;
   let fabricanteOutroId: string;
   let categoriaInativaId: string;
@@ -45,7 +45,7 @@ describe("cadastrarEquipamento (caso de uso)", () => {
 
     categoriaId = await idDaCategoria(prisma, "Notebook");
     statusId = await idDoStatus(prisma, "Operacional");
-    andarId = await idDoAndar(prisma, "15º andar");
+    salaId = await idDaSala(prisma, "15º andar");
     fabricanteDellId = await idDoFabricante(prisma, "Dell");
     fabricanteOutroId = await idDoFabricante(prisma, "Outro");
 
@@ -84,7 +84,7 @@ describe("cadastrarEquipamento (caso de uso)", () => {
       numeroSerie: null,
       codigoTrillogo: null,
       statusId,
-      andarId,
+      salaId,
       observacoes: null,
       ...sobrescritas,
     };
@@ -110,42 +110,80 @@ describe("cadastrarEquipamento (caso de uso)", () => {
     expect(auditoria[0]?.correlacaoId).toBe(ator.correlacaoId);
   });
 
-  it("guarda onde o equipamento fica: andar, local de armazenamento e orientação", async () => {
-    const localArmazenamentoId = await idDoLocalDeArmazenamento(prisma, "1º armário");
-    const orientacaoId = await idDaOrientacao(prisma, "Prateleira de baixo");
+  it("guarda onde o equipamento fica: sala, móvel e prateleira (unidade e andar vêm da sala)", async () => {
+    const movelId = await idDoArmarioDo15(prisma, 1);
     const equipamento = await cadastrarEquipamento(
       prisma,
       ator,
-      entradaBase({ numeroSerie: `sn-${randomUUID()}`, localArmazenamentoId, orientacaoId }),
+      entradaBase({ numeroSerie: `sn-${randomUUID()}`, movelId, prateleira: "2" }),
     );
     equipamentosCriados.push(equipamento.id);
 
-    expect(equipamento.andar.nome).toBe("15º andar");
-    expect(equipamento.localArmazenamento?.nome).toBe("1º armário");
-    expect(equipamento.orientacao?.nome).toBe("Prateleira de baixo");
+    expect(equipamento.sala.andar.unidade.nome).toBe("Escritório");
+    expect(equipamento.sala.andar.nome).toBe("15º andar");
+    expect(equipamento.movel).toMatchObject({ tipo: "ARMARIO", numero: 1 });
+    expect(equipamento.prateleira).toBe(2);
   });
 
-  it("recusa local de armazenamento inativo ou inexistente", async () => {
-    const nomeLocal = `Local inativo ${randomUUID()}`;
-    const localInativo = await prisma.localArmazenamento.create({
-      data: {
-        nome: nomeLocal,
-        nomeNormalizado: normalizarParDeNomeDeLista(nomeLocal).normalizado,
-        ativo: false,
-      },
-    });
+  it("recusa sala inativa ou inexistente", async () => {
+    const andarId = await idDoAndar(prisma, "16º andar");
+    const salaInativa = await prisma.sala.create({ data: { andarId, numero: 900, ativo: false } });
     try {
-      for (const localArmazenamentoId of [localInativo.id, randomUUID()]) {
+      for (const salaIdRecusada of [salaInativa.id, randomUUID()]) {
         await expect(
           cadastrarEquipamento(
             prisma,
             ator,
-            entradaBase({ numeroSerie: `sn-${randomUUID()}`, localArmazenamentoId }),
+            entradaBase({ numeroSerie: `sn-${randomUUID()}`, salaId: salaIdRecusada }),
           ),
         ).rejects.toBeInstanceOf(ValorDeListaInvalidoError);
       }
     } finally {
-      await prisma.localArmazenamento.delete({ where: { id: localInativo.id } });
+      await prisma.sala.delete({ where: { id: salaInativa.id } });
+    }
+  });
+
+  it("recusa móvel de outra sala, móvel inexistente e prateleira sem móvel ou fora de 1 a 6", async () => {
+    const salaDo16 = await idDaSala(prisma, "16º andar");
+    const armarioDo15 = await idDoArmarioDo15(prisma, 1);
+
+    await expect(
+      cadastrarEquipamento(
+        prisma,
+        ator,
+        entradaBase({ numeroSerie: `sn-${randomUUID()}`, salaId: salaDo16, movelId: armarioDo15 }),
+      ),
+    ).rejects.toMatchObject({ campo: "movelId" });
+    await expect(
+      cadastrarEquipamento(
+        prisma,
+        ator,
+        entradaBase({ numeroSerie: `sn-${randomUUID()}`, movelId: randomUUID() }),
+      ),
+    ).rejects.toMatchObject({ campo: "movelId" });
+    await expect(
+      cadastrarEquipamento(
+        prisma,
+        ator,
+        entradaBase({ numeroSerie: `sn-${randomUUID()}`, prateleira: "3" }),
+      ),
+    ).rejects.toMatchObject({ campo: "prateleira" });
+    // Armário tem só as prateleiras 1 e 2.
+    await expect(
+      cadastrarEquipamento(
+        prisma,
+        ator,
+        entradaBase({ numeroSerie: `sn-${randomUUID()}`, movelId: armarioDo15, prateleira: "3" }),
+      ),
+    ).rejects.toMatchObject({ campo: "prateleira" });
+    for (const prateleira of ["0", "7"]) {
+      await expect(
+        cadastrarEquipamento(
+          prisma,
+          ator,
+          entradaBase({ numeroSerie: `sn-${randomUUID()}`, movelId: armarioDo15, prateleira }),
+        ),
+      ).rejects.toBeInstanceOf(EntradaInvalidaError);
     }
   });
 

@@ -8,15 +8,22 @@ import {
   listarValoresDeLista,
 } from "../../src/services/administracao-listas";
 import { cadastrarMaterial } from "../../src/services/materiais";
+import { adicionarSala, listarSalasParaGestao, removerSala } from "../../src/services/salas";
 import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./suporte/ambiente";
-import { idDaCategoriaDeMaterial, idDaUnidadeDeMedida, idDoAndar } from "./suporte/listas";
+import {
+  idDaCategoriaDeMaterial,
+  idDaSala,
+  idDaUnidadeDeMedida,
+  idDaUnidadeEscritorio,
+} from "./suporte/listas";
 
 const prisma = obterClienteDeTeste();
 
 /**
  * Gestão das listas que os materiais usam: as duas listas próprias (categoria
  * de material e unidade de medida) e as compartilhadas com os equipamentos
- * (fabricante, andar, local de armazenamento e orientação), cuja trava de exclusão passa a contar materiais.
+ * (fabricante e a localização: unidade, andar e sala — ADR 0011), cuja trava
+ * de exclusão passa a contar materiais.
  */
 describe("gestão de listas — materiais", () => {
   let usuarioId: string;
@@ -56,13 +63,13 @@ describe("gestão de listas — materiais", () => {
     await prisma.categoriaMaterial.deleteMany({ where: { nome: { startsWith: prefixo } } });
     await prisma.unidadeMedida.deleteMany({ where: { nome: { startsWith: prefixo } } });
     await prisma.fabricante.deleteMany({ where: { nome: { startsWith: prefixo } } });
+    await prisma.sala.deleteMany({ where: { andar: { nome: { startsWith: prefixo } } } });
     await prisma.andar.deleteMany({ where: { nome: { startsWith: prefixo } } });
-    await prisma.localArmazenamento.deleteMany({ where: { nome: { startsWith: prefixo } } });
-    await prisma.orientacao.deleteMany({ where: { nome: { startsWith: prefixo } } });
+    await prisma.unidade.deleteMany({ where: { nome: { startsWith: prefixo } } });
     await prisma.usuario.deleteMany({ where: { id: usuarioId } });
   });
 
-  it.each(["categoria-material", "unidade-medida", "andar", "local-armazenamento", "orientacao"])(
+  it.each(["categoria-material", "unidade-medida", "unidade"])(
     "a lista %s é administrável: cria, lista e exclui quando ninguém usa",
     async (tipo) => {
       const valor = await criarValorDeLista(prisma, administracao, tipo, {
@@ -97,7 +104,7 @@ describe("gestão de listas — materiais", () => {
       entradaDeMaterial({
         categoriaId: categoria.id,
         unidadeMedidaId: unidade.id,
-        andarId: await idDoAndar(prisma, "15º andar"),
+        salaId: await idDaSala(prisma, "15º andar"),
       }),
     );
     materiaisCriados.push(material.id);
@@ -110,17 +117,108 @@ describe("gestão de listas — materiais", () => {
     ).rejects.toBeInstanceOf(ValorDeListaEmUsoError);
   });
 
-  it("fabricante, andar, local de armazenamento e orientação usados só por um material também não podem ser excluídos", async () => {
-    const criarValor = (tipo: string, nome: string) =>
-      criarValorDeLista(prisma, administracao, tipo, {
-        nome: `${prefixo} ${nome}`,
-        ativo: true,
-        ordemExibicao: 0,
-      });
-    const fabricante = await criarValor("fabricante", "fabricante");
-    const andar = await criarValor("andar", "andar");
-    const local = await criarValor("local-armazenamento", "armário");
-    const orientacao = await criarValor("orientacao", "prateleira");
+  it("andar pertence a uma unidade: exige a unidade e o nome é único dentro dela", async () => {
+    const escritorio = await idDaUnidadeEscritorio(prisma);
+    const loja = await criarValorDeLista(prisma, administracao, "unidade", {
+      nome: `${prefixo} loja`,
+      ativo: true,
+      ordemExibicao: 0,
+    });
+    const dados = { nome: `${prefixo} Térreo`, ativo: true, ordemExibicao: 0 };
+
+    await expect(
+      criarValorDeLista(prisma, administracao, "andar", dados, undefined, undefined),
+    ).rejects.toMatchObject({ errosPorCampo: { unidadeId: expect.any(Array) } });
+
+    const noEscritorio = await criarValorDeLista(
+      prisma,
+      administracao,
+      "andar",
+      dados,
+      undefined,
+      escritorio,
+    );
+    const naLoja = await criarValorDeLista(
+      prisma,
+      administracao,
+      "andar",
+      dados,
+      undefined,
+      loja.id,
+    );
+    expect(noEscritorio.unidadeId).toBe(escritorio);
+    expect(naLoja.unidadeId).toBe(loja.id);
+
+    await expect(
+      criarValorDeLista(prisma, administracao, "andar", dados, undefined, loja.id),
+    ).rejects.toMatchObject({ campo: "nome" });
+
+    // A unidade com andar não pode ser excluída; o andar sem sala, sim.
+    await expect(
+      excluirValorDeLista(prisma, administracao, "unidade", loja.id),
+    ).rejects.toBeInstanceOf(ValorDeListaEmUsoError);
+    await excluirValorDeLista(prisma, administracao, "andar", naLoja.id);
+    await excluirValorDeLista(prisma, administracao, "unidade", loja.id);
+  });
+
+  it("salas: número fixo e não reaproveitado; só sala vazia é excluída; andar com sala não é excluído", async () => {
+    const andar = await criarValorDeLista(
+      prisma,
+      administracao,
+      "andar",
+      { nome: `${prefixo} andar com salas`, ativo: true, ordemExibicao: 0 },
+      undefined,
+      await idDaUnidadeEscritorio(prisma),
+    );
+
+    await adicionarSala(prisma, administracao, andar.id);
+    let salas = await listarSalasParaGestao(prisma, administracao, andar.id);
+    expect(salas.map((sala) => sala.rotulo)).toEqual(["Estoque"]);
+
+    await adicionarSala(prisma, administracao, andar.id);
+    salas = await listarSalasParaGestao(prisma, administracao, andar.id);
+    expect(salas.map((sala) => sala.rotulo)).toEqual(["Estoque 1", "Estoque 2"]);
+
+    const [primeira, segunda] = salas;
+    if (primeira === undefined || segunda === undefined) {
+      throw new Error("Esperava duas salas.");
+    }
+    const material = await cadastrarMaterial(
+      prisma,
+      operacao,
+      entradaDeMaterial({
+        categoriaId: await idDaCategoriaDeMaterial(prisma, "Cabo"),
+        unidadeMedidaId: await idDaUnidadeDeMedida(prisma, "Unidade"),
+        salaId: primeira.id,
+      }),
+    );
+    materiaisCriados.push(material.id);
+
+    await expect(removerSala(prisma, administracao, primeira.id)).rejects.toBeInstanceOf(
+      ValorDeListaEmUsoError,
+    );
+    await expect(
+      excluirValorDeLista(prisma, administracao, "andar", andar.id),
+    ).rejects.toBeInstanceOf(ValorDeListaEmUsoError);
+
+    // A sala 2 está vazia: sai, e a próxima criada é a 3 (o 2 não volta).
+    await removerSala(prisma, administracao, segunda.id);
+    await adicionarSala(prisma, administracao, andar.id);
+    salas = await listarSalasParaGestao(prisma, administracao, andar.id);
+    expect(salas.map((sala) => sala.numero)).toEqual([1, 3]);
+
+    // Só Administração gerencia salas.
+    await expect(adicionarSala(prisma, operacao, andar.id)).rejects.toMatchObject({
+      codigo: "ACESSO_NEGADO",
+    });
+  });
+
+  it("fabricante usado só por um material também não pode ser excluído", async () => {
+    const fabricante = await criarValorDeLista(prisma, administracao, "fabricante", {
+      nome: `${prefixo} fabricante`,
+      ativo: true,
+      ordemExibicao: 0,
+    });
     const material = await cadastrarMaterial(
       prisma,
       operacao,
@@ -128,22 +226,13 @@ describe("gestão de listas — materiais", () => {
         categoriaId: await idDaCategoriaDeMaterial(prisma, "Cabo"),
         unidadeMedidaId: await idDaUnidadeDeMedida(prisma, "Unidade"),
         fabricanteId: fabricante.id,
-        andarId: andar.id,
-        localArmazenamentoId: local.id,
-        orientacaoId: orientacao.id,
+        salaId: await idDaSala(prisma, "15º andar"),
       }),
     );
     materiaisCriados.push(material.id);
 
-    for (const [tipo, valor] of [
-      ["fabricante", fabricante],
-      ["andar", andar],
-      ["local-armazenamento", local],
-      ["orientacao", orientacao],
-    ] as const) {
-      await expect(
-        excluirValorDeLista(prisma, administracao, tipo, valor.id),
-      ).rejects.toBeInstanceOf(ValorDeListaEmUsoError);
-    }
+    await expect(
+      excluirValorDeLista(prisma, administracao, "fabricante", fabricante.id),
+    ).rejects.toBeInstanceOf(ValorDeListaEmUsoError);
   });
 });

@@ -10,6 +10,7 @@ import {
   MensagemSimples,
 } from "../../../../../../components/mensagem-simples";
 import { AcessoNegadoError, RegistroNaoEncontradoError } from "../../../../../../domain/erros";
+import { BotaoExcluirValorDeLista } from "../../../../../../features/administracao/botao-excluir-valor-de-lista";
 import {
   type AtribuicaoDeCategorias,
   FormularioValorDeLista,
@@ -20,21 +21,53 @@ import { logger } from "../../../../../../infrastructure/observability/logger";
 import { obterPrisma } from "../../../../../../infrastructure/prisma/cliente";
 import {
   listarMarcasDaCategoria,
+  listarValoresDeLista,
   obterCategoriasAtribuidasDaMarca,
   obterValorDeLista,
 } from "../../../../../../services/administracao-listas";
+import { listarSalasParaGestao, type SalaParaGestao } from "../../../../../../services/salas";
 import { carregarOpcoesDeCategorias } from "../../../opcoes-de-categorias";
-import { atualizarValorDeListaAction } from "./acoes";
+import { adicionarSalaAction, atualizarValorDeListaAction, excluirSalaAction } from "./acoes";
 
 export const metadata: Metadata = { title: "Editar valor de lista" };
 
 // Depende de sessão e de dado vivo do banco — nunca cacheado (ADR 0006).
 export const dynamic = "force-dynamic";
 
+function primeiroValor(valor: string | string[] | undefined): string | undefined {
+  return Array.isArray(valor) ? valor[0] : valor;
+}
+
+/** Só estes resultados de sala viram aviso — texto livre da URL nunca é exibido como sucesso. */
+const AVISOS_DE_SALA: Readonly<Record<string, string>> = {
+  criada: "Sala adicionada.",
+  excluida: "Sala excluída.",
+};
+
+/** Erros das ações de sala: só códigos fixos chegam pela URL (ver `./acoes.ts`). */
+const ERROS_DE_SALA: Readonly<Record<string, string>> = {
+  "em-uso":
+    "Esta sala não está vazia (itens, contando os arquivados, ou móveis) e não pode ser excluída. Mude os itens de sala e retire os móveis no mapa antes.",
+  permissao: "Seu perfil não tem permissão para gerenciar salas.",
+  "nao-encontrado": "A sala ou o andar não foi encontrado. Atualize a página.",
+  sessao: "Sessão inválida. Atualize a página e entre novamente.",
+  indisponivel: "Não foi possível concluir a operação agora. Tente novamente em instantes.",
+};
+
+/** `Object.hasOwn`: "constructor" e afins vindos da URL não devolvem propriedades herdadas. */
+function mensagemDoCodigo(
+  mensagens: Readonly<Record<string, string>>,
+  codigo: string | undefined,
+): string | undefined {
+  return codigo !== undefined && Object.hasOwn(mensagens, codigo) ? mensagens[codigo] : undefined;
+}
+
 export default async function PaginaDeEdicaoDeValorDeLista({
   params,
+  searchParams,
 }: PageProps<"/administracao/listas/[tipo]/[id]/editar">) {
   const { tipo, id } = await params;
+  const parametrosDeBusca = await searchParams;
 
   let ator: Awaited<ReturnType<typeof obterAtorAtual>>;
   try {
@@ -87,6 +120,28 @@ export default async function PaginaDeEdicaoDeValorDeLista({
     return <MensagemDeIndisponibilidade />;
   }
 
+  // Andar (ADR 0011): a unidade no formulário e as salas do andar.
+  let unidades: { id: string; nome: string }[] | undefined;
+  let salas: SalaParaGestao[] | undefined;
+  if (tipo === "andar") {
+    try {
+      const prisma = obterPrisma();
+      const [todasAsUnidades, salasDoAndar] = await Promise.all([
+        listarValoresDeLista(prisma, ator, "unidade"),
+        listarSalasParaGestao(prisma, ator, id),
+      ]);
+      unidades = todasAsUnidades
+        .filter((unidade) => unidade.ativo || unidade.id === valor.unidadeId)
+        .map((unidade) => ({ id: unidade.id, nome: unidade.nome }));
+      salas = salasDoAndar;
+    } catch (erro) {
+      logger.error("Falha ao carregar as unidades e salas do andar.", { erro });
+      return <MensagemDeIndisponibilidade />;
+    }
+  }
+  const avisoDeSala = mensagemDoCodigo(AVISOS_DE_SALA, primeiroValor(parametrosDeBusca.sala));
+  const erroDeSala = mensagemDoCodigo(ERROS_DE_SALA, primeiroValor(parametrosDeBusca.erroSala));
+
   const rotuloDoTipo = rotuloDoTipoDeLista(tipo);
   const acaoDeAtualizar = atualizarValorDeListaAction.bind(null, tipo, id);
 
@@ -115,11 +170,79 @@ export default async function PaginaDeEdicaoDeValorDeLista({
             nome: valor.nome,
             ativo: valor.ativo,
             ordemExibicao: valor.ordemExibicao,
+            unidadeId: valor.unidadeId,
           }}
           rotuloDoBotao="Salvar"
           atribuicao={atribuicao}
+          unidades={unidades}
         />
       </div>
+
+      {salas !== undefined && (
+        <section
+          aria-labelledby="salas-do-andar"
+          className="flex flex-col gap-3 rounded-2xl border border-borda bg-superficie p-4 shadow-cartao sm:p-6"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="salas-do-andar" className="text-base font-semibold text-texto">
+              Salas de estoque deste andar
+            </h2>
+            <form action={adicionarSalaAction.bind(null, id)}>
+              <button
+                type="submit"
+                className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-lg border border-borda-campo bg-superficie px-4 py-2 text-sm font-medium text-texto transition-colors hover:bg-superficie-suave"
+              >
+                Adicionar sala
+              </button>
+            </form>
+          </div>
+          {avisoDeSala !== undefined && (
+            <p
+              role="status"
+              className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+            >
+              {avisoDeSala}
+            </p>
+          )}
+          {erroDeSala !== undefined && (
+            <p
+              role="alert"
+              className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+            >
+              {erroDeSala}
+            </p>
+          )}
+          {salas.length === 0 ? (
+            <p className="text-sm text-texto-suave">
+              Este andar ainda não tem sala. Sem sala, nenhum item pode ser cadastrado nele.
+            </p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-borda">
+              {salas.map((sala) => (
+                <li key={sala.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="text-sm text-texto">
+                    <span className="font-medium">{sala.rotulo}</span>
+                    <span className="ml-2 text-texto-suave">
+                      {sala.itens} {sala.itens === 1 ? "item" : "itens"} · {sala.moveis}{" "}
+                      {sala.moveis === 1 ? "móvel" : "móveis"}
+                    </span>
+                  </span>
+                  <BotaoExcluirValorDeLista
+                    acao={excluirSalaAction.bind(null, id, sala.id)}
+                    nomeDoValor={`${valor.nome} – ${sala.rotulo}`}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-texto-suave">
+            As salas não têm nome: com uma só, ela aparece como "Estoque"; com mais, "Estoque 1",
+            "Estoque 2"… O número não muda nem é reaproveitado. Só é possível excluir uma sala
+            vazia. Os armários e estantes de cada sala são criados no mapa da tela "Pesquisar
+            patrimônio".
+          </p>
+        </section>
+      )}
 
       {marcasDaCategoria !== null && (
         <section

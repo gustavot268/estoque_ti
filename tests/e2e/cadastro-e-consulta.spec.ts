@@ -34,6 +34,9 @@ test.describe("cadastro e consulta de equipamento (perfil Operação — o padr�
     await page.getByLabel("Modelo").fill(modelo);
     await page.getByLabel("Número de série").fill(`${prefixo}-sn`);
     await page.getByLabel("Status de funcionamento").selectOption({ label: "Operacional" });
+    await page
+      .getByRole("combobox", { name: "Unidade", exact: true })
+      .selectOption({ label: "Escritório" });
     await page.getByLabel("Andar").selectOption({ label: "15º andar" });
 
     await page.getByRole("button", { name: "Cadastrar" }).click();

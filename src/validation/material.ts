@@ -9,6 +9,7 @@
  */
 
 import { z } from "zod";
+import { PRATELEIRA_MAXIMA, PRATELEIRA_MINIMA } from "../domain/localizacao";
 import {
   dataDoCalendarioOpcional,
   identificadorPatrimonialOpcional,
@@ -45,10 +46,14 @@ export const esquemaCriarMaterial = z.strictObject({
   unidadeMedidaId: uuidObrigatorio("a unidade de medida"),
   quantidade: inteiroObrigatorio("a quantidade", 0, QUANTIDADE_MAXIMA),
   estoqueMinimo: inteiroOpcional("o estoque mínimo", 0, QUANTIDADE_MAXIMA),
-  /** Onde o item está: o andar é obrigatório; local e orientação detalham, se informados. */
-  andarId: uuidObrigatorio("o andar"),
-  localArmazenamentoId: uuidOpcionalDeFormulario("o local de armazenamento"),
-  orientacaoId: uuidOpcionalDeFormulario("a orientação"),
+  /**
+   * Onde o item está (ADR 0011): a sala é obrigatória (unidade e andar vêm
+   * dela); móvel e prateleira detalham, se informados. A prateleira só vale
+   * com móvel — regra conferida no serviço.
+   */
+  salaId: uuidObrigatorio("a sala"),
+  movelId: uuidOpcionalDeFormulario("o móvel"),
+  prateleira: inteiroOpcional("a prateleira", PRATELEIRA_MINIMA, PRATELEIRA_MAXIMA),
   dataUltimaContagem: dataDoCalendarioOpcional("a data da última contagem"),
   /**
    * Aviso na interface: não inclua senhas, documentos pessoais, informações

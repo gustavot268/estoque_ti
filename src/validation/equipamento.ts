@@ -12,8 +12,10 @@
  */
 
 import { z } from "zod";
+import { PRATELEIRA_MAXIMA, PRATELEIRA_MINIMA } from "../domain/localizacao";
 import {
   identificadorPatrimonialOpcional,
+  inteiroOpcional,
   itensPorPaginaDeConsulta,
   nomeDeFabricanteOutro,
   ordemDeExibicao,
@@ -38,10 +40,14 @@ export const esquemaCriarEquipamento = z.strictObject({
   numeroSerie: identificadorPatrimonialOpcional("o número de série", TAMANHOS.numeroSerie),
   codigoTrillogo: identificadorPatrimonialOpcional("o código Trillogo", TAMANHOS.codigoTrillogo),
   statusId: uuidObrigatorio("o status de funcionamento"),
-  /** Onde o item está: o andar é obrigatório; local e orientação detalham, se informados. */
-  andarId: uuidObrigatorio("o andar"),
-  localArmazenamentoId: uuidOpcionalDeFormulario("o local de armazenamento"),
-  orientacaoId: uuidOpcionalDeFormulario("a orientação"),
+  /**
+   * Onde o item está (ADR 0011): a sala é obrigatória (unidade e andar vêm
+   * dela); móvel e prateleira detalham, se informados. A prateleira só vale
+   * com móvel — regra conferida no serviço.
+   */
+  salaId: uuidObrigatorio("a sala"),
+  movelId: uuidOpcionalDeFormulario("o móvel"),
+  prateleira: inteiroOpcional("a prateleira", PRATELEIRA_MINIMA, PRATELEIRA_MAXIMA),
   /**
    * Aviso na interface: não inclua senhas, documentos pessoais, informações
    * médicas ou outros dados sensíveis neste campo (requisito 14.1).
@@ -65,12 +71,6 @@ export type EntradaAtualizarEquipamento = z.infer<typeof esquemaAtualizarEquipam
 /** Mudança isolada de status (atalho do fluxo de Operação). */
 export const esquemaAlterarStatus = z.strictObject({
   statusId: uuidObrigatorio("o status de funcionamento"),
-  versao: versaoDeConcorrencia,
-});
-
-/** Mudança isolada de andar. */
-export const esquemaAlterarAndar = z.strictObject({
-  andarId: uuidObrigatorio("o andar"),
   versao: versaoDeConcorrencia,
 });
 

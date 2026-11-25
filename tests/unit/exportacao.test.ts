@@ -17,9 +17,11 @@ const EQUIPAMENTO: LinhaDeEquipamento = {
   numeroSerie: null,
   codigoTrillogo: null,
   status: "Operacional",
+  unidade: "Escritório",
   andar: "15º andar",
-  localArmazenamento: "1º armário",
-  orientacao: null,
+  sala: "Estoque",
+  movel: "1º armário",
+  prateleira: null,
   observacoes: null,
   criadoEm: "06/10/2026, 15:49",
   criadoPor: "Fulano",
@@ -36,9 +38,11 @@ const MATERIAL: LinhaDeMaterial = {
   unidadeDeMedida: "Unidade",
   quantidade: 12,
   estoqueMinimo: 5,
+  unidade: "Escritório",
   andar: "15º andar",
-  localArmazenamento: "1º armário",
-  orientacao: "Prateleira de cima",
+  sala: "Estoque",
+  movel: "1º armário",
+  prateleira: "Prateleira 1 (de cima)",
   dataUltimaContagem: new Date("2026-10-08T00:00:00.000Z"),
   observacoes: null,
   criadoPor: "Fulano",
@@ -94,7 +98,7 @@ describe("gerarPlanilhaDoEstoque — duas abas", () => {
     );
   });
 
-  it("a aba de equipamentos tem as colunas da planilha revisada: sem Nome, e o lugar em três colunas", async () => {
+  it("a aba de equipamentos tem as colunas da planilha revisada: sem Nome, e o lugar em cinco colunas (unidade, andar, sala, móvel e prateleira)", async () => {
     const workbook = await abrir(await gerarPlanilhaDoEstoque(conteudo(), new Date()));
     const valores = workbook.getWorksheet("Inventário de Ativos de TI")?.getRow(4).values as
       | unknown[]
@@ -108,9 +112,11 @@ describe("gerarPlanilhaDoEstoque — duas abas", () => {
       "Número de série",
       "Código Trillogo",
       "Status de funcionamento",
+      "Unidade",
       "Andar",
-      "Local de armazenamento",
-      "Orientação",
+      "Sala",
+      "Móvel",
+      "Prateleira",
       "Observações",
       "Criado em (Brasília)",
       "Criado por",
@@ -136,9 +142,11 @@ describe("gerarPlanilhaDoEstoque — duas abas", () => {
       "Unidade de medida",
       "Quantidade",
       "Estoque mínimo",
+      "Unidade",
       "Andar",
-      "Local de armazenamento",
-      "Orientação",
+      "Sala",
+      "Móvel",
+      "Prateleira",
       "Data da última contagem",
       "Observações",
       "Criado por",
@@ -151,7 +159,7 @@ describe("gerarPlanilhaDoEstoque — duas abas", () => {
 
     expect(linha?.getCell(7).value).toBe(12);
     expect(linha?.getCell(8).value).toBe(5);
-    const data = linha?.getCell(12);
+    const data = linha?.getCell(14);
     expect(data?.value).toEqual(new Date("2026-10-08T00:00:00.000Z"));
     expect(data?.numFmt).toBe("dd/mm/yyyy");
     // Campo vazio vira célula vazia, nunca "null".
@@ -190,7 +198,7 @@ describe("gerarPlanilhaDoEstoque — duas abas", () => {
     const linha = workbook.getWorksheet("Materiais de TI")?.getRow(5);
 
     expect(linha?.getCell(3).value).toBe("'=HYPERLINK(1)");
-    expect(linha?.getCell(13).value).toBe("'@x");
+    expect(linha?.getCell(15).value).toBe("'@x");
   });
 
   it("explica na terceira linha de cada aba o que entrou nela", async () => {

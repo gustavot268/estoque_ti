@@ -10,8 +10,8 @@ const ROTULOS_DE_ACAO: Record<TipoAcaoAuditoria, string> = {
   CRIACAO: "Cadastro",
   EDICAO: "Edição",
   MUDANCA_STATUS: "Mudança de status",
-  // Valor antigo do banco; hoje a localização é o andar.
-  MUDANCA_LOCALIZACAO: "Mudança de andar",
+  // Valor antigo do banco (mudança isolada de andar); a localização hoje muda na edição.
+  MUDANCA_LOCALIZACAO: "Mudança de localização",
   ARQUIVAMENTO: "Arquivamento",
   RESTAURACAO: "Restauração",
   EXPORTACAO: "Exportação",

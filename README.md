@@ -26,6 +26,7 @@ Microsoft Entra ID, com conexão à internet obrigatória (não há modo offline
 - [Microsoft Entra ID](#microsoft-entra-id)
 - [Como funciona a autorização](#como-funciona-a-autorização)
 - [Ativos e materiais de TI](#ativos-e-materiais-de-ti)
+- [Pesquisar patrimônio](#pesquisar-patrimônio)
 - [Exportação para Excel](#exportação-para-excel)
 - [Foto do equipamento](#foto-do-equipamento)
 - [PostgreSQL é a fonte única e oficial dos dados](#postgresql-é-a-fonte-única-e-oficial-dos-dados)
@@ -191,7 +192,8 @@ pnpm db:seed
 ```
 
 Popula as listas controladas com os valores iniciais do cliente (Categoria, Marca,
-Status de funcionamento, Andar, Local de armazenamento, Orientação) e um ponto de partida para as listas dos materiais
+Status de funcionamento; a unidade Escritório com o 15º e o 16º andar, uma sala de estoque em
+cada e o 1º armário do 15º) e um ponto de partida para as listas dos materiais
 (Categoria de material, Unidade de medida). O seed é **idempotente**: executá-lo mais de
 uma vez não duplica registros (usa `upsert` por `nomeNormalizado`) e não desfaz o que a
 Administração já tiver editado. Detalhes do modelo e dos valores semente em
@@ -293,12 +295,16 @@ consulta e de cadastro) e da mesma planilha exportada:
   individual e numerosos (cabos, conectores, adaptadores…), um registro por peça em cada
   lugar, com a quantidade contada. Os campos são as colunas da planilha de controle:
   código Trillogo, categoria, tipo, especificação, marca (opcional), unidade de
-  medida, quantidade, estoque mínimo, andar, local de armazenamento, orientação, data da
-  última contagem, observações e quem cadastrou.
+  medida, quantidade, estoque mínimo, onde fica (unidade, andar, sala, móvel e prateleira),
+  data da última contagem, observações e quem cadastrou.
 
-Nos dois tipos de item, a localização é dividida em três listas controladas: **Andar**
-(obrigatório e a única que aparece na lista), **Local de armazenamento** e **Orientação**
-(opcionais; aparecem nos detalhes e na planilha). Nenhum dos dois tem campo "Nome": o
+Nos dois tipos de item, a localização é uma hierarquia (ADR 0011): **Unidade → Andar →
+Sala → Móvel → Prateleira**. Unidade, andar e sala são obrigatórios (escolhidos em cascata
+no formulário; o item guarda a sala); móvel (armário ou estante) e prateleira são opcionais.
+O armário tem 2 prateleiras (1 = de cima, 2 = de baixo); a estante tem 6 (1 = parte
+superior, em cima dela, … 6 = a mais baixa). Só o andar aparece na lista; o resto aparece
+nos detalhes e na planilha. Os móveis são criados no mapa da tela "Pesquisar patrimônio".
+Nenhum dos dois tem campo "Nome": o
 título exibido é montado na hora — "Categoria Marca Modelo" no equipamento e
 "Categoria Tipo Especificação" no material.
 
@@ -312,13 +318,30 @@ Regras dos materiais:
   abaixo dele ("Abaixo do mínimo"); a planilha destaca a célula da quantidade com a mesma
   cor.
 - Categoria de material e Unidade de medida são listas controladas próprias, em
-  "Gerenciar listas"; Marca, Andar, Local de armazenamento e Orientação são as mesmas dos
+  "Gerenciar listas"; Marca, Unidade, Andar e as salas de cada andar são as mesmas dos
   equipamentos.
 - Mesmas regras de acesso dos equipamentos, com ações próprias (`*_MATERIAL`) — ver
   [`docs/permissoes.md`](docs/permissoes.md).
 
 Nos dois tipos, o código Trillogo aparece em destaque (selo lilás) nas listas e nos
 detalhes.
+
+## Pesquisar patrimônio
+
+Tela `/patrimonio`, aberta pelo botão "Pesquisar patrimônio" da página inicial (ADR 0011):
+
+- Mostra o **mapa** de uma sala de estoque: os armários e estantes numa fileira, na ordem
+  em que estão. As salas da unidade aparecem como abas ("15º andar · Estoque"…).
+- A **busca** (a mesma das listas: categoria, marca, modelo, número de série, código
+  Trillogo; nos materiais, tipo e especificação) procura na unidade inteira. Os móveis
+  com resultado ficam em **destaque**, e cada sala mostra quantos resultados tem.
+- Ao **clicar num móvel**, ele se abre com as prateleiras numeradas (armário: 1 e 2;
+  estante: 1 a 6); as prateleiras dos itens encontrados ficam em destaque e por escrito, e
+  aparece a lista do que há no móvel.
+- Só consulta, para todos os perfis; itens arquivados não aparecem. Funciona sem
+  JavaScript: todo o estado fica na URL.
+- O **modo edição** do mapa (adicionar, reordenar e excluir móveis, só Administração) é
+  a próxima etapa ([#35](https://github.com/gustavot268/estoque_ti/issues/35)).
 
 ## Exportação para Excel
 

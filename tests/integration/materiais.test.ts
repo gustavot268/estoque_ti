@@ -24,8 +24,8 @@ import { criarAtorDeTeste, criarUsuarioDeTeste, obterClienteDeTeste } from "./su
 import {
   idDaCategoria,
   idDaCategoriaDeMaterial,
+  idDaSala,
   idDaUnidadeDeMedida,
-  idDoAndar,
   idDoFabricante,
   idDoStatus,
 } from "./suporte/listas";
@@ -39,8 +39,8 @@ describe("materiais (casos de uso — controle por quantidade)", () => {
   let categoriaId: string;
   let outraCategoriaId: string;
   let unidadeId: string;
-  let andarId: string;
-  let outroAndarId: string;
+  let salaId: string;
+  let outraSalaId: string;
   let fabricanteId: string;
   let fabricanteOutroId: string;
 
@@ -63,7 +63,7 @@ describe("materiais (casos de uso — controle por quantidade)", () => {
       unidadeMedidaId: unidadeId,
       quantidade: "10",
       estoqueMinimo: "",
-      andarId,
+      salaId,
       dataUltimaContagem: "2026-10-01",
       observacoes: "",
       ...sobrescritas,
@@ -88,8 +88,8 @@ describe("materiais (casos de uso — controle por quantidade)", () => {
     categoriaId = await idDaCategoriaDeMaterial(prisma, "Cabo");
     outraCategoriaId = await idDaCategoriaDeMaterial(prisma, "Conector");
     unidadeId = await idDaUnidadeDeMedida(prisma, "Unidade");
-    andarId = await idDoAndar(prisma, "15º andar");
-    outroAndarId = await idDoAndar(prisma, "16º andar");
+    salaId = await idDaSala(prisma, "15º andar");
+    outraSalaId = await idDaSala(prisma, "16º andar");
     fabricanteId = await idDoFabricante(prisma, "Dell");
     fabricanteOutroId = await idDoFabricante(prisma, "Outro");
   });
@@ -149,7 +149,7 @@ describe("materiais (casos de uso — controle por quantidade)", () => {
       const primeiro = await cadastrar({ codigoTrillogo: codigo });
       const segundo = await cadastrar({
         codigoTrillogo: codigo,
-        andarId: outroAndarId,
+        salaId: outraSalaId,
       });
 
       expect(primeiro.codigoTrillogo).toBe(codigo);
@@ -446,7 +446,7 @@ describe("materiais (casos de uso — controle por quantidade)", () => {
         numeroSerie: null,
         codigoTrillogo: null,
         statusId: await idDoStatus(prisma, "Operacional"),
-        andarId,
+        salaId,
         observacoes: null,
       });
       equipamentosCriados.push(equipamento.id);

@@ -11,6 +11,7 @@
 
 import type { Prisma } from "@prisma/client";
 import type { ClientePrisma } from "../prisma/criar-cliente";
+import { SELECAO_DE_LOCALIZACAO } from "./localizacao";
 
 /** Campos aceitos como entrada de escrita — já validados pelo serviço. */
 export type DadosParaCriarMaterial = {
@@ -22,9 +23,9 @@ export type DadosParaCriarMaterial = {
   readonly unidadeMedidaId: string;
   readonly quantidade: number;
   readonly estoqueMinimo: number | null;
-  readonly andarId: string;
-  readonly localArmazenamentoId: string | null;
-  readonly orientacaoId: string | null;
+  readonly salaId: string;
+  readonly movelId: string | null;
+  readonly prateleira: number | null;
   readonly dataUltimaContagem: Date | null;
   readonly observacoes: string | null;
   readonly foto: Buffer | null;
@@ -50,9 +51,9 @@ const SELECAO_DETALHADA = {
   unidadeMedidaId: true,
   quantidade: true,
   estoqueMinimo: true,
-  andarId: true,
-  localArmazenamentoId: true,
-  orientacaoId: true,
+  salaId: true,
+  movelId: true,
+  prateleira: true,
   dataUltimaContagem: true,
   observacoes: true,
   fotoTipoMime: true,
@@ -68,9 +69,7 @@ const SELECAO_DETALHADA = {
   categoria: true,
   fabricante: true,
   unidadeMedida: true,
-  andar: true,
-  localArmazenamento: true,
-  orientacao: true,
+  ...SELECAO_DE_LOCALIZACAO,
   criadoPor: { select: { nome: true } },
   atualizadoPor: { select: { nome: true } },
   arquivadoPor: { select: { nome: true } },
@@ -106,7 +105,7 @@ export async function obterDetalhadoPorId(prisma: ClientePrisma, id: string) {
 
 /**
  * Campos da listagem: as colunas da tela, que seguem as da planilha. Da
- * localização, só o andar aparece na lista; local e orientação ficam nos detalhes.
+ * localização, só o andar aparece na lista; sala, móvel e prateleira ficam nos detalhes.
  */
 const SELECAO_DE_LISTAGEM = {
   id: true,
@@ -121,7 +120,7 @@ const SELECAO_DE_LISTAGEM = {
   categoria: { select: { nome: true } },
   fabricante: { select: { nome: true } },
   unidadeMedida: { select: { nome: true } },
-  andar: { select: { nome: true } },
+  sala: { select: { andar: { select: { nome: true } } } },
   criadoPor: { select: { nome: true } },
 } as const;
 
@@ -156,7 +155,7 @@ function construirFiltro(
     filtro.categoriaId = filtros.categoriaId;
   }
   if (filtros.andarId !== undefined) {
-    filtro.andarId = filtros.andarId;
+    filtro.sala = { andarId: filtros.andarId };
   }
   if (filtros.busca !== undefined) {
     // Sem campo de nome, a busca também olha a categoria — parte da descrição
@@ -170,6 +169,14 @@ function construirFiltro(
   }
 
   return filtro;
+}
+
+/**
+ * Itens ativos que casam com a busca — a mesma regra da lista, reaproveitada
+ * pela pesquisa de patrimônio (ADR 0011).
+ */
+export function filtroDeBuscaDeMateriais(busca: string): Prisma.MaterialWhereInput {
+  return construirFiltro({ busca });
 }
 
 /**
@@ -270,9 +277,8 @@ const SELECAO_DE_EXPORTACAO = {
   categoria: { select: { nome: true } },
   fabricante: { select: { nome: true } },
   unidadeMedida: { select: { nome: true } },
-  andar: { select: { nome: true } },
-  localArmazenamento: { select: { nome: true } },
-  orientacao: { select: { nome: true } },
+  prateleira: true,
+  ...SELECAO_DE_LOCALIZACAO,
   criadoPor: { select: { nome: true } },
 } as const;
 

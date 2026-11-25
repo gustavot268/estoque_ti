@@ -169,59 +169,105 @@ model StatusFuncionamento {
   @@map("status_funcionamento")
 }
 
-// A localização de um item é dividida em três listas, da mais geral para a
-// mais específica: Andar (obrigatório), Local de armazenamento e Orientação
-// (opcionais). As três valem para equipamentos e materiais.
+// A localização de um item é uma hierarquia (ADR 0011):
+// Unidade → Andar → Sala → Móvel → Prateleira (1 a 6). O item guarda a sala
+// (obrigatória), o móvel e a prateleira (opcionais); andar e unidade vêm da
+// sala, o que impede combinações inconsistentes.
 
-/// Andar do item (15º andar, 16º andar…). Era a antiga lista "Localização".
-model Andar {
+/// Tipo de móvel do mapa da tela "Pesquisar patrimônio" (ADR 0011).
+enum TipoMovel {
+  ARMARIO
+  ESTANTE
+
+  @@map("tipo_movel")
+}
+
+/// Unidade da empresa (Escritório, lojas…). Topo da hierarquia de localização.
+model Unidade {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome            String   @db.VarChar(80)
-  nomeNormalizado String   @unique(map: "andares_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
+  nomeNormalizado String   @unique(map: "unidades_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
   ativo           Boolean  @default(true)
   ordemExibicao   Int      @default(0) @map("ordem_exibicao")
   criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
-  equipamentos Equipamento[]
-  materiais    Material[]
+  andares Andar[]
 
+  @@index([ativo, ordemExibicao, nome], map: "unidades_ativo_ordem_idx")
+  @@map("unidades")
+}
+
+/// Andar de uma unidade (15º andar, 16º andar, Térreo…). O nome é único
+/// dentro da unidade: duas lojas podem ter, cada uma, o seu "Térreo".
+model Andar {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unidadeId         String   @map("unidade_id") @db.Uuid
+  nome              String   @db.VarChar(80)
+  nomeNormalizado   String   @map("nome_normalizado") @db.VarChar(80)
+  ativo             Boolean  @default(true)
+  ordemExibicao     Int      @default(0) @map("ordem_exibicao")
+  /// Número da próxima sala criada neste andar. Só cresce: o número de uma
+  /// sala excluída não é reaproveitado (ADR 0011).
+  proximoNumeroSala Int      @default(1) @map("proximo_numero_sala")
+  criadoEm          DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm      DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  unidade Unidade @relation(fields: [unidadeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  salas   Sala[]
+
+  @@unique([unidadeId, nomeNormalizado], map: "andares_unidade_nome_normalizado_key")
   @@index([ativo, ordemExibicao, nome], map: "andares_ativo_ordem_idx")
   @@map("andares")
 }
 
-/// Onde o item fica guardado no andar (1º armário, rack…).
-model LocalArmazenamento {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nome            String   @db.VarChar(80)
-  nomeNormalizado String   @unique(map: "locais_armazenamento_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
-  ativo           Boolean  @default(true)
-  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
-  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+/// Sala de estoque de um andar. Não tem nome: aparece como "Estoque" quando
+/// o andar tem uma só, e "Estoque 1", "Estoque 2"… quando tem mais.
+model Sala {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  andarId              String   @map("andar_id") @db.Uuid
+  /// Número fixo, dado na criação (`Andar.proximoNumeroSala`).
+  numero               Int
+  ativo                Boolean  @default(true)
+  /// Número do próximo armário/estante criado nesta sala. Só crescem: o
+  /// número de um móvel excluído não é reaproveitado (ADR 0011).
+  proximoNumeroArmario Int      @default(1) @map("proximo_numero_armario")
+  proximoNumeroEstante Int      @default(1) @map("proximo_numero_estante")
+  /// Token de concorrência otimista do mapa da sala (ADR 0005).
+  versao               Int      @default(1)
+  criadoEm             DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm         DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
+  andar        Andar         @relation(fields: [andarId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  moveis       Movel[]
   equipamentos Equipamento[]
   materiais    Material[]
 
-  @@index([ativo, ordemExibicao, nome], map: "locais_armazenamento_ativo_ordem_idx")
-  @@map("locais_armazenamento")
+  @@unique([andarId, numero], map: "salas_andar_numero_key")
+  @@map("salas")
 }
 
-/// Posição dentro do local de armazenamento (prateleira de cima, de baixo…).
-model Orientacao {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nome            String   @db.VarChar(80)
-  nomeNormalizado String   @unique(map: "orientacoes_nome_normalizado_key") @map("nome_normalizado") @db.VarChar(80)
-  ativo           Boolean  @default(true)
-  ordemExibicao   Int      @default(0) @map("ordem_exibicao")
-  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+/// Armário ou estante de uma sala, na fileira do mapa. O nome ("2º armário",
+/// "1ª estante") vem do tipo e do número, que é fixo: mudar a posição na
+/// fileira não muda o nome. Criado, reordenado e excluído só pelo mapa.
+model Movel {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  salaId       String    @map("sala_id") @db.Uuid
+  tipo         TipoMovel
+  /// Contado por tipo dentro da sala.
+  numero       Int
+  /// Ordem na fileira do mapa (menor = mais à esquerda).
+  posicao      Int
+  criadoEm     DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
+  sala         Sala          @relation(fields: [salaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   equipamentos Equipamento[]
   materiais    Material[]
 
-  @@index([ativo, ordemExibicao, nome], map: "orientacoes_ativo_ordem_idx")
-  @@map("orientacoes")
+  @@unique([salaId, tipo, numero], map: "moveis_sala_tipo_numero_key")
+  @@index([salaId, posicao], map: "moveis_sala_posicao_idx")
+  @@map("moveis")
 }
 
 // ---------------------------------------------------------------------------
@@ -339,10 +385,13 @@ model Equipamento {
   codigoTrillogo            String? @map("codigo_trillogo") @db.VarChar(60)
   codigoTrillogoNormalizado String? @map("codigo_trillogo_normalizado") @db.VarChar(60)
 
-  statusId             String  @map("status_id") @db.Uuid
-  andarId              String  @map("andar_id") @db.Uuid
-  localArmazenamentoId String? @map("local_armazenamento_id") @db.Uuid
-  orientacaoId         String? @map("orientacao_id") @db.Uuid
+  statusId   String  @map("status_id") @db.Uuid
+  /// Onde o item fica (ADR 0011). A sala é obrigatória; o móvel e a
+  /// prateleira são opcionais, e a prateleira (1 = parte superior … 6 = mais
+  /// baixa) só existe com móvel (restrições `CHECK` e gatilho na migração).
+  salaId     String  @map("sala_id") @db.Uuid
+  movelId    String? @map("movel_id") @db.Uuid
+  prateleira Int?
 
   observacoes String? @db.VarChar(1000)
 
@@ -366,15 +415,14 @@ model Equipamento {
   /// token, nunca como valor a gravar.
   versao Int @default(1)
 
-  categoria          Categoria           @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  fabricante         Fabricante          @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  status             StatusFuncionamento @relation(fields: [statusId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  andar              Andar               @relation(fields: [andarId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  localArmazenamento LocalArmazenamento? @relation(fields: [localArmazenamentoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  orientacao         Orientacao?         @relation(fields: [orientacaoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  criadoPor          Usuario             @relation("EquipamentoCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  atualizadoPor      Usuario             @relation("EquipamentoAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  arquivadoPor       Usuario?            @relation("EquipamentoArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  categoria     Categoria           @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fabricante    Fabricante          @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  status        StatusFuncionamento @relation(fields: [statusId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sala          Sala                @relation(fields: [salaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  movel         Movel?              @relation(fields: [movelId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criadoPor     Usuario             @relation("EquipamentoCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  atualizadoPor Usuario             @relation("EquipamentoAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arquivadoPor  Usuario?            @relation("EquipamentoArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   registrosAuditoria RegistroAuditoria[]
 
@@ -384,9 +432,8 @@ model Equipamento {
   @@index([categoriaId], map: "equipamentos_categoria_idx")
   @@index([fabricanteId], map: "equipamentos_fabricante_idx")
   @@index([statusId], map: "equipamentos_status_idx")
-  @@index([andarId], map: "equipamentos_andar_idx")
-  @@index([localArmazenamentoId], map: "equipamentos_local_armazenamento_idx")
-  @@index([orientacaoId], map: "equipamentos_orientacao_idx")
+  @@index([salaId], map: "equipamentos_sala_idx")
+  @@index([movelId], map: "equipamentos_movel_idx")
   @@index([criadoPorId], map: "equipamentos_criado_por_idx")
   @@index([atualizadoPorId], map: "equipamentos_atualizado_por_idx")
   @@index([arquivadoPorId], map: "equipamentos_arquivado_por_idx")
@@ -422,9 +469,12 @@ model Material {
   /// `null` = sem estoque mínimo definido. Nunca negativo (restrição `CHECK`).
   estoqueMinimo Int? @map("estoque_minimo")
 
-  andarId              String  @map("andar_id") @db.Uuid
-  localArmazenamentoId String? @map("local_armazenamento_id") @db.Uuid
-  orientacaoId         String? @map("orientacao_id") @db.Uuid
+  /// Onde o item fica (ADR 0011). A sala é obrigatória; o móvel e a
+  /// prateleira são opcionais, e a prateleira (1 = parte superior … 6 = mais
+  /// baixa) só existe com móvel (restrições `CHECK` e gatilho na migração).
+  salaId     String  @map("sala_id") @db.Uuid
+  movelId    String? @map("movel_id") @db.Uuid
+  prateleira Int?
 
   /// Só a data, sem hora nem fuso: o dia em que a quantidade foi contada.
   dataUltimaContagem DateTime? @map("data_ultima_contagem") @db.Date
@@ -450,24 +500,22 @@ model Material {
   /// Token de concorrência otimista (ADR 0005), como no equipamento.
   versao Int @default(1)
 
-  categoria          CategoriaMaterial   @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  fabricante         Fabricante?         @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  unidadeMedida      UnidadeMedida       @relation(fields: [unidadeMedidaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  andar              Andar               @relation(fields: [andarId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  localArmazenamento LocalArmazenamento? @relation(fields: [localArmazenamentoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  orientacao         Orientacao?         @relation(fields: [orientacaoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  criadoPor          Usuario             @relation("MaterialCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  atualizadoPor      Usuario             @relation("MaterialAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  arquivadoPor       Usuario?            @relation("MaterialArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  categoria     CategoriaMaterial @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fabricante    Fabricante?       @relation(fields: [fabricanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  unidadeMedida UnidadeMedida     @relation(fields: [unidadeMedidaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sala          Sala              @relation(fields: [salaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  movel         Movel?            @relation(fields: [movelId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criadoPor     Usuario           @relation("MaterialCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  atualizadoPor Usuario           @relation("MaterialAtualizadoPor", fields: [atualizadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arquivadoPor  Usuario?          @relation("MaterialArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   registrosAuditoria RegistroAuditoria[]
 
   @@index([categoriaId], map: "materiais_categoria_idx")
   @@index([fabricanteId], map: "materiais_fabricante_idx")
   @@index([unidadeMedidaId], map: "materiais_unidade_medida_idx")
-  @@index([andarId], map: "materiais_andar_idx")
-  @@index([localArmazenamentoId], map: "materiais_local_armazenamento_idx")
-  @@index([orientacaoId], map: "materiais_orientacao_idx")
+  @@index([salaId], map: "materiais_sala_idx")
+  @@index([movelId], map: "materiais_movel_idx")
   @@index([criadoPorId], map: "materiais_criado_por_idx")
   @@index([atualizadoPorId], map: "materiais_atualizado_por_idx")
   @@index([arquivadoPorId], map: "materiais_arquivado_por_idx")

@@ -1,5 +1,5 @@
 /**
- * Página inicial: duas entradas, cadastrar e ver o estoque.
+ * Página inicial: cadastrar, ver o estoque e pesquisar patrimônio (ADR 0011).
  *
  * Sem consulta ao banco, de propósito: abre mesmo se o banco estiver fora do
  * ar. (A faixa do topo, no layout, busca a conta para mostrar a foto; se o
@@ -90,6 +90,29 @@ export default function PaginaInicial() {
             <span className="text-xl font-semibold text-texto">Ver estoque</span>
             <span className="text-sm text-texto-suave">Equipamentos e materiais cadastrados.</span>
           </span>
+        </Link>
+        {/* Menor e centralizado abaixo dos dois cartões, como no protótipo (ADR 0011). */}
+        <Link
+          href="/patrimonio"
+          className="group flex items-center gap-4 rounded-2xl border border-borda bg-superficie px-5 py-3 text-left shadow-cartao transition hover:-translate-y-0.5 hover:border-foco sm:col-span-2 sm:min-w-80 sm:justify-self-center"
+        >
+          <span className={CLASSE_DO_ICONE}>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </span>
+          <span className="text-lg font-semibold text-texto">Pesquisar patrimônio</span>
         </Link>
       </nav>
     </main>
