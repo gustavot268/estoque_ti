@@ -16,8 +16,10 @@ import {
 
 /**
  * Seletor "Itens por página" das listas de equipamentos e de materiais
- * (issue #25). A lista inteira roda sem JavaScript no navegador: o seletor é
- * um formulário GET com "Aplicar", e o servidor só aceita 10, 20, 50 ou 100.
+ * (issue #25) e o contador "Exibindo 21–40 de 135" acima da tabela (issue #24),
+ * que acompanha página, itens por página e filtros. A lista inteira roda sem
+ * JavaScript no navegador: o seletor é um formulário GET com "Aplicar", e o
+ * servidor só aceita 10, 20, 50 ou 100.
  */
 
 const prefixo = `e2e-ipp-${randomUUID().slice(0, 8)}`;
@@ -137,6 +139,51 @@ test.describe("itens por página (perfil Operação — o padrão do ambiente)",
     await expect(page.getByLabel("Itens por página")).toHaveValue("20");
     await expect(linhasDaTabela(page, "Lista de equipamentos")).toHaveCount(20);
     await expect(page.getByText("Página 1 de 2")).toBeVisible();
+  });
+
+  test("equipamentos: o contador acompanha página, itens por página e filtros", async ({
+    page,
+  }) => {
+    await page.goto(`/equipamentos?busca=${prefixo}-eq`);
+    await expect(page.getByText("Exibindo 1–20 de 21 equipamentos")).toBeVisible();
+
+    await page.getByRole("link", { name: "Próxima" }).click();
+    await expect(page.getByText("Exibindo 21–21 de 21 equipamentos")).toBeVisible();
+
+    await page.getByLabel("Itens por página").selectOption("10");
+    await page.getByRole("button", { name: "Aplicar" }).click();
+    await expect(page.getByText("Exibindo 1–10 de 21 equipamentos")).toBeVisible();
+    await page.getByRole("link", { name: "Próxima" }).click();
+    await expect(page.getByText("Exibindo 11–20 de 21 equipamentos")).toBeVisible();
+
+    // Filtro que deixa só "eq 00" a "eq 09".
+    await page.goto(`/equipamentos?busca=${prefixo}-eq 0`);
+    await expect(page.getByText("Exibindo 1–10 de 10 equipamentos")).toBeVisible();
+    await expect(linhasDaTabela(page, "Lista de equipamentos")).toHaveCount(10);
+  });
+
+  test("equipamentos: numa página além da última, o contador avisa e oferece a primeira", async ({
+    page,
+  }) => {
+    await page.goto(`/equipamentos?busca=${prefixo}-eq&pagina=99`);
+    await expect(
+      page.getByText("Nenhum equipamento nesta página. A lista tem 21 equipamentos em 2 páginas."),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Ir para a primeira página" }).click();
+    await expect(page).not.toHaveURL(/pagina=/);
+    await expect(page).toHaveURL(/busca=/);
+    await expect(page.getByText("Exibindo 1–20 de 21 equipamentos")).toBeVisible();
+  });
+
+  test("materiais: o contador funciona igual", async ({ page }) => {
+    await page.goto(`/materiais?busca=${prefixo}-mat`);
+    await expect(page.getByText("Exibindo 1–11 de 11 materiais")).toBeVisible();
+
+    await page.getByLabel("Itens por página").selectOption("10");
+    await page.getByRole("button", { name: "Aplicar" }).click();
+    await expect(page.getByText("Exibindo 1–10 de 11 materiais")).toBeVisible();
+    await page.getByRole("link", { name: "Próxima" }).click();
+    await expect(page.getByText("Exibindo 11–11 de 11 materiais")).toBeVisible();
   });
 
   test("materiais: o seletor funciona igual, mantendo a busca", async ({ page }) => {

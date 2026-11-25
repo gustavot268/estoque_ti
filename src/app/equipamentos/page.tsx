@@ -11,6 +11,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BotaoArquivarDaLista } from "../../components/botao-arquivar-da-lista";
+import { textoDoContador } from "../../components/contador-de-registros";
 import { MensagemDeAcesso } from "../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../components/mensagem-simples";
 import { MolduraDeAbas } from "../../components/moldura-de-abas";
@@ -233,7 +234,7 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
     return <MensagemDeIndisponibilidade />;
   }
 
-  const { itens, total, totalPaginas, pagina, parametros } = resultado;
+  const { itens, total, totalPaginas, pagina, tamanhoPagina, parametros } = resultado;
   // A planilha traz equipamentos e materiais: exportar exige as duas permissões.
   const podeExportar =
     acoesPermitidas(ator.perfil).includes("EXPORTAR_EQUIPAMENTOS") &&
@@ -442,9 +443,21 @@ export default async function PaginaDeConsulta({ searchParams }: PageProps<"/equ
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-texto-suave">
-              {total === 0
-                ? "Nenhum equipamento encontrado com os filtros atuais."
-                : `${total} equipamento${total === 1 ? "" : "s"} encontrado${total === 1 ? "" : "s"}.`}
+              {textoDoContador(
+                { total, pagina, tamanhoPagina, totalPaginas, exibidos: itens.length },
+                { singular: "equipamento", plural: "equipamentos" },
+              )}
+              {total > 0 && itens.length === 0 && (
+                <>
+                  {" "}
+                  <Link
+                    href={construirHref(parametros, { pagina: undefined })}
+                    className="font-medium text-link underline decoration-1 underline-offset-4 hover:decoration-2"
+                  >
+                    Ir para a primeira página
+                  </Link>
+                </>
+              )}
             </p>
             {total > 0 && (
               <SeletorDeItensPorPagina
