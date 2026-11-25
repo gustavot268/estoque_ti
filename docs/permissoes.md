@@ -38,6 +38,7 @@ autenticado sem perfil resolvido não executa nenhuma ação protegida.
 | Arquivar material | ❌ | ❌ | ✅ |
 | Restaurar material e ver os arquivados (`/materiais/arquivados`) | ❌ | ❌ | ✅ |
 | Pesquisar patrimônio (`/patrimonio`: mapa dos móveis e onde está cada item — ADR 0011) | ✅ | ✅ | ✅ |
+| Modo edição do mapa: adicionar, reordenar e excluir armários e estantes (`GERENCIAR_MOVEIS`) | ❌ | ❌ | ✅ |
 | Gerenciar listas controladas (Categoria, Fabricante, Status, Unidade, Andar e salas, Categoria de material, Unidade de medida) | ❌ | ❌ | ✅ |
 
 Fonte normativa: contrato técnico das Etapas 1–2, seção 7.5, que reflete a seção 6 dos

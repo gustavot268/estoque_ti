@@ -9,13 +9,16 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { IconeLapis } from "../../components/icones";
 import { MensagemDeAcesso } from "../../components/mensagem-de-acesso";
 import { MensagemDeIndisponibilidade, MensagemSimples } from "../../components/mensagem-simples";
 import { SeloTrillogo } from "../../components/selo-trillogo";
 import { descricaoDoEquipamento, descricaoDoMaterial } from "../../domain/descricao-do-item";
 import { AcessoNegadoError, EntradaInvalidaError } from "../../domain/erros";
 import { rotuloDaPrateleira, rotuloDoMovel } from "../../domain/localizacao";
+import { acoesPermitidas } from "../../domain/permissoes";
 import { MovelAberto, MovelFechado } from "../../features/patrimonio/desenho-do-movel";
+import { EditorDoMapa } from "../../features/patrimonio/editor-do-mapa";
 import { obterAtorAtual } from "../../infrastructure/auth/ator-atual";
 import { logger } from "../../infrastructure/observability/logger";
 import { obterPrisma } from "../../infrastructure/prisma/cliente";
@@ -40,6 +43,8 @@ type Destino = {
   readonly unidadeId?: string | null;
   readonly salaId?: string | null;
   readonly movelId?: string | null;
+  /** "1" = modo edição do mapa (só tem efeito para quem tem `GERENCIAR_MOVEIS`). */
+  readonly editar?: string | null;
 };
 
 function construirHref(destino: Destino): string {
@@ -124,7 +129,11 @@ export default async function PaginaPesquisarPatrimonio({
     resultado;
   const busca = parametros.busca;
   const rotuloDaSalaPorId = new Map(salas.map((sala) => [sala.id, sala.rotulo]));
-  const base = { busca, unidadeId };
+  // O lápis só aparece para quem pode editar; quem decide de verdade é o servidor
+  // (cada ação do editor confere `GERENCIAR_MOVEIS`).
+  const podeEditarMapa = acoesPermitidas(ator.perfil).includes("GERENCIAR_MOVEIS");
+  const modoEdicao = podeEditarMapa && primeiroValor(brutos.editar) === "1";
+  const base = { busca, unidadeId, editar: modoEdicao ? "1" : null };
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8">
@@ -267,7 +276,33 @@ export default async function PaginaPesquisarPatrimonio({
             })}
           </nav>
 
-          {moveis.length === 0 ? (
+          {podeEditarMapa && !modoEdicao && salaAberta !== null && (
+            <div className="flex justify-center">
+              <Link
+                href={construirHref({ ...base, salaId: salaAberta.id, editar: "1" })}
+                aria-label="Modo edição do mapa"
+                title="Modo edição do mapa"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-primaria bg-superficie text-texto shadow-sm transition-colors hover:bg-superficie-suave"
+              >
+                <IconeLapis tamanho={22} />
+              </Link>
+            </div>
+          )}
+
+          {modoEdicao && salaAberta !== null ? (
+            <EditorDoMapa
+              salaId={salaAberta.id}
+              rotuloDaSala={salaAberta.rotulo}
+              versao={salaAberta.versao}
+              moveis={moveis.map((movel) => ({
+                id: movel.id,
+                tipo: movel.tipo,
+                numero: movel.numero,
+                itens: movel.itens,
+              }))}
+              hrefSair={construirHref({ busca, unidadeId, salaId: salaAberta.id })}
+            />
+          ) : moveis.length === 0 ? (
             <p className="text-sm text-texto-suave">
               Nenhum armário ou estante cadastrado nesta sala.
             </p>
@@ -325,7 +360,7 @@ export default async function PaginaPesquisarPatrimonio({
             </p>
           )}
 
-          {movelAberto !== null && (
+          {movelAberto !== null && !modoEdicao && (
             <div className="flex flex-col gap-4 rounded-xl border border-borda bg-superficie-suave p-4 md:flex-row md:items-start">
               <div className="flex flex-col items-center gap-2 md:w-72">
                 <MovelAberto

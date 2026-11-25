@@ -42,3 +42,11 @@ describe("matriz de permissões — acesso por convite", () => {
     expect(perfilPodeExecutar("CONSULTA", "GERENCIAR_ACESSOS")).toBe(false);
   });
 });
+
+describe("matriz de permissões — mapa do Pesquisar patrimônio (ADR 0011)", () => {
+  it("só Administração edita o mapa (adiciona, reordena e exclui móveis)", () => {
+    expect(perfilPodeExecutar("ADMINISTRACAO", "GERENCIAR_MOVEIS")).toBe(true);
+    expect(perfilPodeExecutar("OPERACAO", "GERENCIAR_MOVEIS")).toBe(false);
+    expect(perfilPodeExecutar("CONSULTA", "GERENCIAR_MOVEIS")).toBe(false);
+  });
+});

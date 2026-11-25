@@ -48,6 +48,16 @@ export function rotuloDoMovel(tipo: TipoDeMovel, numero: number): string {
   return tipo === "ARMARIO" ? `${numero}º armário` : `${numero}ª estante`;
 }
 
+/** Concordância: armário é masculino, estante é feminino ("o 2º armário", "a 1ª estante"). */
+export function noGenero(tipo: TipoDeMovel, masculino: string, feminino: string): string {
+  return tipo === "ARMARIO" ? masculino : feminino;
+}
+
+/** "o 2º armário", "a 1ª estante". */
+export function movelComArtigo(tipo: TipoDeMovel, numero: number): string {
+  return `${noGenero(tipo, "o", "a")} ${rotuloDoMovel(tipo, numero)}`;
+}
+
 export function rotuloDaPrateleira(tipo: TipoDeMovel, prateleira: number): string {
   if (tipo === "ARMARIO") {
     if (prateleira === 1) {

@@ -43,6 +43,8 @@ export type SalaDaUnidade = {
   readonly andarId: string;
   readonly andar: string;
   readonly salasNoAndar: number;
+  /** Token de concorrência otimista do mapa da sala (ADR 0005). */
+  readonly versao: number;
 };
 
 /** Salas ativas da unidade, na ordem dos andares e do número da sala. */
@@ -56,6 +58,7 @@ export async function listarSalasDaUnidade(
     select: {
       id: true,
       numero: true,
+      versao: true,
       andar: { select: { id: true, nome: true, _count: { select: { salas: true } } } },
     },
   });
@@ -65,6 +68,7 @@ export async function listarSalasDaUnidade(
     andarId: sala.andar.id,
     andar: sala.andar.nome,
     salasNoAndar: sala.andar._count.salas,
+    versao: sala.versao,
   }));
 }
 

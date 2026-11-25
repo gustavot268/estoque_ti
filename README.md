@@ -340,8 +340,13 @@ Tela `/patrimonio`, aberta pelo botão "Pesquisar patrimônio" da página inicia
   aparece a lista do que há no móvel.
 - Só consulta, para todos os perfis; itens arquivados não aparecem. Funciona sem
   JavaScript: todo o estado fica na URL.
-- O **modo edição** do mapa (adicionar, reordenar e excluir móveis, só Administração) é
-  a próxima etapa ([#35](https://github.com/gustavot268/estoque_ti/issues/35)).
+- **Modo edição** (só Administração, permissão `GERENCIAR_MOVEIS`): o lápis acima da
+  fileira abre a barra com **"+"** (painel para escolher armário ou estante, que entra no fim
+  da fileira com o próximo número do tipo) e **lixeira** (os móveis ficam selecionáveis; só um
+  móvel vazio é excluído, com confirmação). Os móveis podem ser **arrastados** para mudar a
+  ordem e se encaixam ao lado do vizinho; também há botões de mover para a esquerda/direita.
+  O nome do móvel nunca muda, e o número de um móvel excluído não volta. Cada alteração é
+  gravada na hora, conferida no servidor e registrada na auditoria.
 
 ## Exportação para Excel
 

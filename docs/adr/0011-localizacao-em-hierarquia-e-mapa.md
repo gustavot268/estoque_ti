@@ -1,6 +1,6 @@
 # ADR 0011 — Localização em hierarquia e mapa de móveis ("Pesquisar patrimônio")
 
-- Status: aceito — partes 1 e 2 (localização em hierarquia, #33; tela de pesquisa, #34) implementadas; parte 3 (modo edição, #35) pendente
+- Status: aceito — implementado: parte 1 (localização em hierarquia, #33), parte 2 (tela de pesquisa, #34) e parte 3 (modo edição do mapa, #35)
 - Relacionado: issue #28 (Pesquisar patrimônio), [ADR 0005](0005-concorrencia-otimista.md)
   (concorrência otimista), [ADR 0008](0008-auditoria-append-only.md) (auditoria),
   [`docs/modelo-de-dados.md`](../modelo-de-dados.md),
@@ -85,15 +85,21 @@ Unidade → Andar → Sala → Móvel (armário ou estante) → Prateleira
 
 ### Modo edição do mapa
 
-- **Só Administração.** Nova ação de permissão própria (ex.: `GERENCIAR_MOVEIS`), conferida no
-  servidor.
+- **Só Administração.** Ação de permissão própria, `GERENCIAR_MOVEIS`, conferida no servidor em
+  cada operação (`src/services/moveis.ts`). O lápis só aparece para quem a tem, mas isso é só
+  interface: forçar `?editar=1` no endereço não abre o editor para outros perfis.
 - **Adicionar**: o botão "+" abre um painel para escolher armário ou estante.
 - **Reordenar**: arrastar o móvel na fileira. Também deve haver uma forma de mover pelo
   teclado.
 - **Excluir**: só **móvel vazio**. Se houver itens ligados ao móvel (inclusive arquivados), a
   exclusão é recusada com uma mensagem que diz quantos são. Itens nunca são apagados (regra 4.1).
-- Reordenação usa concorrência otimista (ADR 0005). Criação, reordenação e exclusão de móvel
-  ficam registradas na auditoria (ADR 0008).
+- Toda alteração do mapa confere a versão da sala (`salas.versao`, concorrência otimista — ADR
+  0005): se outra pessoa mudou o mapa antes, a alteração é recusada e a tela recebe o mapa atual.
+- Criação, reordenação e exclusão de móvel ficam na auditoria (ADR 0008), como as demais
+  listas: `LISTA_CRIACAO` / `LISTA_EDICAO` / `LISTA_EXCLUSAO`, com `tipo: "movel"` (ou
+  `"ordem-dos-moveis"` na reordenação, com a ordem antes e depois). Não foi preciso valor novo
+  no enum nem migração.
+- Cada alteração é gravada na hora, por Server Actions (`src/app/patrimonio/acoes.ts`).
 
 ### Migração dos dados atuais
 
@@ -136,8 +142,9 @@ Administração cria a segunda sala e move para ela os itens que forem do "Estoq
 - Mudam: o esquema do banco (nova migração), o seed, os formulários de cadastro e edição, a tela
   de detalhes, a tela "Gerenciar listas", a exportação (as colunas Andar, Local de armazenamento
   e Orientação viram Unidade, Andar, Sala, Móvel e Prateleira) e os testes.
-- O mapa e o modo edição exigem JavaScript no navegador. O arraste será feito com eventos
-  nativos, sem biblioteca nova.
+- A consulta do mapa funciona sem JavaScript; o modo edição exige JavaScript. O arraste usa
+  eventos nativos do navegador (pointer events), sem biblioteca nova, e tem alternativa por
+  botões ("mover para a esquerda/direita") para teclado e leitor de tela.
 - A Administração precisa ajustar manualmente a divisão dos itens do 16º andar entre as duas
   salas.
 

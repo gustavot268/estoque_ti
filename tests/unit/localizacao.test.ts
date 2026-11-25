@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  movelComArtigo,
+  noGenero,
   prateleirasDoMovel,
   prateleiraValida,
   rotuloDaPrateleira,
@@ -13,6 +15,12 @@ describe("localização em hierarquia (ADR 0011)", () => {
     expect(rotuloDaSala(1, 1)).toBe("Estoque");
     expect(rotuloDaSala(1, 2)).toBe("Estoque 1");
     expect(rotuloDaSala(3, 2)).toBe("Estoque 3");
+  });
+
+  it("concordância: armário é masculino, estante é feminino", () => {
+    expect(movelComArtigo("ARMARIO", 2)).toBe("o 2º armário");
+    expect(movelComArtigo("ESTANTE", 1)).toBe("a 1ª estante");
+    expect(noGenero("ESTANTE", "movido", "movida")).toBe("movida");
   });
 
   it("móvel pelo tipo e número fixo", () => {

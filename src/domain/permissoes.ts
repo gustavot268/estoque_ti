@@ -25,6 +25,8 @@ export const ACOES = [
   "GERENCIAR_LISTAS",
   /** Incluir, alterar e remover quem pode entrar no app (acesso por convite — ADR 0009). */
   "GERENCIAR_ACESSOS",
+  /** Modo edição do mapa "Pesquisar patrimônio": adicionar, reordenar e excluir móveis (ADR 0011). */
+  "GERENCIAR_MOVEIS",
 ] as const;
 
 export type Acao = (typeof ACOES)[number];
@@ -66,6 +68,7 @@ const MATRIZ: Readonly<Record<PerfilAcesso, readonly Acao[]>> = {
     "RESTAURAR_MATERIAL",
     "GERENCIAR_LISTAS",
     "GERENCIAR_ACESSOS",
+    "GERENCIAR_MOVEIS",
   ],
 };
 

@@ -43,6 +43,8 @@ export type SalaNaPesquisa = {
   readonly sala: string;
   /** Itens que casam com a busca nesta sala; `null` sem busca. */
   readonly resultados: number | null;
+  /** Versão do mapa da sala, para o modo edição (ADR 0005). */
+  readonly versao: number;
 };
 
 export type MovelNoMapa = MovelDaSala & {
@@ -136,6 +138,7 @@ export async function pesquisarPatrimonio(
       andar: sala.andar,
       sala: nomeDaSala,
       resultados: resultadosPorSala === null ? null : (resultadosPorSala.get(sala.id) ?? 0),
+      versao: sala.versao,
     };
   });
   const totalEncontrado =
